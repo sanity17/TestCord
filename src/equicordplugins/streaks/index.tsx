@@ -104,7 +104,7 @@ export default definePlugin({
     description: "Shows a streak next to a user when you exchange DMs with them on consecutive days.",
     authors: [EquicordDevs.Moowi],
     tags: ["Friends", "Fun"],
-    dependencies: ["MessageDecorationsAPI", "MemberListDecoratorsAPI", "ConcatenatedModules"],
+    dependencies: ["MessageDecorationsAPI", "MemberListDecoratorsAPI"],
 
     async start() {
         streaks = await DataStore.get(dataKey) ?? {};
