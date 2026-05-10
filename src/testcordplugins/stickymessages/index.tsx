@@ -4,10 +4,13 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { HeaderBarButton } from "@api/HeaderBar";
 import { DataStore } from "@api/index";
+import { plugins } from "@api/PluginManager";
 import { definePluginSettings } from "@api/Settings";
 import { Heading } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
+import { openPluginModal } from "@components/settings";
 import { TestcordDevs } from "@utils/constants";
 import { sendMessage } from "@utils/discord";
 import { useForceUpdater } from "@utils/react";
@@ -16,6 +19,29 @@ import { findByPropsLazy } from "@webpack";
 import { Button, React, TextInput, UserStore } from "@webpack/common";
 
 const MessageActions = findByPropsLazy("deleteMessage", "startEditMessage");
+
+function StickyIcon(props: { size?: string | number; width?: number; height?: number; color?: string; }) {
+    const w = props.width ?? 18;
+    const h = props.height ?? 18;
+    return (
+        <svg width={w} height={h} viewBox="0 0 24 24" fill="none">
+            <path
+                fill={props.color ?? "currentColor"}
+                d="M16 3l5 5-3 1-4 4 1 5-2 2-4-4-5 5-1-1 5-5-4-4 2-2 5 1 4-4 1-3z"
+            />
+        </svg>
+    );
+}
+
+function StickyHeaderButton() {
+    return (
+        <HeaderBarButton
+            tooltip="Sticky Messages"
+            icon={StickyIcon}
+            onClick={() => openPluginModal(plugins.StickyMessages)}
+        />
+    );
+}
 
 type StickyEntry = {
     id: string;
@@ -227,6 +253,11 @@ export default definePlugin({
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b],
     settings,
+
+    headerBarButton: {
+        render: StickyHeaderButton,
+        icon: StickyIcon,
+    },
 
     flux: {
         MESSAGE_CREATE({ message, optimistic }: { message: any; optimistic?: boolean; }) {
