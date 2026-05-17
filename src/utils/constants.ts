@@ -58,6 +58,7 @@ export interface Dev {
     name: string;
     id: bigint;
     badge?: boolean;
+    github?: string;
 }
 
 /**
@@ -1343,7 +1344,8 @@ export const TestcordDevs = /* #__PURE__*/ Object.freeze({
     },
     x2b: {
         name: "x2b",
-        id: 996137713432530976n
+        id: 996137713432530976n,
+        github: "x2b1"
     },
     x2b2: {
         name: "0gfm",
@@ -1383,7 +1385,8 @@ export const TestcordDevs = /* #__PURE__*/ Object.freeze({
     },
     nnenaza: {
         name: "kiara",
-        id: 1501441039418785933n
+        id: 1501441039418785933n,
+        github: "Mixiruri"
     },
     neoarz: {
         name: "neoarz",
@@ -1427,3 +1430,6 @@ export const TestcordDevsById = /* #__PURE__*/ (() =>
             .map(([_, v]) => [v.id, v] as const)
     ))
 )() as Record<string, Dev>;
+
+
+

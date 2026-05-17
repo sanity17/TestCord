@@ -198,10 +198,30 @@ export default function PluginSettings() {
 
     const hasUserPlugins = useMemo(() => !IS_STANDALONE && Object.values(PluginMeta).some(m => m.userPlugin), []);
 
-    const [searchValue, setSearchValue] = useState({ value: "", tags: [] as PluginTag[], status: SearchStatus.ALL });
+    const [searchValue, setSearchValue] = useState({ value: "", tags: [] as PluginTag[], status: SearchStatus.ALL, author: "" });
 
     const search = searchValue.value.toLowerCase();
     const onSearch = (query: string) => setSearchValue(prev => ({ ...prev, value: query }));
+
+    const authorOptions = useMemo(() => {
+        const authors = new Map();
+        for (const plugin of sortedPlugins) {
+            const meta = PluginMeta[plugin.name];
+            const folder = meta ? meta.folderName : "";
+            const category = folder.startsWith("src/testcordplugins/") ? "Testcord" : folder.startsWith("src/equicordplugins/") ? "Equicord" : folder.startsWith("src/plugins/") ? "Vencord" : "Other";
+            for (const author of (plugin.authors || [])) {
+                if (!author || !author.name) continue;
+                if (!authors.has(author.name)) authors.set(author.name, category);
+            }
+        }
+        const grouped = { Testcord: [], Equicord: [], Vencord: [], Other: [] };
+        for (const [name, cat] of authors.entries()) grouped[cat].push(name);
+        const result = [];
+        for (const [cat, names] of Object.entries(grouped)) {
+            for (const name of names.sort()) result.push({ label: name + " (" + cat + ")", value: name });
+        }
+        return result;
+    }, [sortedPlugins]);
 
     const pluginFilter = useCallback((plugin: typeof Plugins[keyof typeof Plugins], newPluginsSet: Set<string> | null) => {
         const { status, tags } = searchValue;
@@ -240,6 +260,8 @@ export default function PluginSettings() {
         }
 
         if (tags.length && tags.some(t => !plugin.tags?.includes(t))) return false;
+
+        if (searchValue.author && !plugin.authors?.some(a => a?.name === searchValue.author)) return false;
 
         if (!search.length) return true;
 
@@ -385,6 +407,7 @@ export default function PluginSettings() {
     }, [isSentinelVisible, visibleCount, plugins.length, dLoadMore]);
 
     const visiblePlugins = plugins.slice(0, visibleCount);
+    const authorGithub = searchValue.author ? ("https://github.com/" + ((authorOptions.find(a => a.value === searchValue.author) || {}).github || searchValue.author)) : "";
 
     return (
         <SettingsTab>
@@ -420,7 +443,7 @@ export default function PluginSettings() {
             </ErrorBoundary>
 
             <ErrorBoundary noop>
-                <div className={classes(Margins.bottom20, Margins.top8, cl("filter-controls"))}>
+                <div className={classes(Margins.bottom8, Margins.top8, cl("filter-controls"))}>
                     <Select
                         options={[
                             { label: "Show All", value: SearchStatus.ALL, default: true },
@@ -448,10 +471,28 @@ export default function PluginSettings() {
                         placeholder="Filter by Tags"
                         multi
                     />
+                    <SearchableSelect
+                        options={[{ label: "All Authors", value: "" }, ...authorOptions]}
+                        value={searchValue.author}
+                        onChange={(v) => setSearchValue(prev => ({ ...prev, author: v ?? "" }))}
+                        closeOnSelect={true}
+                        placeholder="Filter by Author"
+                    />
+                    {searchValue.author && (
+                        <a
+                            href={authorGithub}
+                            target="_blank"
+                            rel="noreferrer"
+                            style={{ display: "flex", alignItems: "center", gap: "4px", color: "var(--text-link)", fontSize: "14px", textDecoration: "none", whiteSpace: "nowrap" }}
+                        >
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M12 0C5.37 0 0 5.37 0 12c0 5.31 3.435 9.795 8.205 11.385.6.105.825-.255.825-.57 0-.285-.015-1.23-.015-2.235-3.015.555-3.795-.735-4.035-1.41-.135-.345-.72-1.41-1.23-1.695-.42-.225-1.02-.78-.015-.795.945-.015 1.62.87 1.845 1.23 1.08 1.815 2.805 1.305 3.495.99.105-.78.42-1.305.765-1.605-2.67-.3-5.46-1.335-5.46-5.925 0-1.305.465-2.385 1.23-3.225-.12-.3-.54-1.53.12-3.18 0 0 1.005-.315 3.3 1.23.96-.27 1.98-.405 3-.405s2.04.135 3 .405c2.295-1.56 3.3-1.23 3.3-1.23.66 1.65.24 2.88.12 3.18.765.84 1.23 1.905 1.23 3.225 0 4.605-2.805 5.625-5.475 5.925.435.375.81 1.095.81 2.22 0 1.605-.015 2.895-.015 3.3 0 .315.225.69.825.57A12.02 12.02 0 0 0 24 12c0-6.63-5.37-12-12-12z"/></svg>
+                            {searchValue.author}
+                        </a>
+                    )}
                 </div>
             </ErrorBoundary>
 
-            <HeadingTertiary className={Margins.top20}>Plugins</HeadingTertiary>
+            <HeadingTertiary className={classes(Margins.top20, Margins.bottom8)} style={{ marginTop: "3.5rem" }}>Plugins</HeadingTertiary>
 
             {plugins.length || requiredPlugins.length
                 ? (
@@ -494,3 +535,21 @@ export function PluginDependencyList({ deps }: { deps: string[]; }) {
         </>
     );
 }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
