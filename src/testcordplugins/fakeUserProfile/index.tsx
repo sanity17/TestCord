@@ -486,6 +486,13 @@ export default definePlugin({
                 replace: "$self.bannerHook(arguments[0])||$&"
             }
         },
+        {
+            find: ":\"SHOULD_LOAD\");",
+            replacement: {
+                match: /\i(?:\?)?\.getPreviewBanner\(\i,\i,\i\)(?=.{0,100}"COMPLETE")/,
+                replace: "$self.bannerHook(arguments[0])||$&"
+            }
+        },
     ],
 
     getUsername(user: User) {
@@ -534,6 +541,32 @@ export default definePlugin({
         if (targetProfile.premiumType != null) overrides.premiumType = targetProfile.premiumType;
         if (targetProfile.premiumSince != null) overrides.premiumSince = targetProfile.premiumSince;
         if (targetProfile.premiumGuildSince != null) overrides.premiumGuildSince = targetProfile.premiumGuildSince;
+
+        if (settings.store.spoofBadges) {
+            if (targetProfile.badges && targetProfile.badges.length) {
+                overrides.badges = targetProfile.badges;
+            } else {
+                const flags = (target as any).publicFlags ?? (target as any).flags ?? 0;
+                const computed: any[] = [];
+                for (const fb of FLAG_BADGES) {
+                    if ((flags & fb.flag) === fb.flag) {
+                        computed.push({
+                            id: `fakeUserProfile-flag-${fb.flag}`,
+                            description: fb.description,
+                            icon: fb.image,
+                        });
+                    }
+                }
+                if (((target as any).premiumType ?? 0) >= 1) {
+                    computed.push({
+                        id: "fakeUserProfile-nitro",
+                        description: "Discord Nitro",
+                        icon: "https://cdn.discordapp.com/badge-icons/2ba85e8026a8614b640c2837bcdfe21b.png",
+                    });
+                }
+                if (computed.length) overrides.badges = computed;
+            }
+        }
 
         if (settings.store.spoofActivities) {
             if (targetProfile.connectedAccounts) overrides.connectedAccounts = targetProfile.connectedAccounts;

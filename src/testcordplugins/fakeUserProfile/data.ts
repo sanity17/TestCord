@@ -65,6 +65,10 @@ export async function loadTarget(targetId: string): Promise<CachedTarget> {
         profile = UserProfileStore.getUserProfile(targetId);
     }
 
+    // fetchUserProfile dispatches USER_UPDATE which replaces the User instance in UserStore.
+    // Re-fetch so we capture banner / accent_color / primaryGuild that just got populated.
+    user = UserStore.getUser(targetId) ?? user;
+
     cached = {
         id: targetId,
         user,
