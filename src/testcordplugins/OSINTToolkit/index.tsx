@@ -21,16 +21,7 @@ interface DomainInfo {
 
 interface IPInfo {
     ip: string;
-    city?: string;
-    region?: string;
-    country?: string;
-    countryName?: string;
-    lat?: number;
-    lon?: number;
-    org?: string;
-    isp?: string;
-    timezone?: string;
-    zip?: string;
+    [key: string]: any;
 }
 
 const settings = definePluginSettings({
@@ -38,6 +29,16 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Enable debug logging",
         default: false
+    },
+    ipProvider: {
+        type: OptionType.SELECT,
+        description: "IP lookup provider",
+        options: [
+            { label: "freeipapi.com", value: "freeipapi", default: true },
+            { label: "ip-api.com", value: "ip-api" },
+            { label: "ipwho.is", value: "ipwhois" },
+            { label: "ipapi.is", value: "ipapi-is" },
+        ]
     },
     availableCommands: {
         type: OptionType.STRING,
@@ -141,34 +142,184 @@ async function getDomainInfo(domain: string): Promise<DomainInfo | null> {
     }
 }
 
-async function getIPInfo(ip: string): Promise<IPInfo | null> {
-    try {
-        const response = await fetch(`https://free.freeipapi.com/api/json/${encodeURIComponent(ip)}`);
+function getProviderUrl(ip?: string): string {
+    const provider = settings.store.ipProvider;
+    switch (provider) {
+        case "ip-api":
+            return ip
+                ? `http://ip-api.com/json/${encodeURIComponent(ip)}?fields=66846719`
+                : "http://ip-api.com/json/?fields=66846719";
+        case "ipwhois":
+            return ip ? `https://ipwho.is/${encodeURIComponent(ip)}` : "https://ipwho.is/";
+        case "ipapi-is":
+            return ip ? `https://api.ipapi.is/?q=${encodeURIComponent(ip)}` : "https://api.ipapi.is/";
+        default:
+            return ip ? `https://free.freeipapi.com/api/json/${encodeURIComponent(ip)}` : "https://free.freeipapi.com/api/json";
+    }
+}
 
-        if (!response.ok) {
-            throw new Error(`IP lookup failed with status ${response.status}`);
-        }
-
-        const data = await response.json();
-
-        const timezone =
-            Array.isArray(data.timeZones) && data.timeZones.length > 0
+function parseProviderResponse(data: any, ip?: string): IPInfo {
+    const provider = settings.store.ipProvider;
+    switch (provider) {
+        case "ip-api":
+            return {
+                ip: data.query || ip || "",
+                continent: data.continent,
+                continentCode: data.continentCode,
+                country: data.country,
+                countryCode: data.countryCode,
+                region: data.regionName,
+                regionCode: data.region,
+                city: data.city,
+                district: data.district,
+                zip: data.zip,
+                lat: data.lat,
+                lon: data.lon,
+                timezone: data.timezone,
+                utcOffset: data.offset,
+                currency: data.currency,
+                isp: data.isp,
+                org: data.org,
+                as: data.as,
+                asname: data.asname,
+                reverse: data.reverse,
+                mobile: data.mobile,
+                proxy: data.proxy,
+                hosting: data.hosting
+            };
+        case "ipwhois":
+            return {
+                ip: data.ip || ip || "",
+                type: data.type,
+                continent: data.continent,
+                continentCode: data.continent_code,
+                country: data.country,
+                countryCode: data.country_code,
+                region: data.region,
+                city: data.city,
+                lat: data.latitude,
+                lon: data.longitude,
+                postal: data.postal,
+                callingCode: data.calling_code,
+                capital: data.capital,
+                isEU: data.is_eu,
+                flag: data.flag?.emoji,
+                asn: data.connection?.asn,
+                org: data.connection?.org,
+                isp: data.connection?.isp,
+                domain: data.connection?.domain,
+                timezone: data.timezone?.id,
+                timezoneAbbr: data.timezone?.abbr,
+                timezoneUtc: data.timezone?.utc,
+                currentTime: data.timezone?.current_time,
+                proxy: data.security?.proxy,
+                vpn: data.security?.vpn,
+                tor: data.security?.tor,
+                hosting: data.security?.hosting,
+                anonymous: data.security?.anonymous
+            };
+        case "ipapi-is":
+            return {
+                ip: data.ip || ip || "",
+                rir: data.rir,
+                isBogon: data.is_bogon,
+                isMobile: data.is_mobile,
+                isSatellite: data.is_satellite,
+                isCrawler: data.is_crawler,
+                isDatacenter: data.is_datacenter,
+                isTor: data.is_tor,
+                isProxy: data.is_proxy,
+                isVpn: data.is_vpn,
+                isAbuser: data.is_abuser,
+                // datacenter
+                datacenterName: data.datacenter?.datacenter,
+                datacenterDomain: data.datacenter?.domain,
+                datacenterNetwork: data.datacenter?.network,
+                datacenterRegion: data.datacenter?.region,
+                datacenterService: data.datacenter?.service,
+                // company
+                companyName: data.company?.name,
+                companyAbuserScore: data.company?.abuser_score,
+                companyDomain: data.company?.domain,
+                companyType: data.company?.type,
+                companyNetwork: data.company?.network,
+                companyNetname: data.company?.netname,
+                // abuse
+                abuseName: data.abuse?.name,
+                abuseAddress: data.abuse?.address,
+                abuseEmail: data.abuse?.email,
+                abusePhone: data.abuse?.phone,
+                // asn
+                asn: data.asn?.asn,
+                asnAbuserScore: data.asn?.abuser_score,
+                asnRoute: data.asn?.route,
+                asnDescr: data.asn?.descr,
+                asnCountry: data.asn?.country,
+                asnActive: data.asn?.active,
+                asnOrg: data.asn?.org,
+                asnDomain: data.asn?.domain,
+                asnAbuse: data.asn?.abuse,
+                asnType: data.asn?.type,
+                asnCreated: data.asn?.created,
+                asnUpdated: data.asn?.updated,
+                asnRir: data.asn?.rir,
+                // location
+                isEU: data.location?.is_eu_member,
+                callingCode: data.location?.calling_code,
+                currencyCode: data.location?.currency_code,
+                continent: data.location?.continent,
+                country: data.location?.country,
+                countryCode: data.location?.country_code,
+                state: data.location?.state,
+                city: data.location?.city,
+                lat: data.location?.latitude,
+                lon: data.location?.longitude,
+                zip: data.location?.zip,
+                timezone: data.location?.timezone,
+                localTime: data.location?.local_time,
+                localTimeUnix: data.location?.local_time_unix,
+                isDst: data.location?.is_dst,
+                utcOffset: data.location?.utcoffset,
+                accuracy: data.location?.accuracy,
+                // vpn object
+                vpnService: data.vpn?.service,
+                vpnUrl: data.vpn?.url,
+                vpnType: data.vpn?.type,
+                vpnLastSeen: data.vpn?.last_seen_str,
+                vpnRegion: data.vpn?.exit_node_region,
+                elapsedMs: data.elapsed_ms
+            };
+        default: {
+            const timezone = Array.isArray(data.timeZones) && data.timeZones.length > 0
                 ? data.timeZones[0]
                 : data.timeZone || data.timezone;
+            return {
+                ip: data.ipAddress || data.ip || ip || "",
+                ipVersion: data.ipVersion,
+                continent: data.continent,
+                continentCode: data.continentCode,
+                country: data.countryName,
+                countryCode: data.countryCode,
+                region: data.regionName,
+                city: data.cityName,
+                lat: data.latitude,
+                lon: data.longitude,
+                zip: data.zipCode,
+                timezone,
+                isProxy: data.isProxy,
+                currency: data.currency ? `${data.currency.name} (${data.currency.code})` : undefined,
+                language: data.language
+            };
+        }
+    }
+}
 
-        return {
-            ip: data.ipAddress || data.ip || ip,
-            city: data.cityName || data.city,
-            region: data.regionName || data.region,
-            country: data.countryCode || data.country,
-            countryName: data.countryName || data.country,
-            lat: typeof data.latitude === "number" ? data.latitude : undefined,
-            lon: typeof data.longitude === "number" ? data.longitude : undefined,
-            org: data.organization || data.asnOrganization || data.org,
-            isp: data.isp || data.asnOrganization,
-            timezone,
-            zip: data.zipCode || data.zip
-        };
+async function getIPInfo(ip: string): Promise<IPInfo | null> {
+    try {
+        const response = await fetch(getProviderUrl(ip));
+        if (!response.ok) throw new Error(`IP lookup failed with status ${response.status}`);
+        const data = await response.json();
+        return parseProviderResponse(data, ip);
     } catch (error) {
         console.error("IP lookup error:", error);
         return null;
@@ -177,32 +328,10 @@ async function getIPInfo(ip: string): Promise<IPInfo | null> {
 
 async function getMyIP(): Promise<IPInfo | null> {
     try {
-        const response = await fetch("https://free.freeipapi.com/api/json");
-
-        if (!response.ok) {
-            throw new Error(`My IP lookup failed with status ${response.status}`);
-        }
-
+        const response = await fetch(getProviderUrl());
+        if (!response.ok) throw new Error(`My IP lookup failed with status ${response.status}`);
         const data = await response.json();
-
-        const timezone =
-            Array.isArray(data.timeZones) && data.timeZones.length > 0
-                ? data.timeZones[0]
-                : data.timeZone || data.timezone;
-
-        return {
-            ip: data.ipAddress || data.ip,
-            city: data.cityName || data.city,
-            region: data.regionName || data.region,
-            country: data.countryCode || data.country,
-            countryName: data.countryName || data.country,
-            lat: typeof data.latitude === "number" ? data.latitude : undefined,
-            lon: typeof data.longitude === "number" ? data.longitude : undefined,
-            org: data.organization || data.asnOrganization || data.org,
-            isp: data.isp || data.asnOrganization,
-            timezone,
-            zip: data.zipCode || data.zip
-        };
+        return parseProviderResponse(data);
     } catch (error) {
         console.error("My IP lookup error:", error);
         return null;
@@ -240,29 +369,194 @@ function createDomainMessage(info: DomainInfo) {
         `Updated      : ${info.updatedAt || "N/A"}`,
         `DNSSEC       : ${info.dnssec || "N/A"}`,
         `Status       : ${info.status?.length ? info.status.join(", ") : "N/A"}`,
+        `Nameservers  : ${info.nameServers?.length ? info.nameServers.join(", ") : "N/A"}`,
         "```"
     ].join("\n");
 }
 
 function createIPMessage(info: IPInfo) {
-    const coordinates =
-        typeof info.lat === "number" && typeof info.lon === "number"
-            ? `${info.lat}, ${info.lon}`
-            : "Unknown";
+    const provider = settings.store.ipProvider;
 
-    return [
-        "```txt",
-        `[IP LOOKUP] ${info.ip}`,
-        `City         : ${info.city || "Unknown"}`,
-        `Region       : ${info.region || "Unknown"}`,
-        `Country      : ${info.countryName || "Unknown"} (${info.country || "?"})`,
-        `Timezone     : ${info.timezone || "Unknown"}`,
-        `ZIP Code     : ${info.zip || "Unknown"}`,
-        `ISP          : ${info.isp || "Unknown"}`,
-        `Organization : ${info.org || "Unknown"}`,
-        `Coordinates  : ${coordinates}`,
-        "```"
-    ].join("\n");
+    const fmt = (label: string, value: any): string | null => {
+        if (value === undefined || value === null || value === "") return null;
+        return `${label.padEnd(20)}: ${value}`;
+    };
+
+    const coords = typeof info.lat === "number" && typeof info.lon === "number"
+        ? `${info.lat}, ${info.lon}` : undefined;
+
+    let lines: (string | null)[];
+
+    switch (provider) {
+        case "ipapi-is":
+            lines = [
+                "```txt",
+                `[IP LOOKUP - ipapi.is] ${info.ip}`,
+                fmt("RIR", info.rir),
+                fmt("Is Bogon", info.isBogon),
+                fmt("Is Mobile", info.isMobile),
+                fmt("Is Satellite", info.isSatellite),
+                fmt("Is Crawler", info.isCrawler),
+                fmt("Is Datacenter", info.isDatacenter),
+                fmt("Is Tor", info.isTor),
+                fmt("Is Proxy", info.isProxy),
+                fmt("Is VPN", info.isVpn),
+                fmt("Is Abuser", info.isAbuser),
+                "",
+                "── Location ──",
+                fmt("Continent", info.continent),
+                fmt("Country", info.country),
+                fmt("Country Code", info.countryCode),
+                fmt("State", info.state),
+                fmt("City", info.city),
+                fmt("ZIP", info.zip),
+                fmt("Coordinates", coords),
+                fmt("Timezone", info.timezone),
+                fmt("Local Time", info.localTime),
+                fmt("Is DST", info.isDst),
+                fmt("UTC Offset", info.utcOffset),
+                fmt("Accuracy", info.accuracy),
+                fmt("Is EU Member", info.isEU),
+                fmt("Calling Code", info.callingCode),
+                fmt("Currency", info.currencyCode),
+                "",
+                "── ASN ──",
+                fmt("ASN", info.asn),
+                fmt("Route", info.asnRoute),
+                fmt("Description", info.asnDescr),
+                fmt("Country", info.asnCountry),
+                fmt("Active", info.asnActive),
+                fmt("Org", info.asnOrg),
+                fmt("Domain", info.asnDomain),
+                fmt("Type", info.asnType),
+                fmt("Abuse Email", info.asnAbuse),
+                fmt("Abuser Score", info.asnAbuserScore),
+                fmt("Created", info.asnCreated),
+                fmt("Updated", info.asnUpdated),
+                fmt("RIR", info.asnRir),
+                "",
+                "── Company ──",
+                fmt("Name", info.companyName),
+                fmt("Domain", info.companyDomain),
+                fmt("Type", info.companyType),
+                fmt("Network", info.companyNetwork),
+                fmt("Netname", info.companyNetname),
+                fmt("Abuser Score", info.companyAbuserScore),
+                "",
+                "── Abuse Contact ──",
+                fmt("Name", info.abuseName),
+                fmt("Address", info.abuseAddress),
+                fmt("Email", info.abuseEmail),
+                fmt("Phone", info.abusePhone),
+                "",
+                "── Datacenter ──",
+                fmt("Name", info.datacenterName),
+                fmt("Domain", info.datacenterDomain),
+                fmt("Network", info.datacenterNetwork),
+                fmt("Region", info.datacenterRegion),
+                fmt("Service", info.datacenterService),
+                info.vpnService ? "" : null,
+                info.vpnService ? "── VPN ──" : null,
+                fmt("Service", info.vpnService),
+                fmt("URL", info.vpnUrl),
+                fmt("Type", info.vpnType),
+                fmt("Last Seen", info.vpnLastSeen),
+                fmt("Region", info.vpnRegion),
+                "",
+                fmt("Elapsed", info.elapsedMs != null ? `${info.elapsedMs}ms` : undefined),
+                "```"
+            ];
+            break;
+        case "ip-api":
+            lines = [
+                "```txt",
+                `[IP LOOKUP - ip-api.com] ${info.ip}`,
+                fmt("Continent", info.continent),
+                fmt("Continent Code", info.continentCode),
+                fmt("Country", info.country),
+                fmt("Country Code", info.countryCode),
+                fmt("Region", info.region),
+                fmt("Region Code", info.regionCode),
+                fmt("City", info.city),
+                fmt("District", info.district),
+                fmt("ZIP", info.zip),
+                fmt("Coordinates", coords),
+                fmt("Timezone", info.timezone),
+                fmt("UTC Offset", info.utcOffset != null ? `${info.utcOffset}s` : undefined),
+                fmt("Currency", info.currency),
+                fmt("ISP", info.isp),
+                fmt("Organization", info.org),
+                fmt("AS", info.as),
+                fmt("AS Name", info.asname),
+                fmt("Reverse DNS", info.reverse),
+                fmt("Mobile", info.mobile),
+                fmt("Proxy", info.proxy),
+                fmt("Hosting", info.hosting),
+                "```"
+            ];
+            break;
+        case "ipwhois":
+            lines = [
+                "```txt",
+                `[IP LOOKUP - ipwho.is] ${info.ip}`,
+                fmt("Type", info.type),
+                fmt("Continent", info.continent),
+                fmt("Continent Code", info.continentCode),
+                fmt("Country", info.country),
+                fmt("Country Code", info.countryCode),
+                fmt("Region", info.region),
+                fmt("City", info.city),
+                fmt("Postal", info.postal),
+                fmt("Coordinates", coords),
+                fmt("Calling Code", info.callingCode),
+                fmt("Capital", info.capital),
+                fmt("Is EU", info.isEU),
+                fmt("Flag", info.flag),
+                "",
+                "── Connection ──",
+                fmt("ASN", info.asn),
+                fmt("Organization", info.org),
+                fmt("ISP", info.isp),
+                fmt("Domain", info.domain),
+                "",
+                "── Timezone ──",
+                fmt("Timezone", info.timezone),
+                fmt("Abbreviation", info.timezoneAbbr),
+                fmt("UTC", info.timezoneUtc),
+                fmt("Current Time", info.currentTime),
+                "",
+                "── Security ──",
+                fmt("Anonymous", info.anonymous),
+                fmt("Proxy", info.proxy),
+                fmt("VPN", info.vpn),
+                fmt("Tor", info.tor),
+                fmt("Hosting", info.hosting),
+                "```"
+            ];
+            break;
+        default:
+            lines = [
+                "```txt",
+                `[IP LOOKUP - freeipapi.com] ${info.ip}`,
+                fmt("IP Version", info.ipVersion),
+                fmt("Continent", info.continent),
+                fmt("Continent Code", info.continentCode),
+                fmt("Country", info.country),
+                fmt("Country Code", info.countryCode),
+                fmt("Region", info.region),
+                fmt("City", info.city),
+                fmt("ZIP", info.zip),
+                fmt("Coordinates", coords),
+                fmt("Timezone", info.timezone),
+                fmt("Currency", info.currency),
+                fmt("Language", info.language),
+                fmt("Is Proxy", info.isProxy),
+                "```"
+            ];
+            break;
+    }
+
+    return lines.filter(l => l !== null).join("\n");
 }
 
 export default definePlugin({
