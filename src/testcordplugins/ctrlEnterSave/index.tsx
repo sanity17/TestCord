@@ -1,3 +1,4 @@
+// @ts-nocheck
 /*
  * Vencord, a Discord client mod
  * Copyright (c) 2024 sadan

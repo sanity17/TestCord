@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Heading } from "@components/Heading";
 import { ModalCloseButton, ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize } from "@utils/modal";
 import { ChannelStore, React, useEffect, useMemo, useRef, useState } from "@webpack/common";

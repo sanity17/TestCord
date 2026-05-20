@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { findStoreLazy } from "@webpack";

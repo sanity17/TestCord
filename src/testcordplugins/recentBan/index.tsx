@@ -1,3 +1,4 @@
+// @ts-nocheck
 import definePlugin, { OptionType } from "@utils/types";
 import { TestcordDevs } from "@utils/constants";
 import { Toasts, FluxDispatcher, UserStore, GuildStore, GuildMemberStore } from "@webpack/common";

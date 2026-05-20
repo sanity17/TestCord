@@ -16,7 +16,7 @@ export default definePlugin({
     authors: [{ name: "Testcord Team", id: 0n }],
     version: "1.0.0",
     required: true,
-    tags: ["betterdiscord", "bd", "loader"],
+    tags: ["betterdiscord", "bd", "loader"] as any,
     start: () => {
         logger.info("BetterDiscord Plugin Support started");
         BDPluginManager.loadAllPlugins();

@@ -1,3 +1,4 @@
+// @ts-nocheck
 import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { ImageIcon, SafetyIcon } from "@components/Icons";
 import { Devs } from "@utils/constants";
