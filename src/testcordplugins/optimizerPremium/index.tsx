@@ -102,6 +102,18 @@ const settings = definePluginSettings({
         default: true,
         restartNeeded: true
     },
+    virtualizeMessages: {
+        type: OptionType.BOOLEAN,
+        description: "Only visually render messages in the viewport. Offscreen messages get their inner content hidden, massively reducing DOM nodes and saving CPU/RAM.",
+        default: true
+    },
+    virtualizeMargin: {
+        type: OptionType.SLIDER,
+        description: "Extra pixels above/below the viewport to keep rendered (prevents pop-in when scrolling).",
+        markers: [100, 250, 500, 750, 1000, 1500],
+        default: 500,
+        stickToMarkers: false
+    },
     verboseLogging: {
         type: OptionType.BOOLEAN,
         description: "Log optimization activity to the console. Disable for production.",
@@ -197,6 +209,8 @@ export default definePlugin({
     memoryTimer: null as ReturnType<typeof setInterval> | null,
     intersectionObserver: null as IntersectionObserver | null,
     pausedMedia: new WeakSet<HTMLMediaElement>(),
+    messageObserver: null as IntersectionObserver | null,
+    messageMutationObserver: null as MutationObserver | null,
 
     start() {
         if (settings.store.verboseLogging) logger.info("Starting optimizer suite");
@@ -207,6 +221,7 @@ export default definePlugin({
         if (settings.store.disableSpringAnimations) this.installSpringSkip();
         if (settings.store.memoryManagement) this.installMemoryManager();
         if (settings.store.pauseOffscreenMedia) this.installOffscreenMediaPause();
+        if (settings.store.virtualizeMessages) this.installMessageVirtualization();
 
         if (settings.store.verboseLogging) logger.info("Started");
     },
@@ -220,6 +235,7 @@ export default definePlugin({
         this.restoreSpringSkip();
         this.teardownMemoryManager();
         this.teardownOffscreenMediaPause();
+        this.teardownMessageVirtualization();
 
         this.networkCache.clear();
     },
@@ -454,6 +470,74 @@ export default definePlugin({
         if (self._mediaMutationObserver) {
             self._mediaMutationObserver.disconnect();
             self._mediaMutationObserver = undefined;
+        }
+    },
+
+    installMessageVirtualization() {
+        if (typeof IntersectionObserver === "undefined") return;
+        const margin = settings.store.virtualizeMargin;
+        const verbose = settings.store.verboseLogging;
+
+        this.messageObserver = new IntersectionObserver(entries => {
+            for (const entry of entries) {
+                const el = entry.target as HTMLElement;
+                if (entry.isIntersecting) {
+                    if (el.dataset.opVirtualized === "1") {
+                        el.dataset.opVirtualized = "0";
+                        el.style.contentVisibility = "";
+                        el.style.containIntrinsicSize = "";
+                    }
+                } else {
+                    if (el.dataset.opVirtualized !== "1") {
+                        const h = el.offsetHeight;
+                        el.dataset.opVirtualized = "1";
+                        el.style.contentVisibility = "hidden";
+                        el.style.containIntrinsicSize = `auto ${h}px`;
+                    }
+                }
+            }
+        }, { rootMargin: `${margin}px 0px ${margin}px 0px` });
+
+        const observeMessages = (root: ParentNode) => {
+            const msgs = root.querySelectorAll<HTMLElement>("[class*='message_'], [class*='messageListItem_']");
+            for (const msg of msgs) this.messageObserver?.observe(msg);
+        };
+
+        observeMessages(document.body);
+
+        this.messageMutationObserver = new MutationObserver(records => {
+            for (const r of records) {
+                for (const node of r.addedNodes) {
+                    if (!(node instanceof HTMLElement)) continue;
+                    const cn = node.className || "";
+                    if (cn.includes("message_") || cn.includes("messageListItem_")) {
+                        this.messageObserver?.observe(node);
+                    } else {
+                        observeMessages(node);
+                    }
+                }
+            }
+        });
+        this.messageMutationObserver.observe(document.body, { childList: true, subtree: true });
+
+        if (verbose) logger.info(`Message virtualization active (margin: ${margin}px)`);
+    },
+
+    teardownMessageVirtualization() {
+        if (this.messageObserver) {
+            this.messageObserver.disconnect();
+            this.messageObserver = null;
+        }
+        if (this.messageMutationObserver) {
+            this.messageMutationObserver.disconnect();
+            this.messageMutationObserver = null;
+        }
+        // Restore any hidden messages
+        const hidden = document.querySelectorAll<HTMLElement>("[data-op-virtualized='1']");
+        for (const el of hidden) {
+            el.style.contentVisibility = "";
+            el.style.containIntrinsicSize = "";
+            delete el.dataset.opVirtualized;
         }
     }
 });
