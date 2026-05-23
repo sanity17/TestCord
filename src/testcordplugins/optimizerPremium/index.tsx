@@ -104,15 +104,13 @@ const settings = definePluginSettings({
     },
     virtualizeMessages: {
         type: OptionType.BOOLEAN,
-        description: "Only visually render messages in the viewport. Offscreen messages get their inner content hidden, massively reducing DOM nodes and saving CPU/RAM.",
+        description: "Apply content-visibility:auto to messages so the browser skips rendering offscreen ones. Saves CPU/RAM without breaking scroll.",
         default: true
     },
-    virtualizeMargin: {
-        type: OptionType.SLIDER,
-        description: "Extra pixels above/below the viewport to keep rendered (prevents pop-in when scrolling).",
-        markers: [100, 250, 500, 750, 1000, 1500],
-        default: 500,
-        stickToMarkers: false
+    optimizeTextRendering: {
+        type: OptionType.BOOLEAN,
+        description: "Apply optimizeSpeed text-rendering and reduce subpixel work on message content. Faster text layout on large channels.",
+        default: true
     },
     verboseLogging: {
         type: OptionType.BOOLEAN,
@@ -209,8 +207,7 @@ export default definePlugin({
     memoryTimer: null as ReturnType<typeof setInterval> | null,
     intersectionObserver: null as IntersectionObserver | null,
     pausedMedia: new WeakSet<HTMLMediaElement>(),
-    messageObserver: null as IntersectionObserver | null,
-    messageMutationObserver: null as MutationObserver | null,
+    optimizerStyleEl: null as HTMLStyleElement | null,
 
     start() {
         if (settings.store.verboseLogging) logger.info("Starting optimizer suite");
@@ -221,7 +218,7 @@ export default definePlugin({
         if (settings.store.disableSpringAnimations) this.installSpringSkip();
         if (settings.store.memoryManagement) this.installMemoryManager();
         if (settings.store.pauseOffscreenMedia) this.installOffscreenMediaPause();
-        if (settings.store.virtualizeMessages) this.installMessageVirtualization();
+        if (settings.store.virtualizeMessages || settings.store.optimizeTextRendering) this.installCSSOptimizations();
 
         if (settings.store.verboseLogging) logger.info("Started");
     },
@@ -235,7 +232,7 @@ export default definePlugin({
         this.restoreSpringSkip();
         this.teardownMemoryManager();
         this.teardownOffscreenMediaPause();
-        this.teardownMessageVirtualization();
+        this.teardownCSSOptimizations();
 
         this.networkCache.clear();
     },
@@ -473,71 +470,34 @@ export default definePlugin({
         }
     },
 
-    installMessageVirtualization() {
-        if (typeof IntersectionObserver === "undefined") return;
-        const margin = settings.store.virtualizeMargin;
-        const verbose = settings.store.verboseLogging;
+    installCSSOptimizations() {
+        const rules: string[] = [];
 
-        this.messageObserver = new IntersectionObserver(entries => {
-            for (const entry of entries) {
-                const el = entry.target as HTMLElement;
-                if (entry.isIntersecting) {
-                    if (el.dataset.opVirtualized === "1") {
-                        el.dataset.opVirtualized = "0";
-                        el.style.contentVisibility = "";
-                        el.style.containIntrinsicSize = "";
-                    }
-                } else {
-                    if (el.dataset.opVirtualized !== "1") {
-                        const h = el.offsetHeight;
-                        el.dataset.opVirtualized = "1";
-                        el.style.contentVisibility = "hidden";
-                        el.style.containIntrinsicSize = `auto ${h}px`;
-                    }
-                }
-            }
-        }, { rootMargin: `${margin}px 0px ${margin}px 0px` });
+        if (settings.store.virtualizeMessages) {
+            rules.push(
+                `[class*="messageListItem_"] { content-visibility: auto; contain-intrinsic-size: auto 44px; }`
+            );
+        }
 
-        const observeMessages = (root: ParentNode) => {
-            const msgs = root.querySelectorAll<HTMLElement>("[class*='message_'], [class*='messageListItem_']");
-            for (const msg of msgs) this.messageObserver?.observe(msg);
-        };
+        if (settings.store.optimizeTextRendering) {
+            rules.push(
+                `[class*="messageContent_"], [class*="markup_"] { text-rendering: optimizeSpeed; will-change: contents; }`,
+                `[class*="chatContent_"] { contain: style layout; }`
+            );
+        }
 
-        observeMessages(document.body);
-
-        this.messageMutationObserver = new MutationObserver(records => {
-            for (const r of records) {
-                for (const node of r.addedNodes) {
-                    if (!(node instanceof HTMLElement)) continue;
-                    const cn = node.className || "";
-                    if (cn.includes("message_") || cn.includes("messageListItem_")) {
-                        this.messageObserver?.observe(node);
-                    } else {
-                        observeMessages(node);
-                    }
-                }
-            }
-        });
-        this.messageMutationObserver.observe(document.body, { childList: true, subtree: true });
-
-        if (verbose) logger.info(`Message virtualization active (margin: ${margin}px)`);
+        if (rules.length) {
+            this.optimizerStyleEl = document.createElement("style");
+            this.optimizerStyleEl.id = "op-css-optimizations";
+            this.optimizerStyleEl.textContent = rules.join("\n");
+            document.head.appendChild(this.optimizerStyleEl);
+        }
     },
 
-    teardownMessageVirtualization() {
-        if (this.messageObserver) {
-            this.messageObserver.disconnect();
-            this.messageObserver = null;
-        }
-        if (this.messageMutationObserver) {
-            this.messageMutationObserver.disconnect();
-            this.messageMutationObserver = null;
-        }
-        // Restore any hidden messages
-        const hidden = document.querySelectorAll<HTMLElement>("[data-op-virtualized='1']");
-        for (const el of hidden) {
-            el.style.contentVisibility = "";
-            el.style.containIntrinsicSize = "";
-            delete el.dataset.opVirtualized;
+    teardownCSSOptimizations() {
+        if (this.optimizerStyleEl) {
+            this.optimizerStyleEl.remove();
+            this.optimizerStyleEl = null;
         }
     }
 });
