@@ -84,12 +84,12 @@ export default definePlugin({
                         body: { channel_id: null },
                     });
                     const giftType = classifyGift(body);
-                    await addLog({ code, status: "success", type: giftType });
+                    await addLog({ code, status: "success", type: giftType, channelId: message.channel_id, messageId: message.id });
                     showToast(`Redeemed gift: ${code}`, Toasts.Type.SUCCESS);
                     logger.info(`Redeemed gift code: ${code}`);
                 } catch (e: any) {
                     const msg = e?.body?.message ?? "Unknown error";
-                    await addLog({ code, status: "failed", type: "other", error: msg });
+                    await addLog({ code, status: "failed", type: "other", error: msg, channelId: message.channel_id, messageId: message.id });
                     showToast(`Failed to redeem ${code}: ${msg}`, Toasts.Type.FAILURE);
                     logger.warn(`Failed to redeem ${code}:`, msg);
                 }

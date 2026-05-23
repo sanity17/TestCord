@@ -15,6 +15,8 @@ export interface RedeemLog {
     status: RedeemStatus;
     type: RedeemType;
     error?: string;
+    channelId?: string;
+    messageId?: string;
     timestamp: number;
 }
 

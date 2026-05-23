@@ -5,7 +5,7 @@
  */
 
 import { SettingsTab, wrapTab } from "@components/settings";
-import { React, Select, useEffect, useState } from "@webpack/common";
+import { ChannelStore, NavigationRouter, React, Select, useEffect, useState } from "@webpack/common";
 
 import { clearLogs, getLogs, loadLogs, type RedeemLog, type RedeemStatus, type RedeemType, subscribe } from "../store";
 
@@ -95,7 +95,18 @@ function AutoRedeemTab() {
                             }}>
                                 {log.type}
                             </span>
-                            <code style={{ flex: 1 }}>{log.code}</code>
+                            <code
+                                style={{
+                                    flex: 1,
+                                    ...(log.channelId && log.messageId ? { cursor: "pointer", textDecoration: "underline", color: "var(--text-link)" } : {})
+                                }}
+                                onClick={() => {
+                                    if (!log.channelId || !log.messageId) return;
+                                    const channel = ChannelStore.getChannel(log.channelId);
+                                    const guildId = channel?.guild_id ?? "@me";
+                                    NavigationRouter.transitionTo(`/channels/${guildId}/${log.channelId}/${log.messageId}`);
+                                }}
+                            >{log.code}</code>
                             {log.error && <span style={{ color: "var(--text-danger)", fontSize: "12px" }}>{log.error}</span>}
                             <span style={{ color: "var(--text-muted)", fontSize: "12px" }}>
                                 {new Date(log.timestamp).toLocaleString()}
