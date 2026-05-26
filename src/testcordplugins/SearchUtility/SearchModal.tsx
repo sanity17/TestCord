@@ -50,8 +50,8 @@ interface SearchResult {
 export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
     const [query, setQuery] = useState("");
     const [activeFilter, setActiveFilter] = useState<SearchFilter>(SearchFilter.RECENT);
-    const [allResults, setAllResults] = useState<SearchResult[]>([]); // Tous les résultats
-    const [displayedResults, setDisplayedResults] = useState<SearchResult[]>([]); // Résultats affichés
+    const [allResults, setAllResults] = useState<SearchResult[]>([]); // All results
+    const [displayedResults, setDisplayedResults] = useState<SearchResult[]>([]); // Displayed results
     const [loading, setLoading] = useState(false);
     const [selectedIndex, setSelectedIndex] = useState(-1);
     const [stats, setStats] = useState({ total: 0, displayed: 0, loading: false });
@@ -59,17 +59,17 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
     const searchInputRef = useRef<HTMLInputElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
     const mediaGridContainerRef = useRef<HTMLDivElement>(null);
-    const initialLoadLimit = 50; // Nombre de résultats à charger initialement
-    const loadMoreBatchSize = 50; // Nombre de résultats supplémentaires à charger à chaque scroll
+    const initialLoadLimit = 50; // Number of results to load initially
+    const loadMoreBatchSize = 50; // Number of additional results to load on each scroll
 
-    // Focus sur le champ de recherche au montage
+    // Focus on the search field on mount
     useEffect(() => {
         searchInputRef.current?.focus();
     }, []);
 
-    // Recherche avec debounce
+    // Search with debounce
     useEffect(() => {
-        // Pour le filtre MEDIA, charger tous les médias même sans requête
+        // For the MEDIA filter, load all media even without a query
         if (activeFilter === SearchFilter.MEDIA && !query.trim()) {
             performSearch("", activeFilter);
             return;
@@ -88,18 +88,18 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         return () => clearTimeout(timeoutId);
     }, [query, activeFilter]);
 
-    // Fonction helper pour rechercher un mot complet (sensible à la casse)
+    // Helper function to search for a whole word (case-sensitive)
     const matchesWholeWord = useCallback((text: string, searchTerm: string): boolean => {
         if (!text || !searchTerm) return false;
-        // Échapper les caractères spéciaux regex
+        // Escape special regex characters
         const escapedSearch = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-        // Créer une regex avec word boundaries (\b) pour chercher des mots complets
-        // Sensible à la casse
+        // Create a regex with word boundaries (\b) to search for whole words
+        // Case-sensitive
         const regex = new RegExp(`\\b${escapedSearch}\\b`);
         return regex.test(text);
     }, []);
 
-    // Navigation au clavier optimisée avec useCallback
+    // Keyboard navigation optimized with useCallback
     const navigateToMessage = useCallback((result: SearchResult) => {
         const { message, channel } = result;
         const messageId = message.id || (message as any).message_id;
@@ -133,9 +133,9 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         return () => window.removeEventListener("keydown", handleKeyDown);
     }, [displayedResults, selectedIndex, navigateToMessage, modalProps]);
 
-    // Scroll vers l'élément sélectionné (seulement si l'utilisateur navigue au clavier) - DÉSACTIVÉ pour MEDIA
+    // Scroll to selected element (only if user navigates with keyboard) - DISABLED for MEDIA
     useEffect(() => {
-        // Ne jamais scroller automatiquement pour le filtre MEDIA
+        // Never auto-scroll for the MEDIA filter
         if (activeFilter === SearchFilter.MEDIA) return;
 
         if (selectedIndex >= 0 && resultsRef.current) {
@@ -146,10 +146,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         }
     }, [selectedIndex, activeFilter]);
 
-    // Scroll infini pour charger plus de messages (tous les filtres sauf MEDIA)
+    // Infinite scroll to load more messages (all filters except MEDIA)
     useEffect(() => {
-        if (activeFilter === SearchFilter.MEDIA) return; // Le scroll infini pour médias est géré séparément
-        if (displayedResults.length >= allResults.length) return; // Déjà tout chargé
+        if (activeFilter === SearchFilter.MEDIA) return; // Infinite scroll for media is handled separately
+        if (displayedResults.length >= allResults.length) return; // Already loaded everything
 
         const container = resultsRef.current;
         if (!container) return;
@@ -158,11 +158,11 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
             const { scrollTop, scrollHeight, clientHeight } = container;
             const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-            // Charger plus quand on est à 200px du bas
+            // Load more when 200px from bottom
             if (distanceFromBottom < 200 && !loadingMore && displayedResults.length < allResults.length) {
                 setLoadingMore(true);
 
-                // Charger le prochain batch
+                // Load the next batch
                 const nextBatch = allResults.slice(
                     displayedResults.length,
                     displayedResults.length + loadMoreBatchSize
@@ -174,7 +174,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     displayed: Math.min(prev.displayed + nextBatch.length, allResults.length)
                 }));
 
-                // Petit délai pour éviter les chargements trop rapides
+                // Short delay to avoid loading too quickly
                 setTimeout(() => setLoadingMore(false), 100);
             }
         };
@@ -183,10 +183,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         return () => container.removeEventListener("scroll", handleScroll);
     }, [activeFilter, displayedResults, allResults, loadingMore, loadMoreBatchSize]);
 
-    // Scroll infini pour charger plus de médias
+    // Infinite scroll to load more media
     useEffect(() => {
         if (activeFilter !== SearchFilter.MEDIA) return;
-        if (displayedResults.length >= allResults.length) return; // Déjà tout chargé
+        if (displayedResults.length >= allResults.length) return; // Already loaded everything
 
         const container = mediaGridContainerRef.current;
         if (!container) return;
@@ -195,11 +195,11 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
             const { scrollTop, scrollHeight, clientHeight } = container;
             const distanceFromBottom = scrollHeight - scrollTop - clientHeight;
 
-            // Charger plus quand on est à 200px du bas
+            // Load more when 200px from bottom
             if (distanceFromBottom < 200 && !loadingMore && displayedResults.length < allResults.length) {
                 setLoadingMore(true);
 
-                // Charger le prochain batch
+                // Load the next batch
                 const nextBatch = allResults.slice(
                     displayedResults.length,
                     displayedResults.length + loadMoreBatchSize
@@ -211,7 +211,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     displayed: Math.min(prev.displayed + nextBatch.length, allResults.length)
                 }));
 
-                // Petit délai pour éviter les chargements trop rapides
+                // Short delay to avoid loading too quickly
                 setTimeout(() => setLoadingMore(false), 100);
             }
         };
@@ -221,7 +221,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
     }, [activeFilter, displayedResults, allResults, loadingMore, loadMoreBatchSize]);
 
     async function performSearch(searchQuery: string, filter: SearchFilter) {
-        // Pour le filtre MEDIA, permettre une recherche vide pour charger tous les médias
+        // For the MEDIA filter, allow an empty search to load all media
         if (filter !== SearchFilter.MEDIA && !searchQuery.trim()) {
             setAllResults([]);
             setDisplayedResults([]);
@@ -230,33 +230,33 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
 
         setLoading(true);
         setStats({ total: 0, displayed: 0, loading: true });
-        console.log(`[Ultra Advanced Search] Recherche: "${searchQuery}", Filtre: ${filter}`);
+        console.log(`[Ultra Advanced Search] Search: "${searchQuery}", Filter: ${filter}`);
 
         try {
             const searchResults: SearchResult[] = [];
 
-            // Obtenir tous les canaux accessibles
+            // Get all accessible channels
             const channelIds: string[] = [];
 
-            // Ajouter les canaux privés (DMs et groupes)
+            // Add private channels (DMs and groups)
             try {
                 const privateChannelIds = PrivateChannelSortStore.getPrivateChannelIds();
                 channelIds.push(...privateChannelIds);
-                console.log(`[Ultra Advanced Search] ${channelIds.length} canaux privés trouvés`);
+                console.log(`[Ultra Advanced Search] ${channelIds.length} private channels found`);
             } catch (error) {
-                console.error("Erreur lors de la récupération des canaux privés:", error);
+                console.error("Error retrieving private channels:", error);
             }
 
-            // Seulement les canaux privés (DMs et groupes), pas les serveurs
+            // Only private channels (DMs and groups), not servers
             const limitedChannelIds = channelIds;
 
-            // Vérifier le cache pour les résultats de recherche (sauf pour MEDIA qui a son propre cache)
+            // Check cache for search results (except for MEDIA which has its own cache)
             if (filter !== SearchFilter.MEDIA && searchQuery.trim()) {
                 const cacheKey = `ultra-search-results-${filter}-${searchQuery.toLowerCase()}`;
                 try {
                     const cached = await DataStore.get(cacheKey) as SearchResultsCache | null | undefined;
                     if (cached && cached.results && cached.results.length > 0) {
-                        // Vérifier que les canaux sont toujours les mêmes
+                        // Check that channels are still the same
                         const cachedChannelIds = new Set(cached.channelIds);
                         const currentChannelIds = new Set(limitedChannelIds);
                         const channelsMatch = cachedChannelIds.size === currentChannelIds.size &&
@@ -264,7 +264,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
 
                         if (channelsMatch) {
                             const cachedFinalResults = cached.results.slice(0, settings.store.maxResults || 100);
-                            console.log(`[Ultra Advanced Search] Utilisation du cache pour la recherche: "${searchQuery}" (${cachedFinalResults.length} résultats)`);
+                            console.log(`[Ultra Advanced Search] Using cache for search: "${searchQuery}" (${cachedFinalResults.length} results)`);
                             setAllResults(cachedFinalResults);
                             setDisplayedResults(cachedFinalResults);
                             setStats({ total: cachedFinalResults.length, displayed: cachedFinalResults.length, loading: false });
@@ -273,13 +273,13 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         }
                     }
                 } catch (error) {
-                    console.error("[Ultra Advanced Search] Erreur lors du chargement du cache de recherche:", error);
+                    console.error("[Ultra Advanced Search] Error loading search cache:", error);
                 }
             }
 
-            // Pour le filtre MEDIA, traiter les canaux de manière séquentielle pour éviter les rate limits
+            // For the MEDIA filter, process channels sequentially to avoid rate limits
             if (filter === SearchFilter.MEDIA) {
-                // D'abord, charger les items multimédias depuis le cache dédié pour affichage immédiat
+                // First, load media items from the dedicated cache for immediate display
                 const cachedMediaItems: Array<{
                     url: string;
                     thumbnailUrl?: string;
@@ -298,10 +298,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         const cachedMedia = await DataStore.get(mediaItemsCacheKey) as MediaItemsCache | null | undefined;
 
                         if (cachedMedia && cachedMedia.items && cachedMedia.items.length > 0) {
-                            console.log(`[Ultra Advanced Search] Cache items multimédias trouvé pour ${channelId}: ${cachedMedia.items.length} items`);
+                            console.log(`[Ultra Advanced Search] Media items cache found for ${channelId}: ${cachedMedia.items.length} items`);
 
                             for (const item of cachedMedia.items) {
-                                // Filtrer par query si nécessaire
+                                // Filter by query if necessary
                                 if (!searchQuery.trim() || searchQuery.trim() === "") {
                                     const message = MessageStore.getMessage(item.channelId, item.messageId) || {
                                         id: item.messageId,
@@ -322,18 +322,18 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                             }
                         }
                     } catch (error) {
-                        console.error(`[Ultra Advanced Search] Erreur lors du chargement du cache items multimédias pour ${channelId}:`, error);
+                        console.error(`[Ultra Advanced Search] Error loading media items cache for ${channelId}:`, error);
                     }
                 }
 
-                // Trier par timestamp (plus récent en premier)
+                // Sort by timestamp (most recent first)
                 cachedMediaItems.sort((a, b) => {
                     const timeA = a.message.timestamp?.valueOf() || (a.message as any).timestamp || 0;
                     const timeB = b.message.timestamp?.valueOf() || (b.message as any).timestamp || 0;
                     return timeB - timeA;
                 });
 
-                // Fonction helper pour convertir cachedMediaItems en SearchResult (éviter la duplication)
+                // Helper function to convert cachedMediaItems to SearchResult (avoid duplication)
                 const convertCachedItemsToResults = (items: typeof cachedMediaItems): SearchResult[] => {
                     return items.map(item => ({
                         message: item.message,
@@ -348,9 +348,9 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     }));
                 };
 
-                // Afficher immédiatement les médias du cache
+                // Display media from cache immediately
                 if (cachedMediaItems.length > 0) {
-                    console.log(`[Ultra Advanced Search] ${cachedMediaItems.length} médias chargés depuis le cache items`);
+                    console.log(`[Ultra Advanced Search] ${cachedMediaItems.length} media loaded from items cache`);
                     const cachedResults = convertCachedItemsToResults(cachedMediaItems);
                     setAllResults(cachedResults);
                     setDisplayedResults(cachedResults.slice(0, initialLoadLimit));
@@ -358,20 +358,20 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     setLoading(false);
                 }
 
-                // Ensuite, charger les résultats depuis le cache des messages pour compléter
+                // Then, load results from the message cache to supplement
                 for (const channelId of limitedChannelIds) {
                     try {
                         const channel = ChannelStore.getChannel(channelId);
                         if (!channel) continue;
 
-                        const cachedResults = await searchMediaMessages(channelId, searchQuery, true, settings.store.apiRequestDelay || 200); // true = cache seulement
+                        const cachedResults = await searchMediaMessages(channelId, searchQuery, true, settings.store.apiRequestDelay || 200); // true = cache only
                         searchResults.push(...cachedResults);
                     } catch (error) {
-                        console.error(`[Ultra Advanced Search] Erreur lors de la recherche dans le cache pour ${channelId}:`, error);
+                        console.error(`[Ultra Advanced Search] Error searching cache for ${channelId}:`, error);
                     }
                 }
 
-                // Mettre à jour les résultats avec les nouveaux (éviter les doublons)
+                // Update results with new ones (avoid duplicates)
                 if (searchResults.length > 0) {
                     searchResults.sort((a, b) => {
                         const timeA = a.message.timestamp?.valueOf() || (a.message as any).timestamp || 0;
@@ -379,7 +379,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         return timeB - timeA;
                     });
 
-                    // Fusionner avec les résultats du cache items (éviter les doublons)
+                    // Merge with cache items results (avoid duplicates)
                     const existingIds = new Set(cachedMediaItems.map(item => item.message.id || item.message.message_id));
                     const newResults = searchResults.filter(r => {
                         const msgId = r.message.id || (r.message as any).message_id;
@@ -399,14 +399,14 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     }
                 }
 
-                // Charger les nouveaux médias en arrière-plan (par batch de 2 canaux)
+                // Load new media in background (in batches of 2 channels)
                 const batchSize = 2;
-                const delayBetweenBatches = 500; // 500ms entre chaque batch
+                const delayBetweenBatches = 500; // 500ms between each batch
 
                 for (let i = 0; i < limitedChannelIds.length; i += batchSize) {
                     const batch = limitedChannelIds.slice(i, i + batchSize);
 
-                    // Petit délai entre les batches
+                    // Short delay between batches
                     if (i > 0) {
                         await new Promise(resolve => setTimeout(resolve, delayBetweenBatches));
                     }
@@ -415,9 +415,9 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         try {
                             const channel = ChannelStore.getChannel(channelId);
                             if (!channel) return [];
-                            return await searchMediaMessages(channelId, searchQuery, false, settings.store.apiRequestDelay || 200); // false = charger depuis API aussi
+                            return await searchMediaMessages(channelId, searchQuery, false, settings.store.apiRequestDelay || 200); // false = load from API too
                         } catch (error) {
-                            console.error(`Erreur lors de la recherche dans le canal ${channelId}:`, error);
+                            console.error(`Error searching channel ${channelId}:`, error);
                             return [];
                         }
                     });
@@ -428,7 +428,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         newResults.push(...results);
                     }
 
-                    // Ajouter les nouveaux résultats (éviter les doublons)
+                    // Add new results (avoid duplicates)
                     const existingIds = new Set(searchResults.map(r => r.message.id || (r.message as any).message_id));
                     for (const result of newResults) {
                         const msgId = result.message.id || (result.message as any).message_id;
@@ -438,14 +438,14 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         }
                     }
 
-                    // Mettre à jour l'affichage progressivement (ajouter les nouveaux résultats)
+                    // Update display progressively (add new results)
                     searchResults.sort((a, b) => {
                         const timeA = a.message.timestamp?.valueOf() || (a.message as any).timestamp || 0;
                         const timeB = b.message.timestamp?.valueOf() || (b.message as any).timestamp || 0;
                         return timeB - timeA;
                     });
 
-                    // Mettre à jour tous les résultats
+                    // Update all results
                     setAllResults(prev => {
                         const existingIds = new Set(prev.map(r => r.message.id || (r.message as any).message_id));
                         const newResults = searchResults.filter(r => {
@@ -455,7 +455,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         return [...prev, ...newResults];
                     });
 
-                    // Ajouter les nouveaux résultats aux résultats affichés seulement si on n'a pas encore atteint la limite initiale
+                    // Add new results to displayed results only if we haven't reached the initial limit yet
                     setDisplayedResults(prev => {
                         if (prev.length >= initialLoadLimit) return prev;
 
@@ -471,9 +471,9 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     });
                 }
             } else {
-                // Pour les autres filtres, traitement normal
+                // For other filters, normal processing
                 const searchPromises = limitedChannelIds.map(async (channelId, index) => {
-                    // Petit délai pour éviter de bloquer l'UI (par batch de 5 canaux)
+                    // Small delay to avoid blocking the UI (in batches of 5 channels)
                     if (index > 0 && index % 5 === 0) {
                         await new Promise(resolve => setTimeout(resolve, 10));
                     }
@@ -482,7 +482,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         const channel = ChannelStore.getChannel(channelId);
                         if (!channel) return [];
 
-                        // Recherche selon le filtre
+                        // Search according to filter
                         if (filter === SearchFilter.PINNED) {
                             return searchPinnedMessages(channelId, searchQuery);
                         } else if (filter === SearchFilter.MESSAGES) {
@@ -491,36 +491,36 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                             return searchGeneral(channelId, searchQuery);
                         }
                     } catch (error) {
-                        console.error(`Erreur lors de la recherche dans le canal ${channelId}:`, error);
+                        console.error(`Error searching channel ${channelId}:`, error);
                         return [];
                     }
                 });
 
-                // Attendre toutes les recherches en parallèle
+                // Wait for all searches in parallel
                 const allResults = await Promise.all(searchPromises);
 
-                // Flatten et ajouter tous les résultats
+                // Flatten and add all results
                 for (const channelResults of allResults) {
                     searchResults.push(...channelResults);
                 }
 
-                console.log(`[Ultra Advanced Search] ${searchResults.length} résultats trouvés`);
+                console.log(`[Ultra Advanced Search] ${searchResults.length} results found`);
             }
 
-            // Trier par date (plus récent en premier)
+            // Sort by date (most recent first)
             searchResults.sort((a, b) => {
                 const timeA = a.message.timestamp?.valueOf() || (a.message as any).timestamp || 0;
                 const timeB = b.message.timestamp?.valueOf() || (b.message as any).timestamp || 0;
                 return timeB - timeA;
             });
 
-            // Si on n'a pas assez de résultats, chercher avec l'API
+            // If we don't have enough results, search with the API
             const minResults = settings.store.minResultsForAPI ?? 5;
             if (searchResults.length < minResults && limitedChannelIds.length > 0 && filter !== SearchFilter.MEDIA) {
-                console.log(`[Ultra Advanced Search] Cache local: ${searchResults.length} résultats, recherche API...`);
+                console.log(`[Ultra Advanced Search] Local cache: ${searchResults.length} results, searching API...`);
                 const apiResults = await searchWithAPI(searchQuery, filter, limitedChannelIds, searchResults.length);
 
-                // Ajouter les résultats de l'API (en évitant les doublons)
+                // Add API results (avoiding duplicates)
                 const existingIds = new Set(searchResults.map(r => r.message.id || (r.message as any).message_id));
                 for (const result of apiResults) {
                     const msgId = result.message.id || (result.message as any).message_id;
@@ -529,7 +529,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     }
                 }
 
-                // Re-trier après avoir ajouté les résultats de l'API
+                // Re-sort after adding API results
                 searchResults.sort((a, b) => {
                     const timeA = a.message.timestamp?.valueOf() || (a.message as any).timestamp || 0;
                     const timeB = b.message.timestamp?.valueOf() || (b.message as any).timestamp || 0;
@@ -537,21 +537,21 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                 });
             }
 
-            // Pour le filtre MEDIA, utiliser la pagination (50 initialement)
+            // For the MEDIA filter, use pagination (50 initially)
             if (filter === SearchFilter.MEDIA) {
                 setAllResults(searchResults);
                 setDisplayedResults(searchResults.slice(0, initialLoadLimit));
                 setStats({ total: searchResults.length, displayed: Math.min(initialLoadLimit, searchResults.length), loading: false });
-                console.log(`[Ultra Advanced Search] ${searchResults.length} résultats au total, ${Math.min(initialLoadLimit, searchResults.length)} affichés initialement`);
+                console.log(`[Ultra Advanced Search] ${searchResults.length} total results, ${Math.min(initialLoadLimit, searchResults.length)} displayed initially`);
             } else {
-                // Pour les autres filtres, afficher tous les résultats (limités par maxResults)
+                // For other filters, display all results (limited by maxResults)
                 const finalResults = searchResults.slice(0, settings.store.maxResults || 100);
                 setAllResults(finalResults);
                 setDisplayedResults(finalResults);
                 setStats({ total: finalResults.length, displayed: finalResults.length, loading: false });
-                console.log(`[Ultra Advanced Search] ${finalResults.length} résultats affichés`);
+                console.log(`[Ultra Advanced Search] ${finalResults.length} results displayed`);
 
-                // Mettre en cache les résultats de recherche (cache infini)
+                // Cache search results (infinite cache)
                 if (searchQuery.trim() && finalResults.length > 0) {
                     const cacheKey = `ultra-search-results-${filter}-${searchQuery.toLowerCase()}`;
                     try {
@@ -562,14 +562,14 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                             results: finalResults,
                             lastUpdated: Date.now()
                         } as SearchResultsCache);
-                        console.log(`[Ultra Advanced Search] Cache de recherche sauvegardé pour "${searchQuery}" (${finalResults.length} résultats)`);
+                        console.log(`[Ultra Advanced Search] Search cache saved for "${searchQuery}" (${finalResults.length} results)`);
                     } catch (error) {
-                        console.error("[Ultra Advanced Search] Erreur lors de la sauvegarde du cache de recherche:", error);
+                        console.error("[Ultra Advanced Search] Error saving search cache:", error);
                     }
                 }
             }
         } catch (error) {
-            console.error("Erreur lors de la recherche:", error);
+            console.error("Error during search:", error);
             setStats({ total: 0, displayed: 0, loading: false });
         } finally {
             setLoading(false);
@@ -577,7 +577,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         }
     }
 
-    // Fonction pour chercher avec l'API Discord si le cache local ne donne pas assez de résultats
+    // Function to search with the Discord API if local cache doesn't give enough results
     async function searchWithAPI(
         searchQuery: string,
         filter: SearchFilter,
@@ -585,8 +585,8 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         currentResultCount: number
     ): Promise<SearchResult[]> {
         const apiResults: SearchResult[] = [];
-        const maxApiChannels = Math.min(10, channelIds.length); // Limiter à 10 canaux pour éviter le rate limit
-        const delayBetweenRequests = settings.store.apiRequestDelay || 200; // Délai configurable entre les requêtes
+        const maxApiChannels = Math.min(10, channelIds.length); // Limit to 10 channels to avoid rate limit
+        const delayBetweenRequests = settings.store.apiRequestDelay || 200; // Configurable delay between requests
 
         for (let i = 0; i < maxApiChannels; i++) {
             const channelId = channelIds[i];
@@ -594,12 +594,12 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                 const channel = ChannelStore.getChannel(channelId);
                 if (!channel) continue;
 
-                // Délai entre les requêtes pour éviter le rate limit
+                // Delay between requests to avoid rate limit
                 if (i > 0) {
                     await new Promise(resolve => setTimeout(resolve, delayBetweenRequests));
                 }
 
-                // Charger des messages depuis l'API (limite de 100 messages par requête)
+                // Load messages from the API (limit of 100 messages per request)
                 let response: any = null;
                 try {
                     response = await RestAPI.get({
@@ -610,13 +610,13 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         retries: 1
                     });
                 } catch (error: any) {
-                    // Gérer le rate limit (429)
+                    // Handle rate limit (429)
                     if (error?.status === 429) {
                         const retryAfter = parseFloat(error.response?.headers?.["retry-after"] || error.response?.headers?.["Retry-After"] || "1");
-                        console.log(`[Ultra Advanced Search] Rate limit atteint, attente de ${retryAfter}s...`);
-                        // Attendre le délai spécifié avant de continuer
+                        console.log(`[Ultra Advanced Search] Rate limit reached, waiting ${retryAfter}s...`);
+                        // Wait the specified delay before continuing
                         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
-                        // Réessayer une fois après l'attente
+                        // Retry once after waiting
                         try {
                             response = await RestAPI.get({
                                 url: `/channels/${channelId}/messages`,
@@ -626,11 +626,11 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                                 retries: 0
                             });
                         } catch (retryError) {
-                            // Si encore rate limit, passer au canal suivant
+                            // If still rate limited, skip to next channel
                             continue;
                         }
                     } else {
-                        // Autre erreur, continuer
+                        // Other error, continue
                         continue;
                     }
                 }
@@ -639,12 +639,12 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     continue;
                 }
 
-                // Rechercher dans les messages chargés (recherche sensible à la casse)
+                // Search in loaded messages (case-sensitive search)
                 for (const msg of response.body) {
-                    // Convertir le message brut en objet Message si nécessaire
+                    // Convert raw message to Message object if necessary
                     const message: any = msg;
 
-                    // Vérifier selon le filtre
+                    // Check according to filter
                     let matches = false;
 
                     if (filter === SearchFilter.PINNED) {
@@ -657,7 +657,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         matches = hasMedia &&
                             (!searchQuery || (message.content && matchesWholeWord(message.content, searchQuery)));
                     } else {
-                        // Recherche générale (recherche de mots complets, sensible à la casse)
+                        // General search (whole word search, case-sensitive)
                         matches = message.content && matchesWholeWord(message.content, searchQuery);
                     }
 
@@ -672,12 +672,12 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     }
                 }
 
-                // Si on a assez de résultats, arrêter
+                // If we have enough results, stop
                 if (apiResults.length >= settings.store.maxResults) {
                     break;
                 }
             } catch (error: any) {
-                // Ignorer les erreurs silencieusement (déjà gérées dans le try-catch interne)
+                // Ignore errors silently (already handled in the inner try-catch)
                 if (error?.status !== 429) {
                     console.error(`[Ultra Advanced Search] Erreur API pour canal ${channelId}:`, error);
                 }
@@ -693,10 +693,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         const channel = ChannelStore.getChannel(channelId);
         if (!channel) return results;
 
-        // Utiliser uniquement le cache local des messages
+        // Use only the local message cache
         const messages = MessageStore.getMessages(channelId);
         if (messages && messages.size > 0) {
-            // Convertir le Map en tableau
+            // Convert the Map to an array
             let messageArray: Message[] = [];
             try {
                 if (messages instanceof Map) {
@@ -705,17 +705,17 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                     messages.forEach((msg: Message) => messageArray.push(msg));
                 }
             } catch (error) {
-                console.error("Erreur lors de la conversion des messages:", error);
+                console.error("Error converting messages:", error);
                 return results;
             }
 
-            // Recherche de mots complets (sensible à la casse)
-            // IMPORTANT: Exclure les messages avec uniquement des médias (pas de contenu texte)
+            // Whole word search (case-sensitive)
+            // IMPORTANT: Exclude messages with only media (no text content)
             for (const message of messageArray) {
-                // Vérifier que le message a du contenu texte (pas seulement des médias)
+                // Check that the message has text content (not just media)
                 const hasTextContent = message.content && message.content.trim().length > 0;
 
-                // Si le message a du contenu texte et correspond à la recherche (mot complet)
+                // If the message has text content and matches the search (whole word)
                 if (hasTextContent && message.content && matchesWholeWord(message.content, query)) {
                     results.push({
                         message,
@@ -735,10 +735,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         const channel = ChannelStore.getChannel(channelId);
         if (!channel) return results;
 
-        // Utiliser uniquement le cache local - rechercher les messages avec pinned = true
+        // Use only the local cache - search for messages with pinned = true
         const messages = MessageStore.getMessages(channelId);
         if (messages && messages.size > 0) {
-            // Convertir le Map en tableau
+            // Convert the Map to an array
             let messageArray: Message[] = [];
             try {
                 if (messages instanceof Map) {
@@ -750,9 +750,9 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                 return results;
             }
 
-            // Recherche de mots complets (sensible à la casse)
+            // Whole word search (case-sensitive)
             for (const message of messageArray) {
-                // Vérifier si le message est épinglé (propriété pinned)
+                // Check if the message is pinned (pinned property)
                 if (message.pinned && (!query || (message.content && matchesWholeWord(message.content, query)))) {
                     results.push({
                         message,
@@ -766,10 +766,10 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         return results;
     }
 
-    // Optimiser highlightText avec useMemo
+    // Optimize highlightText with useMemo
     const highlightText = useCallback((text: string, highlight: string): React.ReactNode => {
         if (!highlight || !text) return text;
-        // Échapper les caractères spéciaux dans la regex
+        // Escape special characters in the regex
         const escapedHighlight = highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
         const parts = text.split(new RegExp(`(${escapedHighlight})`, "gi"));
         return parts.map((part, i) =>
@@ -855,7 +855,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         }
     }, []);
 
-    // Composant pour afficher la liste des messages
+    // Component to display the message list
     function MessagesList({ results, onNavigate, onSelect, selectedIndex, searchQuery }: {
         results: SearchResult[];
         onNavigate: (result: SearchResult) => void;
@@ -949,7 +949,7 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
         );
     }
 
-    // Composant wrapper pour la grille de médias
+    // Wrapper component for the media grid
     function MediaGridWrapper({ results, allResults, onNavigate, onSelect, selectedIndex, loadingMore, remainingCount }: {
         results: SearchResult[];
         allResults: SearchResult[];

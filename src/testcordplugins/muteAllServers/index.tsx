@@ -23,7 +23,7 @@ function MuteIcon({ width = 18, height = 18 }: { width?: number; height?: number
 function markAllAsRead() {
     const channels: Array<any> = [];
 
-    // Marquer tous les serveurs comme lus
+    // Mark all servers as read
     Object.values(GuildStore.getGuilds()).forEach(guild => {
         const guildChannels = GuildChannelStore.getChannels(guild.id);
         if (!guildChannels) return;
@@ -47,7 +47,7 @@ function markAllAsRead() {
         });
     });
 
-    // Marquer tous les DMs / Groupes comme lus
+    // Mark all DMs / Groups as read
     ChannelStore.getSortedPrivateChannels().forEach((c: any) => {
         if (!ReadStateStore.hasUnread(c.id)) return;
         channels.push({
@@ -76,17 +76,17 @@ async function muteAllServers() {
         id: Toasts.genId(),
     });
 
-    // Étape 1 : Marquer tout comme lu (système Equicord)
+    // Step 1: Mark everything as read (Equicord system)
     markAllAsRead();
 
-    // Étape 2 : Muter les serveurs
+    // Step 2: Mute the servers
     if (guildIds.length > 0) {
         let count = 0;
         const updateSettings = findByPropsLazy("updateGuildNotificationSettings");
 
         for (const id of guildIds) {
             try {
-                // Ack individuel (sécurité)
+                // Individual ack (safety)
                 try { await RestAPI.post({ url: `/guilds/${id}/ack`, body: {} }); } catch { }
 
                 const settings = {

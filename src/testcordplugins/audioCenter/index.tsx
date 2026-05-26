@@ -74,7 +74,7 @@ const settings = definePluginSettings({
     },
 });
 
-// Variables globales
+// Global variables
 let selectedPrimaryDevice = "";
 let selectedSecondaryDevice = "";
 
@@ -104,7 +104,7 @@ let mixerState: AudioMixerState = {
 // Virtual device state
 let virtualOutputDevice = {
     id: "audioCenter-virtual-output",
-    name: "AudioCenter - Sortie Virtuelle",
+    name: "AudioCenter - Virtual Output",
     isActive: false,
     audioContext: null as AudioContext | null,
     destination: null as MediaStreamAudioDestinationNode | null,
@@ -280,7 +280,7 @@ function createGlobalFunction() {
 
             const virtualDevice = {
                 id: "virtual-audio-center",
-                name: "AudioCenter - Mixeur Virtuel",
+                name: "AudioCenter - Virtual Mixer",
                 type: "audioinput",
             };
 

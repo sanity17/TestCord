@@ -1,7 +1,7 @@
 /*
  * Nightcord – DoubleCall plugin
- * Rejoins deux canaux vocaux simultanément avec ton propre account.
- * Recopié depuis le build fonctionnel (compiled output).
+ * Joins two voice channels simultaneously with your own account.
+ * Copied from the working build (compiled output).
  */
 
 import "./styles.css";
@@ -67,12 +67,12 @@ const DoubleCallButton: UserAreaButtonFactory = ({ iconForeground }: UserAreaRen
         const uid = getMyUserId();
 
         if (anchorState) {
-            // Désactiver : On retire uniquement le Ghost, on laisse le compte principal là où il est
+            // Deactivate: Only remove the Ghost, leave the main account where it is
             try {
-                // 1. Quitter le moteur ghost uniquement
+                // 1. Leave the ghost engine only
                 await Native.leaveVoice(uid);
 
-                // 2. Stopper l'audio de multi-écoute
+                // 2. Stop the multi-listen audio
                 if (playback) {
                     playback.stop();
                     playback.delete();
@@ -88,10 +88,10 @@ const DoubleCallButton: UserAreaButtonFactory = ({ iconForeground }: UserAreaRen
             return;
         }
 
-        // Activer
+        // Activate
         const vs = getMyVoiceState();
         if (!vs) {
-            showToast("Rejoignez d'abord une voix pour l'ancrer !");
+            showToast("Join a voice channel first to anchor it!");
             return;
         }
 
@@ -101,7 +101,7 @@ const DoubleCallButton: UserAreaButtonFactory = ({ iconForeground }: UserAreaRen
         anchorState = { ...vs };
         await Native.connectGhost(uid, token, vs.guildId, vs.channelId, "default");
 
-        // Multi-écoute : stream WAV depuis le ghost-server
+        // Multi-listen: stream WAV from the ghost-server
         if (playback) playback.delete();
         playback = createAudioPlayer(`http://127.0.0.1:47821/playback/${uid}`, {
             volume: 100,
@@ -142,7 +142,7 @@ export default definePlugin({
                     if (anchorState && typeof res === "string" &&
                         (res.toLowerCase().includes("disconnected") || res.toLowerCase().includes("location") || res.includes("déconnecté")) &&
                         (res.includes("autre") || res.includes("location") || res.includes("another"))) {
-                        return "Canal ancré. Pour rester dans 2 salons, rejoignez un second canal !";
+                        return "Channel anchored. To stay in 2 channels, join a second channel!";
                     }
                     return res;
                 };

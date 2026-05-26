@@ -82,32 +82,32 @@ async function correctText(text: string): Promise<string> {
             ],
             temperature: 0,
             maxTokens: 512,
-            // Forcer un modèle léger pour la correction — économise le quota du 70B pour l'IA
+            // Force a lightweight model for correction — saves the 70B quota for the AI
             forceModel: "llama-3.1-8b-instant",
         });
 
         if (!corrected || corrected.trim() === "" || corrected === text) return text;
 
-        // Sécurité contre les répétitions infinies ou les hallucinations
+        // Safety against infinite repetitions or hallucinations
         if (corrected.toLowerCase().includes("correction:") || corrected.toLowerCase().includes("text:")) return text;
 
-        // Sécurité : réponse trop différente → on n'applique pas
+        // Safety: response too different → don't apply
         if (corrected.length > text.length * 1.5 || corrected.length < text.length * 0.4) return text;
 
-        // En mode low : vérification plus stricte du nombre de mots
+        // In low mode: stricter word count check
         if (aggr === "low") {
             const srcWords = text.trim().split(/\s+/).filter(w => w.length > 0).length;
             const corrWords = corrected.trim().split(/\s+/).filter(w => w.length > 0).length;
-            // Mode soft ne doit pas ajouter/enlever plus d'un mot sur des phrases courtes
+            // Soft mode must not add/remove more than one word on short sentences
             if (Math.abs(corrWords - srcWords) > Math.max(1, Math.floor(srcWords * 0.15))) {
                 console.log("[AutoCorrect] Soft mode rejected: word count changed too much", { srcWords, corrWords });
                 return text;
             }
         }
-        return corrected.replace(/^"(.*)"$/, '$1').trim(); // Nettoie les guillemets éventuels
+        return corrected.replace(/^"(.*)"$/, '$1').trim(); // Clean possible quotes
     } catch (e: any) {
         console.warn("[AutoCorrect] Error correction:", e.message);
-        return text; // En cas d'error, envoyer le texte original
+        return text; // On error, send the original text
     }
 }
 
@@ -140,7 +140,7 @@ const AutoCorrectChatBarButton: ChatBarButtonFactory = ({ type }) => {
 
     const toggle = async () => {
         if (!enabled) {
-            // Vérifie que la clé API est configurée avant d'activer
+            // Check that the API key is configured before enabling
             const key = await getGroqKey();
             if (!key) {
                 showApiKeyWarning("AutoCorrect");

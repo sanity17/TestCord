@@ -20,14 +20,14 @@ const GuildStore = findStoreLazy("GuildStore");
 const MessageStore = findStoreLazy("MessageStore");
 const SelectedChannelStore = findStoreLazy("SelectedChannelStore");
 
-// Stratégie de navigation alternative via Dispatcher
+// Alternative navigation strategy via Dispatcher
 const navigateTo = (path: string) => {
     try {
         const Router = findByPropsLazy("transitionTo") || findByPropsLazy("push");
         if (Router?.transitionTo) return Router.transitionTo(path);
         if (Router?.push) return Router.push(path);
 
-        // Dernier recours via le dispatcher
+        // Last resort via the dispatcher
         Dispatcher.dispatch({
             type: "NAVIGATE_TO",
             path: path
@@ -98,22 +98,22 @@ function savePersistLogs() {
     } catch { }
 }
 
-// Seul accountur de version — pas de snapshot, pas de copie
+// Single version counter — no snapshot, no copy
 let globalVersion = 0;
 const updateListeners = new Set<() => void>();
 
 let flushTimer: ReturnType<typeof setTimeout> | null = null;
 function scheduleFlush() {
     if (flushTimer !== null) return;
-    // FIX CRASH DM SCROLL: debounce augmenté de 50ms → 500ms
-    // Un flush à 50ms pendant le scroll DM déclenchait un globalVersion++ à chaque
-    // batch LOAD_MESSAGES_SUCCESS, forçant un re-render React en plein milieu de la
-    // virtualisation DOM de Discord → removeChild crash (node not a child of this node).
-    // 500ms laisse le temps au scroll de se stabiliser avant de notifier les listeners.
+    // FIX CRASH DM SCROLL: debounce increased from 50ms → 500ms
+    // A flush at 50ms during DM scroll triggered a globalVersion++ on each
+    // LOAD_MESSAGES_SUCCESS batch, forcing a React re-render in the middle of
+    // Discord's DOM virtualization → removeChild crash (node not a child of this node).
+    // 500ms gives time for the scroll to stabilize before notifying listeners.
     flushTimer = setTimeout(() => {
         flushTimer = null;
         globalVersion++;
-        // Notification immédiate pour les listeners
+        // Immediate notification for listeners
         for (const fn of updateListeners) {
             try { fn(); } catch { }
         }
@@ -160,22 +160,22 @@ function authorFrom(msg: any) {
     return { authorId: id, authorName: name, authorAvatar: av };
 }
 
-// FIX CRASH DM SCROLL: msgCache réduit de 8000 → 3000 entrées, purge de 1000 → 500
-// La purge brutale de 1000 entrées d'un coup pendant le scroll provoquait un pic de
-// travail synchrone qui bloquait le thread principal au moment critique du re-render.
-// Taille réduite + purge plus petite = moins d'impact pendant le scroll.
+// FIX CRASH DM SCROLL: msgCache reduced from 8000 → 3000 entries, purge from 1000 → 500
+// The brutal purge of 1000 entries at once during scroll caused a spike of
+// synchronous work that blocked the main thread at the critical re-render moment.
+// Reduced size + smaller purge = less impact during scroll.
 const MSG_CACHE_MAX = 3000;
 const MSG_CACHE_PURGE = 500;
 const msgCache = new Map<string, { content: string; authorId: string; authorName: string; authorAvatar: string | null; }>();
 
-// Flag pour bloquer les purges du cache pendant le scroll (LOAD_MESSAGES_SUCCESS actif)
+// Flag to block cache purges during scroll (LOAD_MESSAGES_SUCCESS active)
 let isLoadingMessages = false;
 
 function cacheMsg(msg: any) {
     if (!msg?.id) return;
-    // FIX: Ne pas purger le cache pendant un chargement de messages (scroll DM)
-    // La purge en plein milieu d'un LOAD_MESSAGES_SUCCESS forçait un recalcul des
-    // globalPaths Node qui entrait en conflit avec la virtualisation Discord.
+    // FIX: Do not purge the cache during message loading (DM scroll)
+    // Purging in the middle of a LOAD_MESSAGES_SUCCESS forced a recalculation of
+    // Node globalPaths that conflicted with Discord's virtualization.
     if (msgCache.size >= MSG_CACHE_MAX && !isLoadingMessages) {
         const keys = Array.from(msgCache.keys());
         for (let i = 0; i < MSG_CACHE_PURGE; i++) msgCache.delete(keys[i]);
@@ -197,14 +197,14 @@ const CFG: Record<LogType, { label: string; color: string; }> = {
     friend_add: { label: t("Friend +"), color: "#3ba55c" },
     friend_remove: { label: t("Friend -"), color: "#ed4245" },
     friend_request: { label: t("Request"), color: "#5865f2" },
-    friend_request_cancel: { label: t("Annulé"), color: "#747f8d" },
+    friend_request_cancel: { label: t("Cancelled"), color: "#747f8d" },
     block: { label: t("Blocked"), color: "#ed4245" },
     guild_member_add: { label: t("Joined"), color: "#3ba55c" },
     guild_member_remove: { label: t("Left"), color: "#ed4245" },
     guild_ban: { label: t("Banned"), color: "#ed4245" },
-    guild_timeout: { label: t("Exclu"), color: "#faa61a" },
+    guild_timeout: { label: t("Timeout"), color: "#faa61a" },
     guild_kick: { label: t("Kick"), color: "#ed4245" },
-    user_disconnect: { label: t("Déco"), color: "#747f8d" },
+    user_disconnect: { label: t("Disconnected"), color: "#747f8d" },
     ping: { label: t("Ping"), color: "#eb459f" },
 };
 
@@ -217,7 +217,7 @@ const avatarUrl = (userId: string, av?: string | null) =>
 
 function renderContent(text: string) {
     if (!text) return text;
-    // Remplace les pings <@ID> ou <@!ID> par @pseudo
+    // Replace pings <@ID> or <@!ID> with @username
     return text.replace(/<@!?(\d+)>/g, (match, id) => {
         const u = getUser(id);
         return u ? `@${u.globalName || u.username}` : match;
@@ -231,7 +231,7 @@ function LogRow({ e }: { e: LogEntry; }) {
         if (!e.channelId) return;
 
         try {
-            // Pour le vocal
+            // For voice
             if (e.type.startsWith("voice_")) {
                 if (VoiceStateActionCreators?.selectVoiceChannel) {
                     VoiceStateActionCreators.selectVoiceChannel(e.channelId);
@@ -241,7 +241,7 @@ function LogRow({ e }: { e: LogEntry; }) {
                 return;
             }
 
-            // Pour les messages
+            // For messages
             const guildId = e.guildId || "@me";
             const path = e.realId
                 ? `/channels/${guildId}/${e.channelId}/${e.realId}`
@@ -416,7 +416,7 @@ function LogsModal({ rootProps }: { rootProps: any; }) {
     const [debouncedSearch, setDebouncedSearch] = useState("");
     const [page, setPage] = useState(0);
 
-    // Extraction des guildes uniques pour le select
+    // Extract unique guilds for the select
     const guildOptions = useMemo(() => {
         const map = new Map<string, { label: string, guild: any; }>();
         for (const l of logs) {
@@ -440,7 +440,7 @@ function LogsModal({ rootProps }: { rootProps: any; }) {
         return () => { updateListeners.delete(fn); };
     }, []);
 
-    // Debounce search à 200ms
+    // Debounce search at 200ms
     useEffect(() => {
         const t = setTimeout(() => { setDebouncedSearch(search); setPage(0); }, 200);
         return () => clearTimeout(t);
@@ -559,7 +559,7 @@ function LogsModal({ rootProps }: { rootProps: any; }) {
 
                 <div className="el-list">
                     {slice.length === 0
-                        ? <div className="el-empty">{t("Aucun événement")}</div>
+                        ? <div className="el-empty">{t("No events")}</div>
                         : slice.map(e => <LogRow key={e.id} e={e} />)}
                 </div>
 
@@ -643,8 +643,8 @@ function subscribeToEvents() {
     });
     sub("LOAD_MESSAGES_SUCCESS", d => {
         if (!d) return;
-        // FIX CRASH DM SCROLL: isLoadingMessages bloque la purge du msgCache pendant
-        // le traitement du batch — évite un pic synchrone sur le thread principal.
+        // FIX CRASH DM SCROLL: isLoadingMessages blocks msgCache purge during
+        // batch processing — avoids a synchronous spike on the main thread.
         const msgs = [
             ...(Array.isArray(d.messages) ? d.messages : []),
             ...(Array.isArray(d.jump) ? d.jump : []),
@@ -653,12 +653,12 @@ function subscribeToEvents() {
         ];
         if (msgs.length === 0) return;
 
-        // requestIdleCallback est idéal pour le scan en arrière-plan sans lag
+        // requestIdleCallback is ideal for background scanning without lag
         if (typeof requestIdleCallback !== "undefined") {
             requestIdleCallback(() => {
                 isLoadingMessages = true;
                 try { for (const m of msgs) cacheMsg(m); } finally { isLoadingMessages = false; }
-                // Purge différée si le cache dépasse la limite
+                // Deferred purge if the cache exceeds the limit
                 if (msgCache.size >= MSG_CACHE_MAX) {
                     const keys = Array.from(msgCache.keys());
                     for (let i = 0; i < MSG_CACHE_PURGE; i++) msgCache.delete(keys[i]);
@@ -682,7 +682,7 @@ function subscribeToEvents() {
         if (oldC === newC) return;
         const a = authorFrom(m);
         pushLog({
-            type: "message_edit", content: newC, extra: oldC || "(inconnu)", realId: m.id,
+            type: "message_edit", content: newC, extra: oldC || "(unknown)", realId: m.id,
             authorId: a.authorId ?? cached?.authorId, authorName: a.authorName !== "?" ? a.authorName : (cached?.authorName ?? "?"),
             authorAvatar: a.authorAvatar ?? cached?.authorAvatar ?? null, ...chInfo(m.channel_id)
         });
@@ -768,13 +768,13 @@ function subscribeToEvents() {
         pushLog({ type: "guild_member_remove", content: t("Left/Kick"), ...b, guildId: d.guildId, guildName: g?.name });
     });
     sub("GUILD_BAN_ADD", d => { const b = uInfo(d.user?.id); const g = getGuild(d.guildId); pushLog({ type: "guild_ban", content: t("Banned"), ...b, guildId: d.guildId, guildName: g?.name }); });
-    sub("GUILD_BAN_REMOVE", d => { const b = uInfo(d.user?.id); const g = getGuild(d.guildId); pushLog({ type: "friend_remove", content: t("Débanni"), ...b, guildId: d.guildId, guildName: g?.name }); });
+    sub("GUILD_BAN_REMOVE", d => { const b = uInfo(d.user?.id); const g = getGuild(d.guildId); pushLog({ type: "friend_remove", content: t("Unbanned"), ...b, guildId: d.guildId, guildName: g?.name }); });
 
     sub("GUILD_MEMBER_UPDATE", d => {
         if (!d.guildId || !d.user?.id) return;
         const b = uInfo(d.user.id); const g = getGuild(d.guildId);
         if (d.communicationDisabledUntil) {
-            pushLog({ type: "guild_timeout", content: t("Exclu temporairement (Timeout)"), ...b, guildId: d.guildId, guildName: g?.name });
+            pushLog({ type: "guild_timeout", content: t("Temporarily timed out (Timeout)"), ...b, guildId: d.guildId, guildName: g?.name });
         }
     });
 
@@ -790,8 +790,8 @@ function subscribeToEvents() {
         if (changed) scheduleFlush();
     });
 
-    // Capture logout/disconnect (partiel car le plugin s'arrête si déco totale)
-    sub("LOGOUT", () => { pushLog({ type: "user_disconnect", content: t("Déconnexion du account"), authorName: "Système" }); });
+    // Capture logout/disconnect (partial since the plugin stops on full disconnect)
+    sub("LOGOUT", () => { pushLog({ type: "user_disconnect", content: t("Account disconnected"), authorName: "System" }); });
 }
 
 export default definePlugin({

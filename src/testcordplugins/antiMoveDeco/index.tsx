@@ -3,7 +3,7 @@ import { FluxDispatcher, React, UserStore } from "@webpack/common";
 import { UserAreaButton } from "@api/UserArea";
 import { findByProps, findByPropsLazy } from "@webpack";
 
-// Modules Webpack
+// Webpack Modules
 const ChannelActions = findByPropsLazy("selectVoiceChannel", "disconnect");
 const SelectedChannelStore = findByPropsLazy("getVoiceChannelId", "getChannelId");
 
@@ -17,16 +17,16 @@ function onVoiceStateUpdate({ voiceStates }: { voiceStates: any[]; }) {
     if (!currentUser) return;
     const myId = currentUser.id;
 
-    // Chercher si mon état a changé dans cet update
+    // Check if my state changed in this update
     const myState = voiceStates.find(s => s.userId === myId);
 
-    // Si on a un update me concernant
+    // If there's an update concerning me
     if (myState) {
-        // Si le nouveau channelId est différent de celui qu'on protège (ou null si déco)
+        // If the new channelId is different from the one we're protecting (or null if disconnected)
         if (myState.channelId !== targetChannelId) {
             console.log(`[AntiMoveDeco] Movement or disconnect detected! Returning to channel ${targetChannelId}...`);
 
-            // Petit délai pour laisser Discord finir sa déconnexion propre avant de reco
+            // Small delay to let Discord finish its clean disconnection before reconnecting
             setTimeout(() => {
                 if (enabled && targetChannelId) {
                     try {
@@ -41,7 +41,7 @@ function onVoiceStateUpdate({ voiceStates }: { voiceStates: any[]; }) {
 }
 
 function AntiMoveDecoIcon({ enabled }: { enabled: boolean; }) {
-    const color = enabled ? "#39FF14" : "currentColor"; // Vert fluo si activé
+    const color = enabled ? "#39FF14" : "currentColor"; // Neon green if enabled
     return (
         <svg width="20" height="20" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
             <circle cx="12" cy="12" r="10" stroke={color} strokeWidth="2.5" />
@@ -57,7 +57,7 @@ function AntiMoveDecoButton() {
         if (!enabled) {
             const channelId = SelectedChannelStore?.getVoiceChannelId?.();
             if (!channelId) {
-                // Pas en vocal, on ne peut pas activer
+                // Not in voice, cannot activate
                 return;
             }
             targetChannelId = channelId;

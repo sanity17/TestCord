@@ -75,7 +75,7 @@ const settings = definePluginSettings({
     },
 });
 
-// Variables globales pour le contrôle
+// Global variables for control
 let isCleaningInProgress = false;
 let shouldStopCleaning = false;
 let cleaningStats = {

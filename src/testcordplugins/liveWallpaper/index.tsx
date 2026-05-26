@@ -155,8 +155,8 @@ const settings = definePluginSettings({
         type: OptionType.COMPONENT,
         component: SettingsComponent,
     },
-    // Remarque : Nous avons retiré wallpaperUrl d'ici.
-    // L'enregistrement est géré MANUELLEMENT via DataStore dans SettingsComponent.
+    // Note: We removed wallpaperUrl from here.
+    // Storage is handled MANUALLY via DataStore in SettingsComponent.
     opacity: {
         type: OptionType.SLIDER,
         description: "Wallpaper opacity (0 = invisible, 0.5 = max)",
@@ -248,7 +248,7 @@ async function applyWallpaper() {
 `.trim();
     document.head.appendChild(style);
 
-    // Créer le container avec l'image/vidéo
+    // Create the container with the image/video
     const container = document.createElement("div");
     container.id = CONTAINER_ID;
 
@@ -269,7 +269,7 @@ async function applyWallpaper() {
         container.appendChild(img);
     }
 
-    // Injecter à la fin du body (au-dessus de tout)
+    // Inject at the end of body (on top of everything)
     document.body.appendChild(container);
 }
 
@@ -282,7 +282,7 @@ export default definePlugin({
     settings,
 
     start() {
-        // Petit délai pour que le DOM soit prêt
+        // Small delay to let the DOM be ready
         setTimeout(applyWallpaper, 300);
     },
 

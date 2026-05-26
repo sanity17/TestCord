@@ -423,7 +423,7 @@ async function doFakeFriendRequest(userId: string) {
     await addPendingRequest(user);
 }
 
-// ── Modal React pour saisir un nombre ─────────────────────────────────────────────
+// ── Modal React for entering a number ─────────────────────────────────────────────
 function askCount(title: string, max: number): Promise<number | null> {
     return new Promise(resolve => {
         const resolveRef = { current: resolve, done: false };
@@ -459,7 +459,7 @@ function askCount(title: string, max: number): Promise<number | null> {
                     <Modals.ModalContent style={{ padding: "16px 20px" }}>
                         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
                             <label style={{ fontSize: 12, fontWeight: 600, color: "#fff", textTransform: "uppercase", letterSpacing: ".04em" }}>
-                                Nombre (max {max})
+                                Number (max {max})
                             </label>
                             <input
                                 autoFocus
@@ -517,7 +517,7 @@ function askCount(title: string, max: number): Promise<number | null> {
     });
 }
 
-// ── Candidats d'un serveur ────────────────────────────────────────────────────
+// ── Server candidates ────────────────────────────────────────────────────
 async function fetchAllGuildMembers(guildId: string): Promise<void> {
     const queries = [
         ..."abcdefghijklmnopqrstuvwxyz0123456789".split(""),
@@ -559,14 +559,14 @@ function getGuildCandidates(guildId: string): string[] {
     });
 }
 
-// ── Fake Friend Request avec saisie du nombre ─────────────────────────────────
+// ── Fake Friend Request with number input ─────────────────────────────────
 async function floodGuild(guildId: string) {
-    Toasts.show({ message: "Chargement des membres...", type: Toasts.Type.MESSAGE, id: "ff-loading" });
+    Toasts.show({ message: "Loading members...", type: Toasts.Type.MESSAGE, id: "ff-loading" });
     await fetchAllGuildMembers(guildId);
 
     const candidates = getGuildCandidates(guildId);
     if (!candidates.length) {
-        Toasts.show({ message: "Aucun candidat disponible", type: Toasts.Type.FAILURE, id: Toasts.genId() });
+        Toasts.show({ message: "No candidates available", type: Toasts.Type.FAILURE, id: Toasts.genId() });
         return;
     }
 
@@ -592,7 +592,7 @@ async function floodGuild(guildId: string) {
     Toasts.show({ message: `${sent} fake friend request${sent > 1 ? "s" : ""} sent!`, type: Toasts.Type.SUCCESS, id: Toasts.genId() });
 }
 
-// ── Remove fake requests pour un serveur ──────────────────────────────────────
+// ── Remove fake requests for a server ──────────────────────────────────────
 async function removeFakeFriendsForGuild(guildId: string) {
     const memberIds = new Set<string>(GuildMemberStore.getMemberIds(guildId) as string[]);
     const toRemove = [...fakeState.keys()].filter(id => memberIds.has(id));
@@ -809,7 +809,7 @@ const userContextPatch: NavContextMenuPatchCallback = (children, props) => {
             ];
         } else if (state === "pending") {
             items = [
-                <Menu.MenuItem key="ff-cancel" id="ff-cancel" label="Cancel la fake demande" color="danger"
+                <Menu.MenuItem key="ff-cancel" id="ff-cancel" label="Cancel fake request" color="danger"
                     action={async () => {
                         fakeState.delete(userId);
                         await persistState();
@@ -818,7 +818,7 @@ const userContextPatch: NavContextMenuPatchCallback = (children, props) => {
             ];
         } else {
             items = [
-                <Menu.MenuItem key="ff-remove" id="ff-remove" label="Retirer des fake friends" color="danger"
+                <Menu.MenuItem key="ff-remove" id="ff-remove" label="Remove from fake friends" color="danger"
                     action={async () => {
                         fakeState.delete(userId);
                         await persistState();
@@ -842,7 +842,7 @@ const guildContextPatch: NavContextMenuPatchCallback = (children, props) => {
         const guildId = props?.guild?.id ?? props?.guildId;
         if (!guildId) return;
 
-        // Compter combien de fake states concernent ce serveur
+        // Count how many fake states concern this server
         const memberIds = new Set<string>(GuildMemberStore.getMemberIds(guildId) as string[]);
         const fakeCount = [...fakeState.keys()].filter(id => memberIds.has(id)).length;
 
@@ -851,7 +851,7 @@ const guildContextPatch: NavContextMenuPatchCallback = (children, props) => {
                 action={() => floodGuild(guildId)} />
         ];
 
-        // Bouton "Remove fake friend requests" — visible seulement si des fakes existent pour ce serveur
+        // "Remove fake friend requests" button — only visible if fakes exist for this server
         if (fakeCount > 0) {
             items.push(
                 <Menu.MenuItem
@@ -888,10 +888,10 @@ export default definePlugin({
         addContextMenuPatch("user-context", userContextPatch);
         addContextMenuPatch("guild-context", guildContextPatch);
 
-        // Charger l'état persistant puis réappliquer les dispatches
+        // Load persistent state then reapply dispatches
         await loadState();
         if (fakeState.size > 0) {
-            // Délai pour laisser Discord se charger complètement
+            // Delay to let Discord fully load
             setTimeout(() => reapplyFakeStates(), 3000);
         }
     },
@@ -900,8 +900,8 @@ export default definePlugin({
         removeContextMenuPatch("user-context", userContextPatch);
         removeContextMenuPatch("guild-context", guildContextPatch);
         unpatchAcceptFriend();
-        // On ne clear pas fakeState au stop — persistant intentionnellement
-        // Pour reset : clic Reset dans le plugin ou "Remove fake friend requests"
+        // We don't clear fakeState on stop — intentionally persistent
+        // To reset: click Reset in the plugin or "Remove fake friend requests"
         unpatchStore();
         unpatchChannelStore();
     },

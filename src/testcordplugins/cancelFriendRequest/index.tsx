@@ -17,7 +17,7 @@ function cancelRequest(userId: string) {
     try {
         RelationshipActions.removeFriend(userId);
         Toasts.show({
-            message: "Request d'friend annulée ✓",
+            message: "Friend request cancelled ✓",
             type: Toasts.Type.SUCCESS,
             id: Toasts.genId(),
         });
@@ -46,23 +46,23 @@ function patchBtn(btn: HTMLElement, userId: string) {
         e.stopImmediatePropagation();
         cancelRequest(userId);
     }, true);
-    // Retirer le disabled si présent pour que le clic soit possible
+    // Remove disabled if present so the click is possible
     btn.removeAttribute("disabled");
     btn.style.cursor = "pointer";
     btn.style.opacity = "1";
 }
 
 function scan(root: Document | Element = document) {
-    // ── Cas 1 : popup profil ─────────────────────────────────────────────────
-    // aria-label="Outgoing Friend Request" — invariant quelle que soit la langue UI
+    // ── Case 1: profile popup ─────────────────────────────────────────────────
+    // aria-label="Outgoing Friend Request" — invariant regardless of UI language
     root.querySelectorAll<HTMLElement>('button[aria-label="Outgoing Friend Request"]').forEach(btn => {
-        // Trouver le userId via le container du profil
+        // Find the userId via the profile container
         const profileContainer = btn.closest("[class*='profileButtons']") 
             ?? btn.closest("[class*='profileHeader']")
             ?? btn.closest("[class*='inner']");
         if (!profileContainer) return;
 
-        // Chercher un avatar avec CDN Discord qui contient le userId
+        // Look for an avatar with Discord CDN that contains the userId
         const wholeModal = btn.closest("[class*='modal'], [class*='userPopout'], [class*='profileBody']")
             ?? document;
         const avatarImg = wholeModal?.querySelector?.("img[src*='cdn.discordapp.com/avatars/']");
@@ -70,20 +70,20 @@ function scan(root: Document | Element = document) {
             const m = avatarImg.getAttribute("src")?.match(/avatars\/(\d+)\//);
             if (m) { patchBtn(btn, m[1]); return; }
         }
-        // Fallback : chercher via les relations en attente (si 1 seule demande sortante)
+        // Fallback: look via pending relationships (if only 1 outgoing request)
         const uid = getUserIdFromOutgoingRelationships();
         if (uid) patchBtn(btn, uid);
     });
 
-    // ── Cas 2 : DM header ────────────────────────────────────────────────────
-    // Le bouton "Friend Request Sent" est disabled + secondary dans le header DM
-    // Structure : div.container_b50d96 > div.inline_b50d96 > button[disabled].secondary
+    // ── Case 2: DM header ────────────────────────────────────────────────────
+    // The "Friend Request Sent" button is disabled + secondary in the DM header
+    // Structure: div.container_b50d96 > div.inline_b50d96 > button[disabled].secondary
     root.querySelectorAll<HTMLElement>('button[disabled][class*="secondary"]').forEach(btn => {
-        // Vérifier qu'on est bien dans un header de DM (pas ailleurs)
+        // Check that we're in a DM header (not elsewhere)
         const container = btn.closest("[class*='container_b50d96'], [class*='dmWelcome'], [class*='privateChannelEmptyMessage']");
         if (!container) return;
 
-        // Récupérer le userId via l'avatar dans ce header
+        // Get the userId via the avatar in this header
         const avatarImg = container.querySelector("img[src*='cdn.discordapp.com/avatars/']");
         if (avatarImg) {
             const m = avatarImg.getAttribute("src")?.match(/avatars\/(\d+)\//);
@@ -93,7 +93,7 @@ function scan(root: Document | Element = document) {
             }
         }
 
-        // Fallback : via les relations sortantes
+        // Fallback: via outgoing relationships
         const uid = getUserIdFromOutgoingRelationships();
         if (uid) {
             const relType = (RelationshipStore as any).getRelationshipType(uid);
@@ -117,7 +117,7 @@ export default definePlugin({
         });
         observer.observe(document.body, { childList: true, subtree: true });
         scan(document);
-        console.log("[CancelFriendRequest] Démarré ✓");
+        console.log("[CancelFriendRequest] Started ✓");
     },
 
     stop() {
@@ -126,6 +126,6 @@ export default definePlugin({
         document.querySelectorAll<HTMLElement>("[data-cfp]").forEach(el => {
             delete el.dataset.cfp;
         });
-        console.log("[CancelFriendRequest] Arrêté.");
+        console.log("[CancelFriendRequest] Stopped.");
     },
 });

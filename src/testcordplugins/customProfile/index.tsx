@@ -760,14 +760,14 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
     // Retrieve all connected accounts
     const accounts = React.useMemo(() => {
         try {
-            // Tentative 1: via MultiAccountStore global
+            // Attempt 1: via global MultiAccountStore
             const MAS = (window as any).Vencord?.Webpack?.findByProps?.("getUsers", "getValidUsers");
             if (MAS?.getUsers) {
                 const users = MAS.getUsers();
                 if (Array.isArray(users) && users.length > 0) return users;
             }
 
-            // Tentative 2: via le store interne
+            // Attempt 2: via the internal store
             const internalStore = (window as any).Vencord?.Webpack?.findStore?.("MultiAccountStore");
             if (internalStore?.getUsers) {
                 const users = internalStore.getUsers();
@@ -776,7 +776,7 @@ function CustomProfileModal({ rootProps }: { rootProps: any; }) {
         } catch (e) { console.error("[CustomProfile] Failed to fetch accounts:", e); }
 
         const me = UserStore.getCurrentUser();
-        // Pour debug: si on ne trouve qu'un compte, on simule quand même pour voir si la barre s'affiche
+        // For debug: if we only find one account, we still simulate to see if the bar displays
         return me ? [me, { ...me, id: "debug-placeholder", username: "Second Account?", globalName: "Simulation" }] : [];
     }, []);
 
@@ -1191,8 +1191,8 @@ export default definePlugin({
                 clone.premiumGuildSince = null;
             }
         } else if (isEnabled) {
-            // Si le plugin est activé mais Nitro simulation OFF
-            // On force la suppression des badges Nitro/Boost si demandés ou si simulés par erreur
+            // If the plugin is enabled but Nitro simulation is OFF
+            // Force removal of Nitro/Boost badges if requested or if simulated by mistake
             if (storedData.nitro === false) {
                 clone.premiumType = 0;
                 clone.premiumSince = null;
@@ -1269,11 +1269,11 @@ export default definePlugin({
                     merged.premiumGuildSince = null;
                 }
 
-                // On s'assure que les badges originaux sont écrasés dans le profil
+                // Ensure that original badges are overwritten in the profile
                 merged.publicFlags = (storedData.badgeFlags != null) ? storedData.badgeFlags : profile.publicFlags;
-                merged.badges = []; // Force Discord à recalculer la liste à partir de publicFlags et premiumType
+                merged.badges = []; // Force Discord to recalculate the list from publicFlags and premiumType
             } else if (isEnabled && storedData.nitro === false) {
-                // Si Nitro simulation est OFF, on force la suppression des badges simulés
+                // If Nitro simulation is OFF, force removal of simulated badges
                 merged.premiumType = profile.premiumType ?? 0;
                 merged.premiumSince = profile.premiumSince ?? null;
                 merged.premiumGuildSince = profile.premiumGuildSince ?? null;
@@ -1439,7 +1439,7 @@ export default definePlugin({
             }
         } catch { }
 
-        // Patch SnowflakeUtils.extractTimestamp pour faker la date de création
+        // Patch SnowflakeUtils.extractTimestamp to fake the creation date
         try {
             if (SnowflakeUtils?.extractTimestamp && !this._origExtractTimestamp) {
                 this._origExtractTimestamp = SnowflakeUtils.extractTimestamp;
@@ -1464,7 +1464,7 @@ export default definePlugin({
             }
         });
 
-        // Patch getAvatarDecorationURL pour injecter notre déco uniquement sur notre user
+        // Patch getAvatarDecorationURL to inject our decoration only on our user
         try {
             const decoMod = (Vencord as any).Webpack?.findByProps?.("getAvatarDecorationURL");
             if (decoMod?.getAvatarDecorationURL) {
@@ -1653,7 +1653,7 @@ export default definePlugin({
             (IconUtils as any).getUserAvatarURL = this._origGetUserAvatarURL;
             this._origGetUserAvatarURL = null;
         }
-        // Nettoyer le patch avatarDecoration
+        // Clean up the avatarDecoration patch
         try {
             const myUser = UserStore.getCurrentUser() as any;
             if (myUser) {

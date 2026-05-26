@@ -86,8 +86,8 @@ async function transcribe(blob: Blob): Promise<string> {
     form.append("file", blob, "audio.webm");
     form.append("model", "whisper-large-v3-turbo");
     form.append("response_format", "text");
-    // Prompt pour orienter Whisper vers du français et éviter les hallucinations "Thank you"
-    form.append("prompt", "Ceci est une dictée vocale en français. Ne pas traduire en anglais. Ne pas générer de texte si il n'y a que du silence.");
+    // Prompt to guide Whisper towards the selected language and avoid "Thank you" hallucinations
+    form.append("prompt", "This is a voice dictation. Do not translate. Do not generate text if there is only silence.");
     if (language) form.append("language", language);
 
     const res = await fetch("https://api.groq.com/openai/v1/audio/transcriptions", {
@@ -180,7 +180,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
             const realDeviceId = await getRealInputDeviceId(discordDeviceId);
             
             try {
-                // Premier essai : avec le deviceId spécifique (fonctionne si permission ok)
+                // First attempt: with the specific deviceId (works if permission is ok)
                 stream = await navigator.mediaDevices.getUserMedia({
                     audio: realDeviceId && realDeviceId !== "default"
                         ? { deviceId: { exact: realDeviceId } }
@@ -188,7 +188,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
                 });
             } catch (firstErr: any) {
                 if (firstErr.name === "NotAllowedError" || firstErr.name === "PermissionDeniedError") {
-                    // Fallback: permission pas encore accordée, demander sans deviceId
+                    // Fallback: permission not yet granted, request without deviceId
                     stream = await navigator.mediaDevices.getUserMedia({ audio: true });
                 } else {
                     throw firstErr;
@@ -197,7 +197,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
             streamRef.current = stream;
         } catch (e: any) {
             const msg = e.name === "NotAllowedError" || e.name === "PermissionDeniedError"
-                ? "Permission micro refusée — vérifiez les permissions dans les paramètres de Discord"
+                ? "Microphone permission denied — check permissions in Discord settings"
                 : "Mic unavailable: " + e.message;
             setErrorMsg(msg);
             activeRef.current = false;

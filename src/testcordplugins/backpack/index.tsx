@@ -41,7 +41,7 @@ async function unpackButton(id: string) {
     await savePacked([...BackpackedButtons]);
 }
 
-// ─── SVG Icons (Chevron Up = fermé, Chevron Down = ouvert) ──────────────────
+// ─── SVG Icons (Chevron Up = closed, Chevron Down = open) ──────────────────
 
 function ChevronUpIcon(props: Record<string, any>) {
     const { width = 20, height = 20, ...rest } = props;
@@ -105,7 +105,7 @@ function BackpackPopout({ chatBarProps, closePopout }: { chatBarProps: ChatBarPr
                             {...tooltipProps}
                             style={{ overflow: "visible" }}
                             onClick={(e) => {
-                                // Désactivation de la fermeture automatique pour permettre d'activer plusieurs plugins
+                                // Disable auto-close to allow activating multiple plugins
                                 // closePopout(); 
                             }}
                         >
@@ -161,30 +161,30 @@ const BackpackChatBarButton: ChatBarButtonFactory = (props) => {
     const [isOpen, setIsOpen] = useState(false);
     const [count, setCount] = useState(BackpackedButtons.size);
     const popoutRef = useRef<HTMLDivElement>(null);
-    // Compte le nombre de popups/modals ouverts AU-DESSUS du backpack
+    // Count the number of popups/modals open ABOVE the backpack
     const overlayCount = useRef(0);
 
-    // Observe TOUT ce qui apparaît dans le DOM layer de Discord
-    // Discord rend ses modals/popups dans des containers spéciaux hors du popout
+    // Observe EVERYTHING that appears in the Discord DOM layer
+    // Discord renders its modals/popups in special containers outside the popout
     useEffect(() => {
         if (!isOpen) {
             overlayCount.current = 0;
             return;
         }
 
-        // Snapshot des enfants de body au moment où le backpack s'ouvre
-        // Tout nouvel enfant qui apparaît ensuite = portal/popup = on bloque la fermeture
+        // Snapshot of body children when the backpack opens
+        // Any new child that appears afterwards = portal/popup = block closing
         const bodyChildrenAtOpen = new Set(Array.from(document.body.children));
 
         function looksLikeOverlay(node: HTMLElement): boolean {
-            // Cas 1 : c'est un nouvel enfant direct de body (portal Discord)
+            // Case 1: it's a new direct child of body (Discord portal)
             if (!bodyChildrenAtOpen.has(node)) return true;
-            // Cas 2 : class name contient un pattern de layer/modal connu
+            // Case 2: class name contains a known layer/modal pattern
             const cls = node.className?.toString() ?? "";
             return ["layerContainer", "focusLock", "backdrop", "modal"].some(p => cls.includes(p));
         }
 
-        // Observer les enfants directs de document.body (c'est là que Discord insère ses portals)
+        // Observe direct children of document.body (Discord portals are always at top level)
         const observer = new MutationObserver(mutations => {
             for (const m of mutations) {
                 for (const node of Array.from(m.addedNodes)) {
@@ -200,7 +200,7 @@ const BackpackChatBarButton: ChatBarButtonFactory = (props) => {
             }
         });
 
-        // body : enfants directs seulement (les portals Discord sont toujours au top level)
+        // body: direct children only (Discord portals are always at top level)
         observer.observe(document.body, { childList: true, subtree: false });
 
         return () => {
@@ -229,7 +229,7 @@ const BackpackChatBarButton: ChatBarButtonFactory = (props) => {
             renderPopout={() => <BackpackPopout chatBarProps={chatBarProps as any as ChatBarProps} closePopout={() => setIsOpen(false)} />}
             shouldShow={isOpen}
             onRequestClose={() => {
-                    // Ne ferme pas si un popup/modal est ouvert par un plugin du backpack
+                    // Don't close if a popup/modal is opened by a backpack plugin
                     if (overlayCount.current > 0) return;
                     setIsOpen(false);
                 }}

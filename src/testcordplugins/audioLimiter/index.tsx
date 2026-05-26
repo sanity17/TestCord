@@ -15,48 +15,48 @@ import { TestcordDevs } from "@utils/constants";
 const configModule = findByPropsLazy("getOutputVolume");
 
 const settings = definePluginSettings({
-  // Paramètres de limitation de volume
+  // Volume limiting settings
   maxVolume: {
     type: OptionType.SLIDER,
     default: 80,
-    description: "Volume maximum autorisé (%)",
+    description: "Maximum allowed volume (%)",
     markers: [50, 60, 70, 80, 90, 100],
     stickToMarkers: false,
   },
   enableVolumeLimiting: {
     type: OptionType.BOOLEAN,
     default: true,
-    description: "Activer la limitation de volume système",
+    description: "Enable system volume limiting",
   },
 
-  // Paramètres de limitation de décibels
+  // Decibel limiting settings
   maxDecibels: {
     type: OptionType.SLIDER,
     default: -3,
-    description: "Décibels maximum autorisés (dB)",
+    description: "Maximum allowed decibels (dB)",
     markers: [-20, -15, -10, -6, -3, 0],
     stickToMarkers: false,
   },
   enableDbLimiting: {
     type: OptionType.BOOLEAN,
     default: true,
-    description: "Activer la limitation des pics audio (dB)",
+    description: "Enable audio peak limiting (dB)",
   },
 
-  // Paramètres d'affichage
+  // Display settings
   showNotifications: {
     type: OptionType.BOOLEAN,
     default: true,
-    description: "Afficher les notifications de limitation",
+    description: "Show limiting notifications",
   },
   showVisualIndicator: {
     type: OptionType.BOOLEAN,
     default: true,
-    description: "Afficher l'indicateur visuel",
+    description: "Show visual indicator",
   },
 });
 
-// État global du limiteur
+// Global limiter state
 let limiterState = {
   isActive: false,
   audioContext: null as AudioContext | null,
@@ -69,20 +69,20 @@ let limiterState = {
   lastNotification: 0,
 };
 
-// Fonction pour obtenir le volume actuel
+// Function to get current volume
 function getCurrentVolume(): number {
   try {
     return configModule.getOutputVolume();
   } catch (error) {
     console.error(
-      "Audio Limiter: Erreur lors de l'obtention du volume:",
+      "Audio Limiter: Error getting volume:",
       error
     );
     return 0;
   }
 }
 
-// Fonction pour définir le volume
+// Function to set volume
 function setVolume(volume: number) {
   try {
     FluxDispatcher.dispatch({
@@ -91,13 +91,13 @@ function setVolume(volume: number) {
     });
   } catch (error) {
     console.error(
-      "Audio Limiter: Erreur lors de la définition du volume:",
+      "Audio Limiter: Error setting volume:",
       error
     );
   }
 }
 
-// Fonction pour analyser le niveau audio
+// Function to analyze audio level
 function analyzeAudioLevel(): number {
   if (!limiterState.analyser) return 0;
 
@@ -105,19 +105,19 @@ function analyzeAudioLevel(): number {
   const dataArray = new Uint8Array(bufferLength);
   limiterState.analyser.getByteFrequencyData(dataArray);
 
-  // Calculer le niveau RMS
+  // Calculate RMS level
   let sum = 0;
   for (let i = 0; i < bufferLength; i++) {
     sum += dataArray[i] * dataArray[i];
   }
   const rms = Math.sqrt(sum / bufferLength);
 
-  // Convertir en décibels
+  // Convert to decibels
   const db = 20 * Math.log10(rms / 255);
   return isFinite(db) ? db : -Infinity;
 }
 
-// Fonction pour vérifier et limiter le volume système
+// Function to check and limit system volume
 function checkAndLimitVolume() {
   if (!settings.store.enableVolumeLimiting) return;
 
@@ -128,7 +128,7 @@ function checkAndLimitVolume() {
     setVolume(maxVolume);
     limiterState.limitingCount++;
 
-    // Notification avec throttling (max 1 par seconde)
+    // Notification with throttling (max 1 per second)
     const now = Date.now();
     if (
       settings.store.showNotifications &&
@@ -136,71 +136,71 @@ function checkAndLimitVolume() {
     ) {
       showNotification({
         title: "Audio Limiter",
-        body: `Volume limité de ${currentVolume}% à ${maxVolume}%`,
+        body: `Volume limited from ${currentVolume}% to ${maxVolume}%`,
       });
       limiterState.lastNotification = now;
     }
   }
 }
 
-// Fonction pour créer le limiteur audio
+// Function to create the audio limiter
 async function createAudioLimiter() {
   if (!settings.store.enableDbLimiting) return;
 
   try {
-    // Créer le contexte audio
+    // Create audio context
     const audioContext = new (window.AudioContext ||
       (window as any).webkitAudioContext)();
 
-    // Créer le compresseur pour la limitation
+    // Create compressor for limiting
     const compressor = audioContext.createDynamicsCompressor();
     compressor.threshold.value = settings.store.maxDecibels;
     compressor.knee.value = 0;
-    compressor.ratio.value = 20; // Ratio élevé pour une limitation stricte
-    compressor.attack.value = 0.003; // Attaque rapide
-    compressor.release.value = 0.1; // Relâchement rapide
+    compressor.ratio.value = 20; // High ratio for strict limiting
+    compressor.attack.value = 0.003; // Fast attack
+    compressor.release.value = 0.1; // Fast release
 
-    // Créer le nœud de gain pour le contrôle final
+    // Create gain node for final control
     const gainNode = audioContext.createGain();
     gainNode.gain.value = 1.0;
 
-    // Créer l'analyseur pour surveiller les niveaux
+    // Create analyser to monitor levels
     const analyser = audioContext.createAnalyser();
     analyser.fftSize = 256;
     analyser.smoothingTimeConstant = 0.8;
 
-    // Connecter les nœuds
+    // Connect nodes
     compressor.connect(gainNode);
     gainNode.connect(analyser);
     analyser.connect(audioContext.destination);
 
-    // Mettre à jour l'état
+    // Update state
     limiterState.audioContext = audioContext;
     limiterState.gainNode = gainNode;
     limiterState.analyser = analyser;
     limiterState.compressor = compressor;
 
-    // Démarrer la surveillance des niveaux
+    // Start level monitoring
     startLevelMonitoring();
 
     if (settings.store.showNotifications) {
       showNotification({
         title: "Audio Limiter",
-        body: `Limitation audio activée à ${settings.store.maxDecibels} dB`,
+        body: `Audio limiting enabled at ${settings.store.maxDecibels} dB`,
       });
     }
 
     return { audioContext, gainNode, analyser, compressor };
   } catch (error) {
     console.error(
-      "Audio Limiter: Erreur lors de la création du limiteur audio:",
+      "Audio Limiter: Error creating audio limiter:",
       error
     );
     throw error;
   }
 }
 
-// Fonction pour surveiller les niveaux audio
+// Function to monitor audio levels
 function startLevelMonitoring() {
   if (!settings.store.enableDbLimiting || !limiterState.analyser) return;
 
@@ -210,12 +210,12 @@ function startLevelMonitoring() {
     const currentLevel = analyzeAudioLevel();
     limiterState.currentLevel = currentLevel;
 
-    // Mettre à jour le pic
+    // Update peak
     if (currentLevel > limiterState.peakLevel) {
       limiterState.peakLevel = currentLevel;
     }
 
-    // Vérifier si la limitation est active
+    // Check if limiting is active
     if (currentLevel > settings.store.maxDecibels) {
       limiterState.limitingCount++;
 
@@ -225,8 +225,8 @@ function startLevelMonitoring() {
         now - limiterState.lastNotification > 2000
       ) {
         showNotification({
-          title: "Audio Limiter - Limitation Active",
-          body: `Niveau: ${currentLevel.toFixed(1)} dB (limite: ${
+          title: "Audio Limiter - Limiting Active",
+          body: `Level: ${currentLevel.toFixed(1)} dB (limit: ${
             settings.store.maxDecibels
           } dB)`,
         });
@@ -234,14 +234,14 @@ function startLevelMonitoring() {
       }
     }
 
-    // Continuer la surveillance
+    // Continue monitoring
     requestAnimationFrame(monitorLevels);
   }
 
   monitorLevels();
 }
 
-// Fonction pour démarrer la surveillance du volume
+// Function to start volume monitoring
 function startVolumeMonitoring() {
   if (!settings.store.enableVolumeLimiting) return;
 
@@ -250,51 +250,51 @@ function startVolumeMonitoring() {
 
     checkAndLimitVolume();
 
-    // Continuer la surveillance
-    setTimeout(monitorVolume, 100); // Vérifier toutes les 100ms
+    // Continue monitoring
+    setTimeout(monitorVolume, 100); // Check every 100ms
   }
 
   monitorVolume();
 }
 
-// Fonction pour démarrer le limiteur
+// Function to start the limiter
 async function startLimiter() {
   if (limiterState.isActive) return;
 
   try {
     limiterState.isActive = true;
 
-    // Démarrer la surveillance du volume
+    // Start volume monitoring
     startVolumeMonitoring();
 
-    // Créer le limiteur audio si activé
+    // Create audio limiter if enabled
     if (settings.store.enableDbLimiting) {
       await createAudioLimiter();
     }
 
-    console.log("Audio Limiter: Limiteur démarré avec succès");
+    console.log("Audio Limiter: Limiter started successfully");
   } catch (error) {
     console.error(
-      "Audio Limiter: Erreur lors du démarrage du limiteur:",
+      "Audio Limiter: Error starting limiter:",
       error
     );
     limiterState.isActive = false;
   }
 }
 
-// Fonction pour arrêter le limiteur
+// Function to stop the limiter
 function stopLimiter() {
   if (!limiterState.isActive) return;
 
   try {
     limiterState.isActive = false;
 
-    // Nettoyer le contexte audio
+    // Clean up audio context
     if (limiterState.audioContext) {
       limiterState.audioContext.close();
     }
 
-    // Réinitialiser l'état
+    // Reset state
     limiterState.audioContext = null;
     limiterState.gainNode = null;
     limiterState.analyser = null;
@@ -303,13 +303,13 @@ function stopLimiter() {
     limiterState.peakLevel = 0;
     limiterState.limitingCount = 0;
 
-    console.log("Audio Limiter: Limiteur arrêté");
+    console.log("Audio Limiter: Limiter stopped");
   } catch (error) {
-    console.error("Audio Limiter: Erreur lors de l'arrêt du limiteur:", error);
+    console.error("Audio Limiter: Error stopping limiter:", error);
   }
 }
 
-// Composant d'indicateur visuel
+// Visual indicator component
 function VisualIndicator() {
   const [currentLevel, setCurrentLevel] = React.useState(0);
   const [peakLevel, setPeakLevel] = React.useState(0);
@@ -357,10 +357,10 @@ function VisualIndicator() {
         Audio Limiter
       </div>
       <div style={{ marginBottom: "3px" }}>
-        Niveau: {currentLevel.toFixed(1)} dB
+        Level: {currentLevel.toFixed(1)} dB
       </div>
-      <div style={{ marginBottom: "3px" }}>Pic: {peakLevel.toFixed(1)} dB</div>
-      <div style={{ marginBottom: "3px" }}>Limite: {maxDb} dB</div>
+      <div style={{ marginBottom: "3px" }}>Peak: {peakLevel.toFixed(1)} dB</div>
+      <div style={{ marginBottom: "3px" }}>Limit: {maxDb} dB</div>
       <div style={{ marginBottom: "3px" }}>
         Limitations: {limiterState.limitingCount}
       </div>
@@ -386,23 +386,23 @@ function VisualIndicator() {
   );
 }
 
-// Composant de paramètres
+// Settings component
 function SettingsPanel() {
   return (
     <Forms.FormSection>
-      <Forms.FormTitle>Paramètres de Limitation</Forms.FormTitle>
+      <Forms.FormTitle>Limiting Settings</Forms.FormTitle>
 
       <Forms.FormDivider />
 
       <Forms.FormText>
-        Ce plugin limite automatiquement le volume de sortie pour éviter les
-        sons trop forts.
+        This plugin automatically limits output volume to avoid sounds that are
+        too loud.
       </Forms.FormText>
 
       <Forms.FormDivider />
 
       <Forms.FormItem>
-        <Forms.FormLabel>Volume Maximum (%)</Forms.FormLabel>
+        <Forms.FormLabel>Maximum Volume (%)</Forms.FormLabel>
         <Slider
           value={settings.store.maxVolume}
           onChange={(value) => (settings.store.maxVolume = value)}
@@ -412,12 +412,12 @@ function SettingsPanel() {
           stickToMarkers={false}
         />
         <Forms.FormText>
-          Volume maximum autorisé: {settings.store.maxVolume}%
+          Maximum allowed volume: {settings.store.maxVolume}%
         </Forms.FormText>
       </Forms.FormItem>
 
       <Forms.FormItem>
-        <Forms.FormLabel>Décibels Maximum (dB)</Forms.FormLabel>
+        <Forms.FormLabel>Maximum Decibels (dB)</Forms.FormLabel>
         <Slider
           value={settings.store.maxDecibels}
           onChange={(value) => (settings.store.maxDecibels = value)}
@@ -427,7 +427,7 @@ function SettingsPanel() {
           stickToMarkers={false}
         />
         <Forms.FormText>
-          Niveau audio maximum: {settings.store.maxDecibels} dB
+          Maximum audio level: {settings.store.maxDecibels} dB
         </Forms.FormText>
       </Forms.FormItem>
 
@@ -438,7 +438,7 @@ function SettingsPanel() {
           value={settings.store.enableVolumeLimiting}
           onChange={(value) => (settings.store.enableVolumeLimiting = value)}
         >
-          Activer la limitation de volume
+          Enable volume limiting
         </Forms.FormSwitch>
       </Forms.FormItem>
 
@@ -447,7 +447,7 @@ function SettingsPanel() {
           value={settings.store.enableDbLimiting}
           onChange={(value) => (settings.store.enableDbLimiting = value)}
         >
-          Activer la limitation des décibels
+          Enable decibel limiting
         </Forms.FormSwitch>
       </Forms.FormItem>
 
@@ -456,7 +456,7 @@ function SettingsPanel() {
           value={settings.store.showNotifications}
           onChange={(value) => (settings.store.showNotifications = value)}
         >
-          Afficher les notifications
+          Show notifications
         </Forms.FormSwitch>
       </Forms.FormItem>
 
@@ -465,17 +465,17 @@ function SettingsPanel() {
           value={settings.store.showVisualIndicator}
           onChange={(value) => (settings.store.showVisualIndicator = value)}
         >
-          Afficher l'indicateur visuel
+          Show visual indicator
         </Forms.FormSwitch>
       </Forms.FormItem>
 
       <Forms.FormDivider />
 
       <Forms.FormText>
-        <strong>Statut:</strong> {limiterState.isActive ? "Actif" : "Inactif"}
+        <strong>Status:</strong> {limiterState.isActive ? "Active" : "Inactive"}
       </Forms.FormText>
       <Forms.FormText>
-        <strong>Limitations appliquées:</strong> {limiterState.limitingCount}
+        <strong>Limitations applied:</strong> {limiterState.limitingCount}
       </Forms.FormText>
     </Forms.FormSection>
   );
@@ -491,12 +491,12 @@ export default definePlugin({
   settingsAboutComponent: SettingsPanel,
 
   start() {
-    console.log("Audio Limiter: Plugin démarré");
+    console.log("Audio Limiter: Plugin started");
     startLimiter();
   },
 
   stop() {
-    console.log("Audio Limiter: Plugin arrêté");
+    console.log("Audio Limiter: Plugin stopped");
     stopLimiter();
   },
 

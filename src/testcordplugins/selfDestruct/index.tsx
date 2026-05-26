@@ -1,7 +1,7 @@
 /*
  * Nightcord — SelfDestruct Plugin
- * Envoie des messages qui se suppriment automatiquement après un délai configurable.
- * Timer rouge visible uniquement par l'utilisateur.
+ * Sends messages that are automatically deleted after a configurable delay.
+ * Red timer visible only to the user.
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";

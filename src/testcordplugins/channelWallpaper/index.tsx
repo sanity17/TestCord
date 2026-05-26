@@ -197,9 +197,9 @@ function applyWallpaper(channelId?: string) {
     if (!document.getElementById(STYLE_ID)) {
         const style = document.createElement("style");
         style.id = STYLE_ID;
-        // Couvrir les anciens ET nouveaux noms de classes Discord (changement fréquent)
+        // Cover both old AND new Discord class names (changes frequently)
         style.textContent = `
-/* Zone messages : rendre le fond transparent pour laisser le wallpaper apparaître */
+/* Messages area: make the background transparent to let the wallpaper show through */
 [class*="messagesWrapper"],
 [class*="chatContent"],
 [class*="chat-messages"],
@@ -224,7 +224,7 @@ function applyWallpaper(channelId?: string) {
     object-fit: cover;
 }
 
-/* S'assurer que le parent est relatif pour le positionnement du fond */
+/* Ensure the parent is relative for background positioning */
 [class*="messagesWrapper"],
 [class*="chatContent"] {
     position: relative !important;
@@ -253,7 +253,7 @@ function applyWallpaper(channelId?: string) {
     }
 
     const tryInject = () => {
-        // Chercher avec les anciens ET nouveaux noms de classes Discord
+        // Search with both old AND new Discord class names (changes frequently)
         const target =
             document.querySelector('[class*="messagesWrapper"]') ||
             document.querySelector('[class*="chat-messages"]') ||
@@ -261,7 +261,7 @@ function applyWallpaper(channelId?: string) {
             document.querySelector('[class*="content_"][class*="chat"]');
 
         if (target && target instanceof HTMLElement) {
-            // S'assurer que l'élément est dans la zone principale (pas dans une popup)
+            // Ensure the element is in the main area (not in a popup)
             if (!target.closest('[class*="popout"]') && !target.closest('[class*="modal"]')) {
                 if (!target.querySelector(`#${CONTAINER_ID}`)) {
                     (target as HTMLElement).style.position = "relative";
@@ -295,7 +295,7 @@ async function setWallpaperFromFile(channelId: string) {
         saveWallpaper(channelId, imgurUrl, false);
         showToast("Wallpaper uploaded and synced!", Toasts.Type.SUCCESS);
     } else {
-        // Fallback local si l'upload échoue
+        // Local fallback if upload fails
         const reader = new FileReader();
         reader.onload = () => {
             const dataUrl = reader.result as string;
@@ -390,10 +390,10 @@ function initVPSSync() {
     }
 }
 
-// Clic droit sur un user → trouve le DM channel avec cet user spécifique
+// Right click on a user → find the DM channel with that specific user
 const userContextMenuPatch: NavContextMenuPatchCallback = (children, { user }: any) => {
     if (!user?.id) return;
-    // Résoudre le channel DM avec cet user (pas le channel courant !)
+    // Resolve the DM channel with this user (not the current channel!)
     const channelId = (ChannelStore as any).getDMFromUserId?.(user.id);
     if (!channelId) return;
 
@@ -402,7 +402,7 @@ const userContextMenuPatch: NavContextMenuPatchCallback = (children, { user }: a
     );
 };
 
-// Clic droit sur un channel
+// Right click on a channel
 const channelContextMenuPatch: NavContextMenuPatchCallback = (children, { channel }: any) => {
     if (!channel?.id) return;
     children.push(

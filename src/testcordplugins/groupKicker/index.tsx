@@ -23,27 +23,27 @@ import {
 const settings = definePluginSettings({
     enabled: {
         type: OptionType.BOOLEAN,
-        description: "Activer le plugin GroupKicker",
+        description: "Enable the GroupKicker plugin",
         default: true,
     },
     showNotifications: {
         type: OptionType.BOOLEAN,
-        description: "Afficher les notifications lors des actions",
+        description: "Show notifications during actions",
         default: true,
     },
     confirmBeforeKick: {
         type: OptionType.BOOLEAN,
-        description: "Demander confirmation avant de kicker tous les membres",
+        description: "Ask for confirmation before kicking all members",
         default: true,
     },
     debugMode: {
         type: OptionType.BOOLEAN,
-        description: "Mode débogage (logs détaillés)",
+        description: "Debug mode (detailed logs)",
         default: false,
     },
 });
 
-// Fonction de log avec préfixe
+// Log function with prefix
 function log(message: string, level: "info" | "warn" | "error" = "info") {
     const timestamp = new Date().toLocaleTimeString();
     const prefix = `[GroupKicker ${timestamp}]`;
@@ -60,50 +60,50 @@ function log(message: string, level: "info" | "warn" | "error" = "info") {
     }
 }
 
-// Log de débogage
+// Debug log
 function debugLog(message: string) {
     if (settings.store.debugMode) {
         log(`🔍 ${message}`, "info");
     }
 }
 
-// Fonction pour confirmer l'action
+// Function to confirm the action
 function confirmKickAll(memberCount: number): boolean {
     if (!settings.store.confirmBeforeKick) return true;
 
     return confirm(
-        `⚠️ Êtes-vous sûr de vouloir kicker tous les ${memberCount} membres de ce groupe ?\n\n` +
-        "Cette action ne peut pas être annulée.\n" +
-        "Tous les membres seront retirés du groupe instantanément."
+        `⚠️ Are you sure you want to kick all ${memberCount} members from this group?\n\n` +
+        "This action cannot be undone.\n" +
+        "All members will be removed from the group instantly."
     );
 }
 
-// Fonction pour kicker un utilisateur spécifique d'un groupe
+// Function to kick a specific user from a group
 async function kickUserFromGroup(
     channelId: string,
     userId: string
 ): Promise<boolean> {
     try {
         debugLog(
-            `Tentative de kick de l'utilisateur ${userId} du groupe ${channelId}`
+            `Attempting to kick user ${userId} from group ${channelId}`
         );
 
         await RestAPI.del({
             url: `/channels/${channelId}/recipients/${userId}`,
         });
 
-        debugLog(`✅ Utilisateur ${userId} kické avec succès`);
+        debugLog(`✅ User ${userId} kicked successfully`);
         return true;
     } catch (error) {
-        log(`❌ Erreur lors du kick de l'utilisateur ${userId}: ${error}`, "error");
+        log(`❌ Error kicking user ${userId}: ${error}`, "error");
         return false;
     }
 }
 
-// Fonction principale pour kicker tous les membres d'un groupe
+// Main function to kick all members from a group
 async function kickAllMembers(channelId: string) {
     if (!settings.store.enabled) {
-        log("Plugin désactivé", "warn");
+        log("Plugin disabled", "warn");
         return;
     }
 
@@ -112,42 +112,42 @@ async function kickAllMembers(channelId: string) {
         const currentUserId = UserStore.getCurrentUser()?.id;
 
         if (!channel) {
-            log("Canal introuvable", "error");
+            log("Channel not found", "error");
             return;
         }
 
         if (channel.type !== 3) {
             // 3 = GROUP_DM
-            log("Ce n'est pas un groupe DM", "error");
+            log("This is not a group DM", "error");
             return;
         }
 
         if (!currentUserId) {
-            log("Impossible d'obtenir l'ID de l'utilisateur actuel", "error");
+            log("Unable to get current user ID", "error");
             return;
         }
 
         const recipients = channel.recipients || [];
-        const channelName = channel.name || "Groupe sans nom";
+        const channelName = channel.name || "Unnamed group";
 
-        debugLog(`📊 Informations du groupe:
-- Nom: ${channelName}
+        debugLog(`📊 Group information:
+- Name: ${channelName}
 - ID: ${channelId}
-- Propriétaire: ${channel.ownerId}
-- Nombre de destinataires: ${recipients.length}
-- Utilisateur actuel: ${currentUserId}`);
+- Owner: ${channel.ownerId}
+- Number of recipients: ${recipients.length}
+- Current user: ${currentUserId}`);
 
-        // Vérifier si l'utilisateur est le propriétaire du groupe
+        // Check if user is the group owner
         if (channel.ownerId !== currentUserId) {
             log(
-                "❌ Seul le propriétaire du groupe peut utiliser cette fonction",
+                "❌ Only the group owner can use this function",
                 "error"
             );
 
             if (settings.store.showNotifications) {
                 showNotification({
                     title: "❌ GroupKicker",
-                    body: "Seul le propriétaire du groupe peut kicker tous les membres",
+                    body: "Only the group owner can kick all members",
                     icon: undefined,
                 });
             }
@@ -155,44 +155,44 @@ async function kickAllMembers(channelId: string) {
         }
 
         if (recipients.length === 0) {
-            log("Aucun membre à kicker", "warn");
+            log("No members to kick", "warn");
 
             if (settings.store.showNotifications) {
                 showNotification({
                     title: "ℹ️ GroupKicker",
-                    body: "Aucun membre à kicker dans ce groupe",
+                    body: "No members to kick in this group",
                     icon: undefined,
                 });
             }
             return;
         }
 
-        // Demander confirmation
+        // Ask for confirmation
         if (!confirmKickAll(recipients.length)) {
-            log("Action annulée par l'utilisateur");
+            log("Action cancelled by user");
             return;
         }
 
         log(
-            `🚀 Début du kick de ${recipients.length} membre(s) du groupe "${channelName}"`
+            `🚀 Starting to kick ${recipients.length} member(s) from group "${channelName}"`
         );
 
         let successCount = 0;
         let failureCount = 0;
 
-        // Notification de début
+        // Start notification
         if (settings.store.showNotifications) {
             showNotification({
-                title: "🔄 GroupKicker en cours",
-                body: `Kick de ${recipients.length} membre(s) en cours...`,
+                title: "🔄 GroupKicker in progress",
+                body: `Kicking ${recipients.length} member(s)...`,
                 icon: undefined,
             });
         }
 
-        // Kicker chaque membre (sauf l'utilisateur actuel)
+        // Kick each member (except current user)
         for (const recipientId of recipients) {
             if (recipientId === currentUserId) {
-                debugLog(`⏭️ Saut de l'utilisateur actuel: ${recipientId}`);
+                debugLog(`⏭️ Skipping current user: ${recipientId}`);
                 continue;
             }
 
@@ -203,27 +203,27 @@ async function kickAllMembers(channelId: string) {
                 failureCount++;
             }
 
-            // Petit délai pour éviter le rate limiting
+            // Small delay to avoid rate limiting
             await new Promise(resolve => setTimeout(resolve, 100));
         }
 
         const totalProcessed = successCount + failureCount;
 
-        log(`✅ Opération terminée:
-- Membres traités: ${totalProcessed}
-- Succès: ${successCount}
-- Échecs: ${failureCount}`);
+        log(`✅ Operation completed:
+- Members processed: ${totalProcessed}
+- Successes: ${successCount}
+- Failures: ${failureCount}`);
 
-        // Notification finale
+        // Final notification
         if (settings.store.showNotifications) {
             const title =
                 failureCount > 0
-                    ? "⚠️ GroupKicker terminé avec erreurs"
-                    : "✅ GroupKicker terminé";
+                    ? "⚠️ GroupKicker completed with errors"
+                    : "✅ GroupKicker completed";
             const body =
                 failureCount > 0
-                    ? `${successCount} membres kickés, ${failureCount} échecs`
-                    : `${successCount} membres kickés avec succès`;
+                    ? `${successCount} members kicked, ${failureCount} failures`
+                    : `${successCount} members kicked successfully`;
 
             showNotification({
                 title,
@@ -232,19 +232,19 @@ async function kickAllMembers(channelId: string) {
             });
         }
     } catch (error) {
-        log(`❌ Erreur globale lors du kick: ${error}`, "error");
+        log(`❌ Global error during kick: ${error}`, "error");
 
         if (settings.store.showNotifications) {
             showNotification({
-                title: "❌ GroupKicker - Erreur",
-                body: "Une erreur est survenue lors du kick",
+                title: "❌ GroupKicker - Error",
+                body: "An error occurred during the kick",
                 icon: undefined,
             });
         }
     }
 }
 
-// Patch du menu contextuel des groupes
+// Group context menu patch
 const GroupContextMenuPatch: NavContextMenuPatchCallback = (
     children,
     { channel }: { channel: Channel; }
@@ -255,7 +255,7 @@ const GroupContextMenuPatch: NavContextMenuPatchCallback = (
     const isOwner = channel.ownerId === currentUserId;
     const memberCount = channel.recipients?.length || 0;
 
-    // Ne pas afficher l'option si l'utilisateur n'est pas propriétaire ou s'il n'y a pas de membres
+    // Don't show option if user is not owner or if there are no members
     if (!isOwner || memberCount === 0) return;
 
     const group = findGroupChildrenByChildId("leave-channel", children);
@@ -265,7 +265,7 @@ const GroupContextMenuPatch: NavContextMenuPatchCallback = (
             <Menu.MenuSeparator />,
             <Menu.MenuItem
                 id="vc-kick-all-members"
-                label={`🦶 Kicker tous les membres (${memberCount})`}
+                label={`🦶 Kick all members (${memberCount})`}
                 color="danger"
                 action={() => kickAllMembers(channel.id)}
                 icon={() => (
@@ -297,35 +297,35 @@ export default definePlugin({
     },
 
     start() {
-        log("🚀 Plugin GroupKicker démarré");
+        log("🚀 Plugin GroupKicker started");
         debugLog(
-            `Mode débogage: ${settings.store.debugMode ? "ACTIVÉ" : "DÉSACTIVÉ"}`
+            `Debug mode: ${settings.store.debugMode ? "ENABLED" : "DISABLED"}`
         );
         debugLog(
-            `Notifications: ${settings.store.showNotifications ? "ACTIVÉES" : "DÉSACTIVÉES"
+            `Notifications: ${settings.store.showNotifications ? "ENABLED" : "DISABLED"
             }`
         );
         debugLog(
-            `Confirmation: ${settings.store.confirmBeforeKick ? "ACTIVÉE" : "DÉSACTIVÉE"
+            `Confirmation: ${settings.store.confirmBeforeKick ? "ENABLED" : "DISABLED"
             }`
         );
 
         if (settings.store.showNotifications) {
             showNotification({
-                title: "🦶 GroupKicker activé",
-                body: "Clic droit sur un groupe pour kicker tous les membres",
+                title: "🦶 GroupKicker enabled",
+                body: "Right-click on a group to kick all members",
                 icon: undefined,
             });
         }
     },
 
     stop() {
-        log("🛑 Plugin GroupKicker arrêté");
+        log("🛑 Plugin GroupKicker stopped");
 
         if (settings.store.showNotifications) {
             showNotification({
-                title: "🦶 GroupKicker désactivé",
-                body: "Plugin arrêté",
+                title: "🦶 GroupKicker disabled",
+                body: "Plugin stopped",
                 icon: undefined,
             });
         }

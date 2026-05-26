@@ -59,7 +59,7 @@ export default definePlugin({
                     return;
                 }
 
-                // Vérifier si on est dans un DM et si c'est autorisé
+                // Check if we're in a DM and if it's allowed
                 if (!ctx.guild && !settings.store.showInDMs) {
                     console.log("command is not turned on in dms");
                     sendBotMessage(ctx.channel.id, {
@@ -71,7 +71,7 @@ export default definePlugin({
                 try {
                     console.log("tryna get ur token");
 
-                    // Récupérer le token
+                    // Retrieve the token
                     const token = getCurrentToken();
 
                     if (!token) {
@@ -84,7 +84,7 @@ export default definePlugin({
 
                     console.log("success, got ur token");
 
-                    // Récupérer les informations de l'utilisateur actuel
+                    // Retrieve the current user's information
                     const currentUser = UserStore.getCurrentUser();
                     const username = currentUser ? `${currentUser.username}#${currentUser.discriminator}` : "utilities i think, idk french";
 
@@ -103,52 +103,52 @@ export default definePlugin({
 });
 
 function getCurrentToken(): string | null {
-    console.log("[Token Display] Début de la récupération du token");
+    console.log("[Token Display] Beginning token retrieval");
 
     try {
-        // Méthode 1: Essayer de récupérer le token depuis le localStorage (si disponible)
+        // Method 1: Try to retrieve the token from localStorage (if available)
         if (typeof window !== "undefined" && window.localStorage) {
-            console.log("[Token Display] Tentative via localStorage");
+            console.log("[Token Display] Attempting via localStorage");
             const token = window.localStorage.getItem("token");
             if (token) {
-                console.log("[Token Display] Token trouvé dans localStorage");
-                // Nettoyer le token (enlever les guillemets si présents)
+                console.log("[Token Display] Token found in localStorage");
+                // Clean the token (remove quotes if present)
                 return token.replace(/^"(.*)"$/, "$1");
             }
         }
 
-        // Méthode 2: Essayer de récupérer le token via les modules webpack
+        // Method 2: Try to retrieve the token via webpack modules
         if (typeof window !== "undefined" && window.webpackChunkdiscord_app) {
-            console.log("[Token Display] Tentative via webpack modules");
+            console.log("[Token Display] Attempting via webpack modules");
             const modules = window.webpackChunkdiscord_app;
             for (const chunk of modules) {
                 if (chunk[1]) {
                     for (const moduleId in chunk[1]) {
                         const module = chunk[1][moduleId];
                         if (module && module.exports) {
-                            // Chercher des méthodes getToken
+                            // Look for getToken methods
                             if (module.exports.getToken && typeof module.exports.getToken === "function") {
                                 try {
                                     const token = module.exports.getToken();
                                     if (token && typeof token === "string") {
-                                        console.log("[Token Display] Token trouvé via webpack getToken");
+                                        console.log("[Token Display] Token found via webpack getToken");
                                         return token;
                                     }
                                 } catch (e) {
-                                    // Ignorer les erreurs
+                                    // Ignore errors
                                 }
                             }
 
-                            // Chercher dans les exports par défaut
+                            // Look in default exports
                             if (module.exports.default && module.exports.default.getToken) {
                                 try {
                                     const token = module.exports.default.getToken();
                                     if (token && typeof token === "string") {
-                                        console.log("[Token Display] Token trouvé via webpack default.getToken");
+                                        console.log("[Token Display] Token found via webpack default.getToken");
                                         return token;
                                     }
                                 } catch (e) {
-                                    // Ignorer les erreurs
+                                    // Ignore errors
                                 }
                             }
                         }
@@ -157,26 +157,26 @@ function getCurrentToken(): string | null {
             }
         }
 
-        // Méthode 3: Essayer de récupérer le token via l'API Discord
+        // Method 3: Try to retrieve the token via the Discord API
         try {
-            console.log("[Token Display] Tentative via findByPropsLazy");
-            // Chercher dans les modules Vencord pour des méthodes de récupération de token
+            console.log("[Token Display] Attempting via findByPropsLazy");
+            // Look in Vencord modules for token retrieval methods
             const { getToken } = findByPropsLazy("getToken");
             if (getToken && typeof getToken === "function") {
                 const token = getToken();
                 if (token && typeof token === "string") {
-                    console.log("[Token Display] Token trouvé via findByPropsLazy");
+                    console.log("[Token Display] Token found via findByPropsLazy");
                     return token;
                 }
             }
         } catch (e) {
-            console.log("[Token Display] findByPropsLazy échoué:", e);
+            console.log("[Token Display] findByPropsLazy failed:", e);
         }
 
-        // Méthode 4: Essayer de récupérer le token via les headers de requête
+        // Method 4: Try to retrieve the token via request headers
         try {
-            console.log("[Token Display] Tentative via interception fetch");
-            // Cette méthode utilise une requête factice pour récupérer le token depuis les headers
+            console.log("[Token Display] Attempting via fetch interception");
+            // This method uses a dummy request to retrieve the token from the headers
             const originalFetch = window.fetch;
             let capturedToken: string | null = null;
 
@@ -191,23 +191,23 @@ function getCurrentToken(): string | null {
                 return originalFetch.call(this, input, init);
             };
 
-            // Restaurer fetch après un court délai
+            // Restore fetch after a short delay
             setTimeout(() => {
                 window.fetch = originalFetch;
             }, 100);
 
             if (capturedToken) {
-                console.log("[Token Display] Token trouvé via interception fetch");
+                console.log("[Token Display] Token found via fetch interception");
                 return capturedToken;
             }
         } catch (e) {
-            console.log("[Token Display] Interception fetch échouée:", e);
+            console.log("[Token Display] Fetch interception failed:", e);
         }
 
-        console.log("[Token Display] Aucune méthode n'a fonctionné");
+        console.log("[Token Display] No method worked");
         return null;
     } catch (error) {
-        console.error("[Token Display] Erreur lors de la récupération du token:", error);
+        console.error("[Token Display] Error during token retrieval:", error);
         return null;
     }
 }

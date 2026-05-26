@@ -13,40 +13,40 @@ import { findStoreLazy } from "@webpack";
 import { ChannelStore, FluxDispatcher, Menu, RestAPI, showToast, Toasts, UserStore } from "@webpack/common";
 import { Channel } from "@vencord/discord-types";
 
-// Utiliser PrivateChannelSortStore comme dans les autres plugins
+// Use PrivateChannelSortStore like in other plugins
 const PrivateChannelSortStore = findStoreLazy("PrivateChannelSortStore") as { getPrivateChannelIds: () => string[]; };
 
 const settings = definePluginSettings({
     enabled: {
         type: OptionType.BOOLEAN,
-        description: "Activer le plugin LeaveAllGroups",
+        description: "Enable the LeaveAllGroups plugin",
         default: true
     },
     showNotifications: {
         type: OptionType.BOOLEAN,
-        description: "Afficher les notifications lors des actions",
+        description: "Show notifications during actions",
         default: true
     },
     confirmBeforeLeave: {
         type: OptionType.BOOLEAN,
-        description: "Demander confirmation avant de quitter tous les groupes",
+        description: "Ask for confirmation before leaving all groups",
         default: false
     },
     delayBetweenLeaves: {
         type: OptionType.NUMBER,
-        description: "Délai en millisecondes entre chaque sortie de groupe (pour éviter le rate limiting)",
+        description: "Delay in milliseconds between each group leave (to avoid rate limiting)",
         default: 200,
         min: 50,
         max: 100
     },
     debugMode: {
         type: OptionType.BOOLEAN,
-        description: "Mode débogage (logs détaillés)",
+        description: "Debug mode (detailed logs)",
         default: false
     }
 });
 
-// Fonction de log avec préfixe
+// Log function with prefix
 function log(message: string, level: "info" | "warn" | "error" = "info") {
     const timestamp = new Date().toLocaleTimeString();
     const prefix = `[LeaveAllGroups ${timestamp}]`;
@@ -63,43 +63,43 @@ function log(message: string, level: "info" | "warn" | "error" = "info") {
     }
 }
 
-// Log de débogage
+// Debug log
 function debugLog(message: string) {
     if (settings.store.debugMode) {
         log(`🔍 ${message}`, "info");
     }
 }
 
-// Fonction pour confirmer l'action
+// Function to confirm the action
 function confirmLeaveAll(groupCount: number): boolean {
     if (!settings.store.confirmBeforeLeave) return true;
 
     return confirm(
-        `⚠️ Êtes-vous sûr de vouloir quitter tous les ${groupCount} groupes ?\n\n` +
-        "Cette action ne peut pas être annulée.\n" +
-        "Vous serez retiré de tous les groupes Discord instantanément."
+        `⚠️ Are you sure you want to leave all ${groupCount} groups?\n\n` +
+        "This action cannot be undone.\n" +
+        "You will be removed from all Discord groups instantly."
     );
 }
 
-// Fonction pour quitter un groupe spécifique
+// Function to leave a specific group
 async function leaveGroup(channelId: string): Promise<boolean> {
     try {
-        debugLog(`Tentative de sortie du groupe ${channelId}`);
+        debugLog(`Attempting to leave group ${channelId}`);
 
-        // Utiliser l'API Discord pour quitter le groupe
+        // Use the Discord API to leave the group
         await RestAPI.del({
             url: `/channels/${channelId}`
         });
 
-        debugLog(`✅ Groupe ${channelId} quitté avec succès`);
+        debugLog(`✅ Group ${channelId} left successfully`);
         return true;
     } catch (error) {
-        log(`❌ Erreur lors de la sortie du groupe ${channelId}: ${error}`, "error");
+        log(`❌ Error leaving group ${channelId}: ${error}`, "error");
         return false;
     }
 }
 
-// Fonction pour obtenir tous les groupes
+// Function to get all groups
 function getAllGroups(): Channel[] {
     const privateChannelIds = PrivateChannelSortStore.getPrivateChannelIds();
     const groups: Channel[] = [];
@@ -107,7 +107,7 @@ function getAllGroups(): Channel[] {
     privateChannelIds.forEach((channelId: string) => {
         const channel = ChannelStore.getChannel(channelId);
 
-        // Vérifier que c'est un groupe DM (type 3) et non un DM privé (type 1)
+        // Check that it's a group DM (type 3) and not a private DM (type 1)
         if (channel && channel.type === 3) {
             groups.push(channel);
         }
@@ -116,10 +116,10 @@ function getAllGroups(): Channel[] {
     return groups;
 }
 
-// Fonction principale pour quitter tous les groupes
+// Main function to leave all groups
 async function leaveAllGroups() {
     if (!settings.store.enabled) {
-        log("Plugin désactivé", "warn");
+        log("Plugin disabled", "warn");
         return;
     }
 
@@ -127,68 +127,68 @@ async function leaveAllGroups() {
         const currentUserId = UserStore.getCurrentUser()?.id;
 
         if (!currentUserId) {
-            log("Impossible d'obtenir l'ID de l'utilisateur actuel", "error");
+            log("Unable to get current user ID", "error");
             return;
         }
 
         const groups = getAllGroups();
 
-        debugLog(`📊 Informations:
-- Nombre de groupes trouvés: ${groups.length}
-- Utilisateur actuel: ${currentUserId}`);
+        debugLog(`📊 Information:
+- Number of groups found: ${groups.length}
+- Current user: ${currentUserId}`);
 
         if (groups.length === 0) {
-            log("Aucun groupe à quitter", "warn");
+            log("No groups to leave", "warn");
 
             if (settings.store.showNotifications) {
                 showNotification({
                     title: "ℹ️ LeaveAllGroups",
-                    body: "Aucun groupe à quitter",
+                    body: "No groups to leave",
                     icon: undefined
                 });
             }
 
-            showToast(Toasts.Type.MESSAGE, "ℹ️ Aucun groupe à quitter");
+            showToast(Toasts.Type.MESSAGE, "ℹ️ No groups to leave");
             return;
         }
 
-        // Demander confirmation
+        // Ask for confirmation
         if (!confirmLeaveAll(groups.length)) {
-            log("Action annulée par l'utilisateur");
+            log("Action cancelled by user");
             return;
         }
 
-        log(`🚀 Début de la sortie de ${groups.length} groupe(s)`);
+        log(`🚀 Starting to leave ${groups.length} group(s)`);
 
         let successCount = 0;
         let failureCount = 0;
 
-        // Notification de début
+        // Start notification
         if (settings.store.showNotifications) {
             showNotification({
-                title: "🔄 LeaveAllGroups en cours",
-                body: `Sortie de ${groups.length} groupe(s) en cours...`,
+                title: "🔄 LeaveAllGroups in progress",
+                body: `Leaving ${groups.length} group(s)...`,
                 icon: undefined
             });
         }
 
-        showToast(Toasts.Type.MESSAGE, `🔄 Sortie de ${groups.length} groupe(s) en cours...`);
+        showToast(Toasts.Type.MESSAGE, `🔄 Leaving ${groups.length} group(s)...`);
 
-        // Quitter chaque groupe
+        // Leave each group
         for (const group of groups) {
-            const groupName = group.name || `Groupe ${group.id}`;
-            debugLog(`Traitement du groupe: ${groupName} (${group.id})`);
+            const groupName = group.name || `Group ${group.id}`;
+            debugLog(`Processing group: ${groupName} (${group.id})`);
 
             const success = await leaveGroup(group.id);
             if (success) {
                 successCount++;
-                debugLog(`✅ Quitté: ${groupName}`);
+                debugLog(`✅ Left: ${groupName}`);
             } else {
                 failureCount++;
-                debugLog(`❌ Échec: ${groupName}`);
+                debugLog(`❌ Failed: ${groupName}`);
             }
 
-            // Délai pour éviter le rate limiting
+            // Delay to avoid rate limiting
             if (settings.store.delayBetweenLeaves > 0) {
                 await new Promise(resolve => setTimeout(resolve, settings.store.delayBetweenLeaves));
             }
@@ -196,17 +196,17 @@ async function leaveAllGroups() {
 
         const totalProcessed = successCount + failureCount;
 
-        log(`✅ Opération terminée:
-- Groupes traités: ${totalProcessed}
-- Succès: ${successCount}
-- Échecs: ${failureCount}`);
+        log(`✅ Operation completed:
+- Groups processed: ${totalProcessed}
+- Successes: ${successCount}
+- Failures: ${failureCount}`);
 
-        // Notification finale
+        // Final notification
         if (settings.store.showNotifications) {
-            const title = failureCount > 0 ? "⚠️ LeaveAllGroups terminé avec erreurs" : "✅ LeaveAllGroups terminé";
+            const title = failureCount > 0 ? "⚠️ LeaveAllGroups completed with errors" : "✅ LeaveAllGroups completed";
             const body = failureCount > 0
-                ? `${successCount} groupes quittés, ${failureCount} échecs`
-                : `${successCount} groupes quittés avec succès`;
+                ? `${successCount} groups left, ${failureCount} failures`
+                : `${successCount} groups left successfully`;
 
             showNotification({
                 title,
@@ -215,33 +215,33 @@ async function leaveAllGroups() {
             });
         }
 
-        // Toast final
+        // Final toast
         if (failureCount > 0) {
-            showToast(Toasts.Type.FAILURE, `⚠️ ${successCount} groupes quittés, ${failureCount} échecs`);
+            showToast(Toasts.Type.FAILURE, `⚠️ ${successCount} groups left, ${failureCount} failures`);
         } else {
-            showToast(Toasts.Type.SUCCESS, `✅ ${successCount} groupes quittés avec succès`);
+            showToast(Toasts.Type.SUCCESS, `✅ ${successCount} groups left successfully`);
         }
 
     } catch (error) {
-        log(`❌ Erreur générale: ${error}`, "error");
+        log(`❌ General error: ${error}`, "error");
 
         if (settings.store.showNotifications) {
             showNotification({
-                title: "❌ LeaveAllGroups - Erreur",
-                body: "Une erreur est survenue lors de la sortie des groupes",
+                title: "❌ LeaveAllGroups - Error",
+                body: "An error occurred while leaving groups",
                 icon: undefined
             });
         }
 
-        showToast(Toasts.Type.FAILURE, "❌ Erreur lors de la sortie des groupes");
+        showToast(Toasts.Type.FAILURE, "❌ Error while leaving groups");
     }
 }
 
-// Menu contextuel pour les groupes
+// Context menu for groups
 const GroupContextMenuPatch: NavContextMenuPatchCallback = (children, { channel }: { channel: Channel; }) => {
     if (!settings.store.enabled) return;
 
-    // Vérifier que c'est un groupe DM
+    // Check that it's a group DM
     if (channel?.type !== 3) return;
 
     const container = findGroupChildrenByChildId("leave-channel", children);
@@ -250,7 +250,7 @@ const GroupContextMenuPatch: NavContextMenuPatchCallback = (children, { channel 
         container.push(
             <Menu.MenuItem
                 id="vc-leave-all-groups"
-                label="🚪 Quitter tous les groupes"
+                label="🚪 Leave all groups"
                 action={leaveAllGroups}
                 color="danger"
             />
@@ -258,7 +258,7 @@ const GroupContextMenuPatch: NavContextMenuPatchCallback = (children, { channel 
     }
 };
 
-// Menu contextuel pour les serveurs (accès global)
+// Context menu for servers (global access)
 const ServerContextMenuPatch: NavContextMenuPatchCallback = (children, props) => {
     if (!settings.store.enabled) return;
 
@@ -268,7 +268,7 @@ const ServerContextMenuPatch: NavContextMenuPatchCallback = (children, props) =>
         group.push(
             <Menu.MenuItem
                 id="vc-leave-all-groups-server"
-                label="🚪 Quitter tous les groupes"
+                label="🚪 Leave all groups"
                 action={leaveAllGroups}
                 color="danger"
             />
@@ -276,7 +276,7 @@ const ServerContextMenuPatch: NavContextMenuPatchCallback = (children, props) =>
     }
 };
 
-// Menu contextuel pour les utilisateurs (accès depuis profil)
+// Context menu for users (access from profile)
 const UserContextMenuPatch: NavContextMenuPatchCallback = (children, props) => {
     if (!settings.store.enabled) return;
 
@@ -286,7 +286,7 @@ const UserContextMenuPatch: NavContextMenuPatchCallback = (children, props) => {
         container.push(
             <Menu.MenuItem
                 id="vc-leave-all-groups-user"
-                label="🚪 Quitter tous les groupes"
+                label="🚪 Leave all groups"
                 action={leaveAllGroups}
                 color="danger"
             />
@@ -296,7 +296,7 @@ const UserContextMenuPatch: NavContextMenuPatchCallback = (children, props) => {
 
 export default definePlugin({
     name: "LeaveAllGroups",
-    description: "Permet de quitter tous les groupes Discord d'un seul clic avec rate limiting configurable",
+    description: "Allows leaving all Discord groups with one click with configurable rate limiting",
     tags: ["Utility", "Chat"],
     authors: [TestcordDevs.x2b],
     settings,
@@ -308,11 +308,11 @@ export default definePlugin({
     },
 
     start() {
-        log("Plugin LeaveAllGroups démarré");
+        log("Plugin LeaveAllGroups started");
     },
 
     stop() {
-        log("Plugin LeaveAllGroups arrêté");
+        log("Plugin LeaveAllGroups stopped");
     }
 });
 

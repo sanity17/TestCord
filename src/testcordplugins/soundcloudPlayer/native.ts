@@ -5,13 +5,13 @@
  *
  * SoundCloud Player — native.ts (main process Electron)
  *
- * Alles les requêtes HTTP passent par net.fetch d'Electron pour
- * contourner le CSP de Discord qui bloque fetch() depuis le renderer.
+ * All HTTP requests go through Electron's net.fetch to
+ * bypass Discord's CSP which blocks fetch() from the renderer.
  */
 
 import { IpcMainInvokeEvent, net } from "electron";
 
-// ─── Fetch via net.fetch d'Electron ──────────────────────────────────────────
+// ─── Fetch via Electron's net.fetch ──────────────────────────────────────────
 
 async function netGet(url: string, headers?: Record<string, string>): Promise<string> {
     const resp = await net.fetch(url, {
@@ -26,20 +26,20 @@ async function netGet(url: string, headers?: Record<string, string>): Promise<st
     return resp.text();
 }
 
-// ─── Fetch dynamique du client_id SoundCloud ─────────────────────────────────
-// Même logique que sc_fetch_client_id / sc_parse_js_for_clientid en C :
-//   Étape 1 : GET soundcloud.com → extraire les <script src="...">
-//   Étape 2 : GET le dernier bundle JS → chercher client_id:"XXXXXXXX"
+// ─── Dynamic SoundCloud client_id fetch ─────────────────────────────────
+// Same logic as sc_fetch_client_id / sc_parse_js_for_clientid in C:
+//   Step 1: GET soundcloud.com → extract <script src="...">
+//   Step 2: GET the last JS bundle → look for client_id:"XXXXXXXX"
 
 export async function fetchSoundCloudClientId(_: IpcMainInvokeEvent): Promise<string | null> {
     try {
-        // Étape 1 : charger soundcloud.com
+        // Step 1: load soundcloud.com
         const html = await netGet("https://soundcloud.com/", {
             "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
             "Accept-Language": "en-US,en;q=0.5",
         });
 
-        // Extraire les URLs des bundles JS
+        // Extract JS bundle URLs
         const scriptUrls: string[] = [];
         const re = /<script[^>]+src="(https:\/\/[^"]+\.js[^"]*)"[^>]*>/g;
         let m: RegExpExecArray | null;
@@ -51,12 +51,12 @@ export async function fetchSoundCloudClientId(_: IpcMainInvokeEvent): Promise<st
 
         if (scriptUrls.length === 0) return null;
 
-        // Étape 2 : tester les bundles JS (on cherche dans les plus récents)
+        // Step 2: test JS bundles (look in the most recent ones)
         for (const jsUrl of scriptUrls.slice(-5).reverse()) {
             try {
                 const js = await netGet(jsUrl);
 
-                // Patterns mis à jour pour 2024/2025
+                // Patterns updated for 2024/2025
                 const patterns = [
                     /client_id\s*:\s*"([a-zA-Z0-9]{32})"/,
                     /client_id\s*=\s*"([a-zA-Z0-9]{32})"/,
@@ -68,7 +68,7 @@ export async function fetchSoundCloudClientId(_: IpcMainInvokeEvent): Promise<st
                     const match = js.match(pat);
                     if (match?.[1]) return match[1];
                 }
-            } catch { /* essayer le suivant */ }
+            } catch { /* try the next one */ }
         }
 
         return null;
@@ -78,7 +78,7 @@ export async function fetchSoundCloudClientId(_: IpcMainInvokeEvent): Promise<st
     }
 }
 
-// ─── Recherche de pistes ──────────────────────────────────────────────────────
+// ─── Track search ──────────────────────────────────────────────────────
 
 export async function searchSoundCloud(
     _: IpcMainInvokeEvent,
@@ -89,20 +89,20 @@ export async function searchSoundCloud(
         const url = `https://api-v2.soundcloud.com/search/tracks?q=${encodeURIComponent(query)}&client_id=${clientId}&limit=20`;
         return await netGet(url);
     } catch (e: any) {
-        // Retourner le code HTTP pour détecter l'expiration du client_id
+        // Return the HTTP code to detect client_id expiration
         throw new Error(e?.message ?? String(e));
     }
 }
 
-// ─── Résolution de l'URL de stream ───────────────────────────────────────────
+// ─── Stream URL resolution ───────────────────────────────────────────
 
 export async function resolveStreamUrl(_: IpcMainInvokeEvent, url: string, clientId: string): Promise<string | null> {
     try {
-        // Ajouter le client_id à l'URL de stream si absent
+        // Add client_id to the stream URL if missing
         const streamUrl = new URL(url);
         streamUrl.searchParams.set("client_id", clientId);
 
-        // On fait un fetch manuel en suivant les redirections pour obtenir l'URL finale
+        // Do a manual fetch following redirects to get the final URL
         const resp = await net.fetch(streamUrl.toString(), {
             redirect: "follow",
             headers: {
@@ -117,13 +117,13 @@ export async function resolveStreamUrl(_: IpcMainInvokeEvent, url: string, clien
             return null;
         }
 
-        // Si c'est un flux HLS (m3u8), l'API renvoie un JSON contenant l'URL réelle
+        // If it's an HLS stream (m3u8), the API returns a JSON containing the real URL
         const text = await resp.text();
         try {
             const json = JSON.parse(text);
             return json.url || null;
         } catch {
-            // Si ce n'est pas du JSON, c'est peut-être déjà l'URL directe (cas rare)
+            // If it's not JSON, it might already be the direct URL (rare case)
             return resp.url;
         }
     } catch (e: any) {

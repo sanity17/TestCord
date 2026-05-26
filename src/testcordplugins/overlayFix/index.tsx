@@ -2,7 +2,7 @@ import definePlugin from "@utils/types";
 
 export default definePlugin({
     name: "OverlayFix",
-    description: "Tente de réparer l'overlay en trompant Discord sur le nom du processus (se fait passer pour discord.exe).",
+    description: "Attempts to fix the overlay by tricking Discord about the process name (pretends to be discord.exe).",
     authors: [{ name: "Nightcord", id: 0n }],
     cannotBeDisabled: false,
     enabledByDefault: false,
@@ -13,7 +13,7 @@ export default definePlugin({
             if (typeof window.DiscordNative !== "undefined") {
                 const originalNative = window.DiscordNative;
 
-                // On essaie de redéfinir la propriété sur window de manière sécurisée
+                // Try to redefine the property on window safely
                 try {
                     const proxy = new Proxy(originalNative, {
                         get(target, prop) {
@@ -39,7 +39,7 @@ export default definePlugin({
                         }
                     });
 
-                    // Tentative de remplacement via defineProperty si l'assignation directe échoue
+                    // Attempt replacement via defineProperty if direct assignment fails
                     Object.defineProperty(window, "DiscordNative", {
                         value: proxy,
                         configurable: true,
@@ -50,8 +50,8 @@ export default definePlugin({
                     console.log("[OverlayFix] Process name spoofing active via defineProperty Proxy");
                 } catch (e) {
                     console.warn("[OverlayFix] Could not redefine DiscordNative on window, attempting sub-property patch...");
-                    // Si on ne peut pas remplacer l'objet entier, on essaie de patcher ses propriétés internes
-                    // Note: Cela peut aussi échouer si l'objet est frozen, mais c'est notre dernière chance native
+                    // If we can't replace the entire object, try to patch its internal properties
+                    // Note: This may also fail if the object is frozen, but it's our last native chance
                 }
             }
         } catch (e) {
@@ -61,7 +61,7 @@ export default definePlugin({
 
     patches: [
         {
-            // Patch pour forcer l'installation du module overlay si Discord hésite
+            // Patch to force overlay module installation if Discord hesitates
             find: "window.DiscordNative.nativeModules.install",
             replacement: {
                 match: /"discord_desktop_overlay"/,
