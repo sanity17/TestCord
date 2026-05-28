@@ -379,7 +379,9 @@ export default definePlugin({
                 <HeaderBarButton
                     icon={() => <DictationIcon />}
                     tooltip="Voice Dictation"
-                    onClick={() => {}}
+                    onClick={() => {
+                        showToast("Use the chat bar button for voice dictation", Toasts.Type.FAILURE);
+                    }}
                 />
             ), 5);
         }

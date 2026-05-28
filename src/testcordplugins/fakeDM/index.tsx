@@ -15,7 +15,7 @@ import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { findStoreLazy } from "@webpack";
-import { FluxDispatcher, React, SelectedChannelStore, UserStore, ReactDOM } from "@webpack/common";
+import { FluxDispatcher, React, SelectedChannelStore, showToast, Toasts, UserStore, ReactDOM } from "@webpack/common";
 
 // ─── Unique IDs ─────────────────────────────────────────────────────────────
 let _idCounter = 0;
@@ -619,7 +619,9 @@ export default definePlugin({
                 <HeaderBarButton
                     icon={FakeDMIcon}
                     tooltip="FakeDM"
-                    onClick={() => {}}
+                    onClick={() => {
+                        showToast("Use the chat bar button for FakeDM", Toasts.Type.FAILURE);
+                    }}
                 />
             ), 5);
         }

@@ -8,11 +8,18 @@ import "./styles.css";
 
 import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
+import { openModal } from "@utils/modal";
 import { EquicordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
+import { SelectedChannelStore } from "@webpack/common";
+
+import { findStoreLazy } from "@webpack";
 
 import { FloodPanelButton } from "./components/ChatBarButton";
 import { FloodIcon } from "./components/Icons";
+import { FloodModal } from "./components/FloodModal";
+
+const ChannelStore = findStoreLazy("ChannelStore");
 
 let enabled = false;
 
@@ -51,7 +58,15 @@ export default definePlugin({
                 <HeaderBarButton
                     icon={FloodIcon}
                     tooltip="Flood Panel"
-                    onClick={() => {}}
+                    onClick={() => {
+                        const chId = SelectedChannelStore.getChannelId();
+                        if (!chId) return;
+                        const channel = ChannelStore.getChannel(chId);
+                        if (!channel) return;
+                        openModal(props => (
+                            <FloodModal channel={channel} rootProps={props as any} onRunningChange={() => { }} />
+                        ));
+                    }}
                 />
             ), 5);
         }

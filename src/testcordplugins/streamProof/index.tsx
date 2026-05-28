@@ -203,9 +203,9 @@ export default definePlugin({
         if (settings.store.showOnTopBar) {
             addHeaderBarButton("StreamProof", () => (
                 <HeaderBarButton
-                    icon={EyeSlashIcon}
-                    tooltip="StreamProof"
-                    onClick={() => { document.body.classList.toggle("stream-proof-active"); }}
+                    icon={() => streamProofActive ? <EyeSlashIcon /> : <EyeIcon />}
+                    tooltip={streamProofActive ? "StreamProof: ON — click to disable" : "StreamProof: OFF — click to enable"}
+                    onClick={() => { streamProofActive ? disableStreamProof() : enableStreamProof(); }}
                 />
             ), 5);
         }

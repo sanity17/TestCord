@@ -12,7 +12,9 @@
         "webRequest",
         "webRequestBlocking",
         "*://*.discord.com/*",
-        "https://raw.githubusercontent.com/*"
+        "https://raw.githubusercontent.com/*",
+        "https://api.groq.com/*",
+        "https://api.openai.com/*"
     ],
     "content_scripts": [
         {

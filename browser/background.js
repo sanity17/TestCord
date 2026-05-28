@@ -30,3 +30,26 @@ chrome.webRequest.onHeadersReceived.addListener(
     { urls: ["https://raw.githubusercontent.com/*", "*://*.discord.com/*"], types: ["main_frame", "stylesheet"] },
     ["blocking", "responseHeaders"]
 );
+
+// Inject CORS headers for AI API domains so plugins can fetch from the renderer without CORS errors
+chrome.webRequest.onHeadersReceived.addListener(
+    ({ responseHeaders }) => {
+        if (!responseHeaders) return;
+        responseHeaders.push({
+            name: "Access-Control-Allow-Origin",
+            value: "*"
+        }, {
+            name: "Access-Control-Allow-Headers",
+            value: "*"
+        }, {
+            name: "Access-Control-Allow-Methods",
+            value: "GET, POST, PUT, DELETE, OPTIONS"
+        });
+        return { responseHeaders };
+    },
+    {
+        urls: ["https://api.groq.com/*", "https://api.openai.com/*"],
+        types: ["xmlhttprequest"]
+    },
+    ["blocking", "responseHeaders"]
+);

@@ -264,8 +264,8 @@ export default definePlugin({
         if (settings.store.showOnTopBar) {
             addHeaderBarButton("AutoReply", () => (
                 <HeaderBarButton
-                    icon={AutoReplyIcon}
-                    tooltip="AutoReply"
+                    icon={() => <AutoReplyIcon active={settings.store.active} />}
+                    tooltip={`AutoReply: ${settings.store.active ? "ON" : "OFF"}`}
                     onClick={() => { settings.store.active = !settings.store.active; }}
                 />
             ), 5);
