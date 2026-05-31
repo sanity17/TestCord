@@ -180,7 +180,7 @@ async function generateDebugInfoMessage() {
     return content.trim();
 }
 
-async function uploadPluginListFile(channelId: string, fileContent: string, filename: string) {
+async function uploadPluginListFile(channelId: string, fileContent: string, filename: string, pluginCount: number) {
     const file = new File([fileContent], filename, { type: "text/plain" });
     const upload = new CloudUploader({ file, platform: CloudUploadPlatform.WEB }, channelId);
 
@@ -191,7 +191,7 @@ async function uploadPluginListFile(channelId: string, fileContent: string, file
                 body: {
                     flags: 0,
                     channel_id: channelId,
-                    content: `⚠️ Plugin list attached as file due to high plugin count (${fileContent.split("\n").filter(l => l.startsWith("  -")).length} plugins enabled)`,
+                    content: `⚠️ Plugin list attached as file due to high plugin count (${pluginCount} plugins enabled)`,
                     nonce: SnowflakeUtils.fromTimestamp(Date.now()),
                     sticker_ids: [],
                     type: 0,
@@ -210,19 +210,24 @@ async function uploadPluginListFile(channelId: string, fileContent: string, file
     });
 }
 
-function generatePluginList() {
+function getEnabledPlugins() {
     const isApiPlugin = (plugin: string) => plugin.endsWith("API") || plugins[plugin]?.required;
 
-    // Get all enabled plugins from PluginMeta (includes both stock and user plugins)
     const allEnabledPlugins = Object.keys(PluginMeta).filter(p => isPluginEnabled(p) && !isApiPlugin(p));
 
-    const enabledStockPlugins = allEnabledPlugins.filter(p => !PluginMeta[p].userPlugin).sort();
-    const enabledUserPlugins = allEnabledPlugins.filter(p => PluginMeta[p].userPlugin).sort();
+    const stock = allEnabledPlugins.filter(p => !PluginMeta[p].userPlugin).sort();
+    const user = allEnabledPlugins.filter(p => PluginMeta[p].userPlugin).sort();
 
-    let content = `**Enabled Plugins (${enabledStockPlugins.length}):\n${makeCodeblock(enabledStockPlugins.join(", "))}`;
+    return { stock, user };
+}
 
-    if (enabledUserPlugins.length) {
-        content += `\n\n**Enabled UserPlugins (${enabledUserPlugins.length}):\n${makeCodeblock(enabledUserPlugins.join(", "))}`;
+function generatePluginList() {
+    const { stock, user } = getEnabledPlugins();
+
+    let content = `**Enabled Plugins (${stock.length}):\n${makeCodeblock(stock.join(", "))}`;
+
+    if (user.length) {
+        content += `\n\n**Enabled UserPlugins (${user.length}):\n${makeCodeblock(user.join(", "))}`;
     }
 
     return content;
@@ -289,10 +294,20 @@ export default definePlugin({
             name: "testcord-plugins",
             description: "Send Testcord plugin list",
             execute: async () => {
-                const pluginList = generatePluginList();
-                if (!pluginList) {
-                    return { content: "Unable to generate plugin list." };
+                const { stock, user } = getEnabledPlugins();
+                const totalCount = stock.length + user.length;
+
+                if (totalCount === 0) {
+                    return { content: "No plugins enabled." };
                 }
+
+                if (totalCount > 80) {
+                    const fileContent = [...stock, ...user].join("\n");
+                    await uploadPluginListFile(SelectedChannelStore.getChannelId(), fileContent, "enabled-plugins.txt", totalCount);
+                    return { content: "\u200B" };
+                }
+
+                const pluginList = generatePluginList();
 
                 // Split if too long
                 if (pluginList.length <= 2000) {
@@ -460,8 +475,18 @@ export default definePlugin({
                                 }
                             }
 
+                            const { stock, user } = getEnabledPlugins();
+                            const totalCount = stock.length + user.length;
+
+                            if (totalCount === 0) return;
+
+                            if (totalCount > 80) {
+                                const fileContent = [...stock, ...user].join("\n");
+                                await uploadPluginListFile(props.channel.id, fileContent, "enabled-plugins.txt", totalCount);
+                                return;
+                            }
+
                             const pluginList = generatePluginList();
-                            if (!pluginList) return;
 
                             // Split if too long
                             if (pluginList.length <= 2000) {
