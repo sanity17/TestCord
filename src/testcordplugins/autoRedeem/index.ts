@@ -163,7 +163,7 @@ async function processQueue() {
             const item = queue.shift()!;
             await handleRedeem(item);
             if (queue.length && !captchaPaused) {
-                await sleep(jitter(1500, 4500));
+                await sleep(jitter(1, 1200));
             }
         }
     } finally {
