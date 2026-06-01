@@ -100,7 +100,7 @@ function initFirewall() {
         const headers: Record<string, string> = { ...details.requestHeaders };
 
         // Anti-tracking headers
-        if (store.stripReferer !== false) {
+        if (store.stripReferer !== false && !/\.hcaptcha\.com/i.test(details.url)) {
             delete headers.Referer;
             delete headers.referer;
         }

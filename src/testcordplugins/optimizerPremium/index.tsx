@@ -1004,6 +1004,7 @@ export default definePlugin({
 
         const observeIframe = (iframe: HTMLIFrameElement) => {
             if (iframe.dataset.opLazyLoad) return;
+            if (/\.hcaptcha\.com/i.test(iframe.src)) return;
             iframe.dataset.opLazyLoad = "pending";
             if (iframe.src && !iframe.dataset.src) {
                 iframe.dataset.src = iframe.src;

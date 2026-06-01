@@ -131,7 +131,7 @@ function getBlockedRequestKind(url: URL | null): string | null {
 
     if (settings.store.blockFingerprinting && (
         path.startsWith("/cdn-cgi/") ||
-        path.endsWith("/api.js")
+        (path.endsWith("/api.js") && !url.hostname.endsWith(".hcaptcha.com"))
     )) {
         return "fingerprinting";
     }
