@@ -29,11 +29,13 @@ const settings = definePluginSettings({
         type: OptionType.SELECT,
         description: "Correction language",
         options: [
-            { label: "English", value: "en", default: true },
+            { label: "Auto detect", value: "auto", default: true },
+            { label: "English", value: "en" },
             { label: "French", value: "fr" },
             { label: "Spanish", value: "es" },
             { label: "German", value: "de" },
             { label: "Italian", value: "it" },
+            { label: "Polish", value: "pl" },
             { label: "Portuguese", value: "pt" },
         ],
     },
@@ -50,11 +52,13 @@ const settings = definePluginSettings({
 });
 
 const LANG_PROMPTS: Record<string, string> = {
-    fr: "You are a spell-checker. Fix ONLY spelling and grammar mistakes. Return the corrected text without explanation or quotes. FORBIDDEN: adding words, changing meaning, rephrasing. If already correct, return as-is.",
+    auto: "You are a spell-checker. Detect the language of the input text automatically, then fix ONLY spelling and grammar mistakes in that language. Return the corrected text without explanation or quotes. FORBIDDEN: adding words, changing meaning, rephrasing. If already correct, return as-is.",
     en: "You are a spell-checker. Fix ONLY spelling and grammar mistakes. Return the corrected text without explanation or quotes. FORBIDDEN: adding words, changing meaning, rephrasing. If already correct, return as-is.",
+    fr: "Tu es un correcteur orthographique. Corrige UNIQUEMENT les fautes d'orthographe et de grammaire. Retourne le texte corrigé sans explication ni citation. INTERDIT : ajouter des mots, changer le sens, reformuler. Si le texte est déjà correct, retourne-le tel quel.",
     es: "Eres un corrector ortográfico. Corrige SOLO errores ortográficos y gramaticales. Devuelve el texto corregido sin explicación. PROHIBIDO: añadir palabras, cambiar el sentido.",
     de: "Du bist ein Rechtschreibprüfer. Korrigiere NUR Rechtschreib- und Grammatikfehler. Gib den korrigierten Text ohne Erklärung zurück. VERBOTEN: Wörter hinzufügen, Bedeutung ändern.",
     it: "Sei un correttore ortografico. Correggi SOLO errori ortografici e grammaticali. Restituisci il testo corretto senza spiegazioni. VIETATO: aggiungere parole, cambiare il significato.",
+    pl: "Jesteś korektorem ortograficznym. Popraw TYLKO błędy ortograficzne i gramatyczne. Zwróć poprawiony tekst bez wyjaśnień. ZABRONIONO: dodawanie słów, zmiana znaczenia, przepisywanie. Jeśli tekst jest już poprawny, zwróć go bez zmian.",
     pt: "Você é um corretor ortográfico. Corrija SOMENTE erros ortográficos e gramaticais. Retorne o texto corrigido sem explicação. PROIBIDO: adicionar palavras, mudar o sentido.",
 };
 
