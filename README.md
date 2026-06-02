@@ -26,6 +26,7 @@ Testcord's included plugins can be found [here](https://Testcord.dev).
 **Windows**
 
 - [CLI](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer_cli.exe)
+- [GUI](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer.exe)
 
 **MacOS**
 
@@ -33,7 +34,10 @@ Testcord's included plugins can be found [here](https://Testcord.dev).
 
 **Linux**
 
-- installer making is still in the process, maybe come check later
+- [CLI x11 & Wayland](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer_cli-linux-x11-wayland)
+- [GUI x11 & Wayland](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer-linux-x11-wayland)
+- [Wayland only](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer-wayland)
+- [x11 only](https://github.com/TestcordDev/TestCord/releases/download/latest/Testcord_installer-x11)
 
 ## Installing Testcord Devbuild — recommended
 
