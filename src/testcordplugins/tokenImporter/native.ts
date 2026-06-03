@@ -1,15 +1,15 @@
 /*
- * Equicord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { safeStorage } from "electron";
-import { request } from "https";
-import { readFileSync, existsSync, readdirSync } from "fs";
-import { join } from "path";
 import { execFileSync } from "child_process";
 import * as crypto from "crypto";
+import { safeStorage } from "electron";
+import { existsSync, readdirSync,readFileSync } from "fs";
+import { request } from "https";
+import { join } from "path";
 
 const USER_AGENT = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) discord/1.0.9175 Chrome/128.0.6613.186 Electron/32.2.7 Safari/537.36";
 const X_SUPER_PROPERTIES = "eyJvcyI6IldpbmRvd3MiLCJicm93c2VyIjoiRGlzY29yZCBDbGllbnQiLCJyZWxlYXNlX2NoYW5uZWwiOiJzdGFibGUiLCJjbGllbnRfdmVyc2lvbiI6IjEuMC45MTc1IiwiaGFzX2NsaWVudF9tb2RzIjpmYWxzZX0=";
@@ -36,7 +36,6 @@ export async function checkToken(_: any, token: string): Promise<{ valid: boolea
             let data = "";
             res.on("data", (chunk: Buffer) => { data += chunk.toString(); });
             res.on("end", () => {
-                console.log(`[TokenImporter] Status ${res.statusCode} for token ${token.slice(0, 15)}...`);
                 if (res.statusCode === 200) {
                     try { resolve({ valid: true, user: JSON.parse(data) }); }
                     catch { resolve({ valid: false, error: "parse_error" }); }
@@ -173,7 +172,7 @@ export async function findLocalTokens(): Promise<string[]> {
                     } catch (e) { }
                 }
             }
-        } catch (e) { }
+        } catch (e) { console.warn("[TokenImporter] Failed to scan app:", app, (e as any)?.message ?? e); }
     }
     return Array.from(tokens);
 }
