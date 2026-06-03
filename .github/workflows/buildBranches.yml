@@ -19,7 +19,7 @@ on:
 env:
     FORCE_COLOR: true
     GITHUB_TOKEN: ${{ secrets.ETOKEN }}
-    REPO: TestcordDev/TestCord-builds
+    REPO: TestcordDev/TestCord-Builds
     USERNAME: GitHub-Actions
 
 permissions:

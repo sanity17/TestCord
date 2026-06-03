@@ -8,13 +8,6 @@
 }
 
 /* Onglets */
-.ti-bar {
-    display: flex;
-    align-items: center;
-    padding: 12px 0;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    margin-bottom: 8px;
-}
 
 .ti-tabs {
     display: flex;
@@ -60,11 +53,13 @@
     font-weight: 700;
 }
 
-/* Barre titre + bouton vérifier */
+/* Toolbar + action buttons */
 .ti-bar {
     display: flex;
     align-items: center;
     justify-content: flex-start;
+    padding: 12px 0;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
     margin-bottom: 8px;
     gap: 8px;
 }
