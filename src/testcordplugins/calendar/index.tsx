@@ -142,8 +142,12 @@ function CalendarGrid({ year, month, selectedDay, notesMap, onDayClick }: {
 function NoteCard({ note, onDelete }: { note: CalendarNote; onDelete: (id: string) => void; }) {
     const mmt = moment(note.timestamp);
     const fmt = TIMESTAMP_FORMATS.find(f => f.discord === note.format);
-    const displayTime = fmt && fmt.discord !== "U"
-        ? mmt.format(fmt.moment)
+    const displayTime = fmt
+        ? (fmt.discord === "R"
+            ? mmt.fromNow()
+            : fmt.discord === "U"
+                ? mmt.format("MM/DD/YYYY h:mm A")
+                : mmt.format(fmt.moment))
         : mmt.format("MM/DD/YYYY h:mm A");
 
     return (
@@ -168,9 +172,9 @@ function NoteCard({ note, onDelete }: { note: CalendarNote; onDelete: (id: strin
                 </div>
             </div>
             {note.text && <div className={cl("note-text")}>{note.text}</div>}
-            <code className={cl("note-discord-ts")}>
-                {formatDiscordTimestamp(note.timestamp, note.format)}
-            </code>
+            <div className={cl("note-discord-ts")}>
+                {displayTime}
+            </div>
         </div>
     );
 }
