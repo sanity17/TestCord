@@ -10,14 +10,15 @@
     gap: 8px;
     flex: 1;
     font-weight: 700;
+    color: #fff !important;
 }
 
 .vc-webhooksend-header-icon {
-    color: var(--text-normal);
+    color: #fff !important;
 }
 
 .vc-webhooksend-header-text {
-    color: var(--text-normal);
+    color: #fff !important;
 }
 
 .vc-webhooksend-history-section {
@@ -29,7 +30,7 @@
 
 .vc-webhooksend-history-title {
     margin-bottom: 8px;
-    color: var(--text-normal);
+    color: #fff !important;
 }
 
 .vc-webhooksend-history-list {
@@ -63,34 +64,30 @@
     flex-direction: column;
     gap: 10px;
     min-height: 300px;
+    color: #fff !important;
 }
 
 .vc-webhooksend-section-title {
     margin-top: 8px;
     margin-bottom: 4px;
-    color: var(--text-normal);
+    color: #fff !important;
 }
 
 .vc-webhooksend-mentions-hint {
     margin-bottom: 8px;
+    color: #b5bac1 !important;
 }
 
 .vc-webhooksend-tab-content input,
-.vc-webhooksend-tab-content textarea {
-    color: var(--text-normal) !important;
+.vc-webhooksend-tab-content textarea,
+.vc-webhooksend-url-section input {
+    color: #fff !important;
 }
 
 .vc-webhooksend-tab-content input::placeholder,
-.vc-webhooksend-tab-content textarea::placeholder {
-    color: var(--text-muted) !important;
-}
-
-.vc-webhooksend-url-section input {
-    color: var(--text-normal) !important;
-}
-
+.vc-webhooksend-tab-content textarea::placeholder,
 .vc-webhooksend-url-section input::placeholder {
-    color: var(--text-muted) !important;
+    color: #72767d !important;
 }
 
 .vc-webhooksend-preset-row {
@@ -120,6 +117,7 @@
     padding: 8px 12px;
     cursor: pointer;
     user-select: none;
+    color: #fff !important;
 }
 
 .vc-webhooksend-embed-header:hover {
@@ -128,14 +126,14 @@
 
 .vc-webhooksend-embed-expand-icon {
     font-size: 10px;
-    color: var(--text-muted);
+    color: #b5bac1 !important;
     width: 12px;
 }
 
 .vc-webhooksend-embed-title {
     flex: 1;
     font-weight: 600;
-    color: var(--text-normal);
+    color: #fff !important;
     overflow: hidden;
     text-overflow: ellipsis;
     white-space: nowrap;
@@ -146,7 +144,7 @@
     padding: 1px 6px;
     background: var(--background-modifier-accent);
     border-radius: 10px;
-    color: var(--text-muted);
+    color: #b5bac1 !important;
 }
 
 .vc-webhooksend-embed-body {
@@ -188,6 +186,23 @@
     align-items: center;
     justify-content: center;
     min-height: 150px;
-    color: var(--text-muted);
+    color: #b5bac1 !important;
     font-style: italic;
+}
+
+.vc-webhooksend-tab-bar .tab-item {
+    color: #b5bac1 !important;
+}
+
+.vc-webhooksend-tab-bar .tab-item[aria-selected="true"],
+.vc-webhooksend-tab-bar .tab-item.selected {
+    color: #fff !important;
+}
+
+.vc-webhooksend-modal [class*="modalContent"] {
+    color: #fff !important;
+}
+
+.vc-webhooksend-modal h5 {
+    color: #fff !important;
 }

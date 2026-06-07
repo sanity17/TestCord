@@ -702,7 +702,7 @@ function WebhookSendModal({ rootProps }: { rootProps: RenderModalProps; }) {
     }
 
     return (
-        <ModalRoot {...rootProps} size={ModalSize.LARGE}>
+        <ModalRoot {...rootProps} size={ModalSize.LARGE} className={cl("modal")}>
             <ModalHeader>
                 <div className={cl("header")}>
                     <WebhookIcon className={cl("header-icon")} />
