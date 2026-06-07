@@ -1,22 +1,18 @@
 /*
- * Nightcord — SelfDestruct Plugin
- * Sends messages that are automatically deleted after a configurable delay.
- * Red timer visible only to the user.
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, findStoreLazy } from "@webpack";
-import { React, FluxDispatcher } from "@webpack/common";
-
-// ── Discord internals ──────────────────────────────────────────────────────────
+import { React } from "@webpack/common";
 
 const MessageActions = findByPropsLazy("deleteMessage", "startEditMessage");
 const UserStore = findStoreLazy("UserStore");
-
-// ── Settings ───────────────────────────────────────────────────────────────────
 
 const settings = definePluginSettings({
     showOnTopBar: {
@@ -40,8 +36,6 @@ const settings = definePluginSettings({
         restartNeeded: false,
     },
 });
-
-// ── Timer tracking ─────────────────────────────────────────────────────────────
 
 interface TimerEntry {
     channelId: string;
@@ -92,8 +86,6 @@ function cleanup() {
     activeTimers.clear();
     timerListeners.clear();
 }
-
-// ── Timer Badge Component (rendered on messages) ───────────────────────────────
 
 function TimerBadge({ messageId }: { messageId: string; }) {
     const [remaining, setRemaining] = React.useState<number | null>(null);
@@ -158,8 +150,6 @@ function TimerBadge({ messageId }: { messageId: string; }) {
     );
 }
 
-// ── Chat Bar Icon ──────────────────────────────────────────────────────────────
-
 function SelfDestructIcon({ active, width = 20, height = 20 }: { active?: boolean; width?: number; height?: number; }) {
     return (
         <svg
@@ -187,8 +177,6 @@ function SelfDestructIcon({ active, width = 20, height = 20 }: { active?: boolea
     );
 }
 
-// ── Chat Bar Button ────────────────────────────────────────────────────────────
-
 const SelfDestructButton: ChatBarButtonFactory = ({ isMainChat }) => {
     const [active, setActive] = React.useState(settings.store.active);
 
@@ -212,8 +200,6 @@ const SelfDestructButton: ChatBarButtonFactory = ({ isMainChat }) => {
         </ChatBarButton>
     );
 };
-
-// ── Plugin ─────────────────────────────────────────────────────────────────────
 
 export default definePlugin({
     name: "SelfDestruct",
