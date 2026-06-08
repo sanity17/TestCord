@@ -1,21 +1,33 @@
-import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
-import { definePluginSettings } from "@api/Settings";
-import definePlugin, { OptionType } from "@utils/types";
-import { EquicordDevs } from "@utils/constants";
-import { findByPropsLazy } from "@webpack";
-import { React, useState, useStateFromStores, UserStore } from "@webpack/common";
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import "./styles.css";
+
+import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { definePluginSettings } from "@api/Settings";
+import { EquicordDevs } from "@utils/constants";
+import definePlugin, { OptionType } from "@utils/types";
+import { findByPropsLazy } from "@webpack";
+import { React, UserStore, useState, useStateFromStores } from "@webpack/common";
 
 const StreamStore = findByPropsLazy("getActiveStreamForUser", "getAllActiveStreams");
 const RTCConnectionStore = findByPropsLazy("getMediaSessionId");
 const StreamerModeStore = findByPropsLazy("hidePersonalInformation");
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     autoStreamProof: {
@@ -81,7 +93,7 @@ function enableStreamProof() {
         clickHandler = (e: MouseEvent) => {
             const target = e.target as HTMLElement | null;
             if (!target) return;
-            const targetElement = target.closest(`[class*="messageContent_"], [class*="markup_"], [class*="imageWrapper_"], [class*="embedWrapper_"], [id^="message-accessories-"] article, [class*="attachment_"], [class*="video_"], [class*="voiceMessage_"], [class*="wrapperPaused_"], [class*="wrapperPlaying_"], [class*="audioAttachment_"], [class*="fileUpload_"], [class*="wrapperAudio_"], [class*="mediaBarInteraction_"], [class*="newMosaicStyle_"], [class*="stickerAsset_"], [class*="channel_"][class*="interactive_"]`);
+            const targetElement = target.closest("[class*=\"messageContent_\"], [class*=\"markup_\"], [class*=\"imageWrapper_\"], [class*=\"embedWrapper_\"], [id^=\"message-accessories-\"] article, [class*=\"attachment_\"], [class*=\"video_\"], [class*=\"voiceMessage_\"], [class*=\"wrapperPaused_\"], [class*=\"wrapperPlaying_\"], [class*=\"audioAttachment_\"], [class*=\"fileUpload_\"], [class*=\"wrapperAudio_\"], [class*=\"mediaBarInteraction_\"], [class*=\"newMosaicStyle_\"], [class*=\"stickerAsset_\"], [class*=\"channel_\"][class*=\"interactive_\"]");
             if (targetElement && !targetElement.classList.contains("stream-proof-revealed")) {
                 targetElement.classList.add("stream-proof-revealed");
                 e.preventDefault();
@@ -151,7 +163,7 @@ const StreamProofButton: ChatBarButtonFactory = ({ isMainChat }) => {
     useStateFromStores([StreamerModeStore, StreamStore, RTCConnectionStore], () => isStreaming());
     const [, forceUpdate] = useState({});
 
-    if (!isMainChat || settings.store.showOnTopBar) return null;
+    if (!isMainChat || settings.store.location !== "chatbar") return null;
 
     function toggle() {
         if (streamProofActive) {
@@ -200,9 +212,18 @@ export default definePlugin({
     },
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("StreamProof", () => (
                 <HeaderBarButton
+                    icon={() => streamProofActive ? <EyeSlashIcon /> : <EyeIcon />}
+                    tooltip={streamProofActive ? "StreamProof: ON — click to disable" : "StreamProof: OFF — click to enable"}
+                    onClick={() => { streamProofActive ? disableStreamProof() : enableStreamProof(); }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("StreamProof", () => (
+                <ChannelToolbarButton
                     icon={() => streamProofActive ? <EyeSlashIcon /> : <EyeIcon />}
                     tooltip={streamProofActive ? "StreamProof: ON — click to disable" : "StreamProof: OFF — click to enable"}
                     onClick={() => { streamProofActive ? disableStreamProof() : enableStreamProof(); }}
@@ -216,5 +237,6 @@ export default definePlugin({
     stop() {
         disableStreamProof();
         removeHeaderBarButton("StreamProof");
+        removeChannelToolbarButton("StreamProof");
     }
 });

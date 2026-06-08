@@ -1,23 +1,28 @@
 /*
- * Equicord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addContextMenuPatch, removeContextMenuPatch } from "@api/ContextMenu";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { Menu, Parser, Toasts, useState, useEffect, React } from "@webpack/common";
 import type { Message } from "@vencord/discord-types";
+import { Menu, Parser, React, Toasts, useEffect, useState } from "@webpack/common";
 
 const encryptSettings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
 });
@@ -154,7 +159,7 @@ function LockIcon({ enabled, width = 20, height = 20 }: { enabled: boolean; widt
 const EncryptButton: ChatBarButtonFactory = ({ type }) => {
     const [enabled, setEnabled] = React.useState(encryptionEnabled);
 
-    if (!["normal", "sidebar"].some(n => type.analyticsName === n) || encryptSettings.store.showOnTopBar) return null;
+    if (!["normal", "sidebar"].some(n => type.analyticsName === n) || encryptSettings.store.location !== "chatbar") return null;
 
     const tooltip = enabled
         ? "Encryption active — random technique"
@@ -270,9 +275,18 @@ export default definePlugin({
 
     start() {
         addContextMenuPatch("message", messageContextPatch);
-        if (encryptSettings.store.showOnTopBar) {
+        const { location } = encryptSettings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("EncryptedMessage", () => (
                 <HeaderBarButton
+                    icon={() => <LockIcon enabled={encryptionEnabled} />}
+                    tooltip="Encryption"
+                    onClick={() => { encryptionEnabled = !encryptionEnabled; }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("EncryptedMessage", () => (
+                <ChannelToolbarButton
                     icon={() => <LockIcon enabled={encryptionEnabled} />}
                     tooltip="Encryption"
                     onClick={() => { encryptionEnabled = !encryptionEnabled; }}
@@ -284,6 +298,7 @@ export default definePlugin({
     stop() {
         removeContextMenuPatch("message", messageContextPatch);
         removeHeaderBarButton("EncryptedMessage");
+        removeChannelToolbarButton("EncryptedMessage");
         encryptionEnabled = false;
     },
 

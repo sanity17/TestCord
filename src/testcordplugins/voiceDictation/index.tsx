@@ -1,24 +1,30 @@
 /*
- * Equicord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
-import definePlugin, { OptionType } from "@utils/types";
-import { ComponentDispatch, React, useEffect, useRef, useState, MediaEngineStore, showToast, Toasts } from "@webpack/common";
-import { getGroqKey } from "../nightcordAI/groqManager";
 import { showApiKeyWarning } from "@utils/apiKeyWarning";
+import definePlugin, { OptionType } from "@utils/types";
+import { ComponentDispatch, MediaEngineStore, React, showToast, Toasts, useEffect, useRef, useState } from "@webpack/common";
+
+import { getGroqKey } from "../nightcordAI/groqManager";
 
 // ── Settings ──────────────────────────────────────────────────────────────────
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     language: {
@@ -137,7 +143,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
                 const devs = MediaEngineStore.getInputDevices();
                 const selected = devs[discordId];
                 if (!selected || !selected.name) return "default";
-                
+
                 let webDevs = await navigator.mediaDevices.enumerateDevices();
                 // trigger permissions if empty labels
                 if (webDevs.some(d => d.kind === "audioinput" && !d.label)) {
@@ -145,20 +151,20 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
                     stream.getTracks().forEach(t => t.stop());
                     webDevs = await navigator.mediaDevices.enumerateDevices();
                 }
-                
+
                 let match = webDevs.find(d => d.kind === "audioinput" && d.deviceId === discordId);
-                
+
                 if (!match) {
-                    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, '');
+                    const normalize = (s: string) => s.toLowerCase().replace(/[^a-z0-9]/g, "");
                     const normSelected = normalize(selected.name);
-                    
+
                     match = webDevs.find(d => {
                         if (d.kind !== "audioinput" || !d.label) return false;
                         const normLabel = normalize(d.label);
                         return normLabel.includes(normSelected) || normSelected.includes(normLabel);
                     });
                 }
-                
+
                 if (match) {
                     console.log(`[VoiceDictation] Mapped Discord device "${selected.name}" to WebAudio deviceId "${match.deviceId}"`);
                     showToast(`Dictation: Using mic "${match.label || selected.name}"`, Toasts.Type.SUCCESS);
@@ -178,7 +184,7 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
         try {
             const discordDeviceId = MediaEngineStore.getInputDeviceId();
             const realDeviceId = await getRealInputDeviceId(discordDeviceId);
-            
+
             try {
                 // First attempt: with the specific deviceId (works if permission is ok)
                 stream = await navigator.mediaDevices.getUserMedia({
@@ -342,15 +348,13 @@ const VoiceDictationButton: ChatBarButtonFactory = ({ isMainChat }) => {
         else startDictation();
     }
 
-    if (!isMainChat || settings.store.showOnTopBar) return null;
+    if (!isMainChat || settings.store.location !== "chatbar") return null;
 
-    const tooltip = errorMsg
-        ? errorMsg
-        : processing
+    const tooltip = errorMsg || (processing
             ? "Transcribing..."
             : recording
                 ? "Stop dictation"
-                : "Voice dictation";
+                : "Voice dictation");
 
     return (
         <ChatBarButton tooltip={tooltip} onClick={toggle}>
@@ -374,9 +378,20 @@ export default definePlugin({
     },
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("VoiceDictation", () => (
                 <HeaderBarButton
+                    icon={() => <DictationIcon />}
+                    tooltip="Voice Dictation"
+                    onClick={() => {
+                        showToast("Use the chat bar button for voice dictation", Toasts.Type.FAILURE);
+                    }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("VoiceDictation", () => (
+                <ChannelToolbarButton
                     icon={() => <DictationIcon />}
                     tooltip="Voice Dictation"
                     onClick={() => {
@@ -389,5 +404,6 @@ export default definePlugin({
 
     stop() {
         removeHeaderBarButton("VoiceDictation");
+        removeChannelToolbarButton("VoiceDictation");
     },
 });

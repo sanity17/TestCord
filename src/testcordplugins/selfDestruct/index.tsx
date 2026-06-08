@@ -5,7 +5,7 @@
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, findStoreLazy } from "@webpack";
@@ -15,10 +15,15 @@ const MessageActions = findByPropsLazy("deleteMessage", "startEditMessage");
 const UserStore = findStoreLazy("UserStore");
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     active: {
@@ -180,7 +185,7 @@ function SelfDestructIcon({ active, width = 20, height = 20 }: { active?: boolea
 const SelfDestructButton: ChatBarButtonFactory = ({ isMainChat }) => {
     const [active, setActive] = React.useState(settings.store.active);
 
-    if (!isMainChat || settings.store.showOnTopBar) return null;
+    if (!isMainChat || settings.store.location !== "chatbar") return null;
 
     function toggle() {
         settings.store.active = !settings.store.active;
@@ -235,9 +240,18 @@ export default definePlugin({
     },
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("SelfDestruct", () => (
                 <HeaderBarButton
+                    icon={() => <SelfDestructIcon active={settings.store.active} />}
+                    tooltip="SelfDestruct"
+                    onClick={() => { settings.store.active = !settings.store.active; }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("SelfDestruct", () => (
+                <ChannelToolbarButton
                     icon={() => <SelfDestructIcon active={settings.store.active} />}
                     tooltip="SelfDestruct"
                     onClick={() => { settings.store.active = !settings.store.active; }}
@@ -249,5 +263,6 @@ export default definePlugin({
     stop() {
         cleanup();
         removeHeaderBarButton("SelfDestruct");
+        removeChannelToolbarButton("SelfDestruct");
     },
 });

@@ -5,7 +5,7 @@
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import { showApiKeyWarning } from "@utils/apiKeyWarning";
 import definePlugin, { OptionType } from "@utils/types";
@@ -14,10 +14,15 @@ import { React } from "@webpack/common";
 import { getGroqKey, groqChat } from "../nightcordAI/groqManager";
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     isActive: {
@@ -128,7 +133,7 @@ function AutoCorrectIcon({ enabled }: { enabled: boolean; }) {
 const AutoCorrectChatBarButton: ChatBarButtonFactory = ({ type }) => {
     const [enabled, setEnabled] = React.useState(settings.store.isActive);
     const validChat = ["normal", "sidebar"].some(x => type.analyticsName === x);
-    if (!validChat || settings.store.showOnTopBar) return null;
+    if (!validChat || settings.store.location !== "chatbar") return null;
 
     const toggle = async () => {
         if (!enabled) {
@@ -162,9 +167,18 @@ export default definePlugin({
     settings,
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("AutoCorrect", () => (
                 <HeaderBarButton
+                    icon={() => <AutoCorrectIcon enabled={settings.store.isActive} />}
+                    tooltip="AutoCorrect"
+                    onClick={() => { settings.store.isActive = !settings.store.isActive; }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("AutoCorrect", () => (
+                <ChannelToolbarButton
                     icon={() => <AutoCorrectIcon enabled={settings.store.isActive} />}
                     tooltip="AutoCorrect"
                     onClick={() => { settings.store.isActive = !settings.store.isActive; }}
@@ -175,6 +189,7 @@ export default definePlugin({
 
     stop() {
         removeHeaderBarButton("AutoCorrect");
+        removeChannelToolbarButton("AutoCorrect");
     },
 
     chatBarButton: {

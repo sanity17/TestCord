@@ -1,11 +1,11 @@
 /*
- * Equicord, a Discord client mod
- * Copyright (c) 2024 Vendicated and contributors
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
 import { ChatBarButton, ChatBarButtonFactory } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
 import { findStoreLazy } from "@webpack";
@@ -15,15 +15,18 @@ import { React, RestAPI, useState } from "@webpack/common";
 
 const UserStore = findStoreLazy("UserStore");
 
-
-
 // ── Settings ───────────────────────────────────────────────────────────────────
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     active: {
@@ -104,7 +107,6 @@ const settings = definePluginSettings({
 
 const lastReplied = new Map<string, number>();
 let sequentialIndex = 0;
-
 
 // ── Helpers ────────────────────────────────────────────────────────────────────
 
@@ -209,7 +211,7 @@ function AutoReplyIcon({ active, height = 20, width = 20, className }: {
 const AutoReplyButton: ChatBarButtonFactory = ({ isMainChat }) => {
     const [active, setActive] = useState(settings.store.active);
 
-    if (!isMainChat || settings.store.showOnTopBar) return null;
+    if (!isMainChat || settings.store.location !== "chatbar") return null;
 
     function toggle() {
         // Session toggle only — does not persist between restarts
@@ -261,9 +263,18 @@ export default definePlugin({
     },
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("AutoReply", () => (
                 <HeaderBarButton
+                    icon={() => <AutoReplyIcon active={settings.store.active} />}
+                    tooltip={`AutoReply: ${settings.store.active ? "ON" : "OFF"}`}
+                    onClick={() => { settings.store.active = !settings.store.active; }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("AutoReply", () => (
+                <ChannelToolbarButton
                     icon={() => <AutoReplyIcon active={settings.store.active} />}
                     tooltip={`AutoReply: ${settings.store.active ? "ON" : "OFF"}`}
                     onClick={() => { settings.store.active = !settings.store.active; }}
@@ -274,5 +285,6 @@ export default definePlugin({
 
     stop() {
         removeHeaderBarButton("AutoReply");
+        removeChannelToolbarButton("AutoReply");
     },
 });

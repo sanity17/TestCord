@@ -1,19 +1,30 @@
-import definePlugin, { OptionType } from "@utils/types";
-import { definePluginSettings } from "@api/Settings";
-import { UserStore, ChannelStore, RestAPI, FluxDispatcher, React } from "@webpack/common";
-import { DataStore } from "@api/index";
-import { groqChat, getGroqKey } from "../nightcordAI/groqManager";
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import { ChatBarButton } from "@api/ChatButtons";
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { definePluginSettings } from "@api/Settings";
+import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
+import { ChannelStore, React,RestAPI, UserStore } from "@webpack/common";
+
+import { getGroqKey,groqChat } from "../nightcordAI/groqManager";
 
 const MessageStore = findByPropsLazy("getMessages");
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     warning: {
@@ -94,7 +105,7 @@ const settings = definePluginSettings({
 const DS_STYLE_KEY = "auto-responder-global-style";
 
 let lastMessageId = "";
-let cachedGlobalStyle = "";
+const cachedGlobalStyle = "";
 
 async function handleMessage(message: any) {
     if (!settings.store.isActive) return;
@@ -245,7 +256,7 @@ function forceRerender() {
 }
 
 const AutoResponderButton = () => {
-    if (settings.store.showOnTopBar) return null;
+    if (settings.store.location !== "chatbar") return null;
     const [, setTick] = React.useState(0);
     const isEnabled = settings.store.isActive;
 
@@ -308,9 +319,18 @@ export default definePlugin({
     },
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("AutoResponder", () => (
                 <HeaderBarButton
+                    icon={() => <KeyboardIcon enabled={settings.store.isActive} />}
+                    tooltip={`AutoResponder: ${settings.store.isActive ? "ON" : "OFF"}`}
+                    onClick={() => { settings.store.isActive = !settings.store.isActive; }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("AutoResponder", () => (
+                <ChannelToolbarButton
                     icon={() => <KeyboardIcon enabled={settings.store.isActive} />}
                     tooltip={`AutoResponder: ${settings.store.isActive ? "ON" : "OFF"}`}
                     onClick={() => { settings.store.isActive = !settings.store.isActive; }}
@@ -321,5 +341,6 @@ export default definePlugin({
 
     stop() {
         removeHeaderBarButton("AutoResponder");
+        removeChannelToolbarButton("AutoResponder");
     }
 });

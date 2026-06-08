@@ -6,28 +6,32 @@
 
 import "./styles.css";
 
-import { addHeaderBarButton, removeHeaderBarButton, HeaderBarButton } from "@api/HeaderBar";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
-import { openModal } from "@utils/modal";
 import { EquicordDevs } from "@utils/constants";
+import { openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
+import { findStoreLazy } from "@webpack";
 import { SelectedChannelStore } from "@webpack/common";
 
-import { findStoreLazy } from "@webpack";
-
 import { FloodPanelButton } from "./components/ChatBarButton";
-import { FloodIcon } from "./components/Icons";
 import { FloodModal } from "./components/FloodModal";
+import { FloodIcon } from "./components/Icons";
 
 const ChannelStore = findStoreLazy("ChannelStore");
 
-let enabled = false;
+const enabled = false;
 
 const settings = definePluginSettings({
-    showOnTopBar: {
-        type: OptionType.BOOLEAN,
-        description: "Show button on the top bar instead of the chat bar",
-        default: false,
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
         restartNeeded: true,
     },
     defaultDelay: {
@@ -53,9 +57,26 @@ export default definePlugin({
     chatBarButton: { render: FloodPanelButton } as any,
 
     start() {
-        if (settings.store.showOnTopBar) {
+        const { location } = settings.store;
+        if (location === "headerbar") {
             addHeaderBarButton("FloodPanel", () => (
                 <HeaderBarButton
+                    icon={FloodIcon}
+                    tooltip="Flood Panel"
+                    onClick={() => {
+                        const chId = SelectedChannelStore.getChannelId();
+                        if (!chId) return;
+                        const channel = ChannelStore.getChannel(chId);
+                        if (!channel) return;
+                        openModal(props => (
+                            <FloodModal channel={channel} rootProps={props as any} onRunningChange={() => { }} />
+                        ));
+                    }}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("FloodPanel", () => (
+                <ChannelToolbarButton
                     icon={FloodIcon}
                     tooltip="Flood Panel"
                     onClick={() => {
@@ -74,5 +95,6 @@ export default definePlugin({
 
     stop() {
         removeHeaderBarButton("FloodPanel");
+        removeChannelToolbarButton("FloodPanel");
     },
 });
