@@ -10,9 +10,25 @@ import { Flex } from "@components/Flex";
 import { FormSwitch } from "@components/FormSwitch";
 import { Margins } from "@utils/margins";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize } from "@utils/modal";
-import { Button, Forms, IconUtils, React, showToast, Text, Toasts, useState } from "@webpack/common";
+import { Button, Forms, IconUtils, React, showToast, Text, Toasts, useEffect, useState } from "@webpack/common";
 
 import { clearTarget, getCachedTarget, getManualProfile, loadTarget, logger, saveManualProfile, setEnabled, settings } from "./data";
+
+const DECORATIONS_API = "https://fakeprofile.sampath.me/decorations";
+
+let DecorationGridItem: React.ComponentType<any> | null = null;
+let DecorationGridDecoration: React.ComponentType<any> | null = null;
+let AvatarDecorationModalPreview: React.ComponentType<any> | null = null;
+
+export function setCapturedComponents(components: {
+    DecorationGridItem: React.ComponentType<any> | null;
+    DecorationGridDecoration: React.ComponentType<any> | null;
+    AvatarDecorationModalPreview: React.ComponentType<any> | null;
+}) {
+    DecorationGridItem = components.DecorationGridItem;
+    DecorationGridDecoration = components.DecorationGridDecoration;
+    AvatarDecorationModalPreview = components.AvatarDecorationModalPreview;
+}
 
 const ID_RE = /^\d{17,20}$/;
 
@@ -139,31 +155,12 @@ const BOOST_LEVELS = [
     { label: "24 mo", icon: "https://cdn.discordapp.com/badge-icons/ec92202290b48d0879b7413d2dde3bab.png" },
 ];
 
-const AVATAR_DECORATIONS = [
-    { id: "1144307957425778779", label: "Hearts" },
-    { id: "1144308196723408958", label: "Hearts Animated" },
-    { id: "1212569433839636530", label: "Lofi Cafe" },
-    { id: "1481387347642810480", label: "Winter" },
-    { id: "1343751617362661526", label: "Magic Orb" },
-    { id: "1373015260465987705", label: "Dragon" },
-    { id: "1333866045303423026", label: "Ghost" },
-    { id: "1144308439720394944", label: "Sakura Drift" },
-    { id: "1432550258126229565", label: "Neon" },
-    { id: "1462116613632426014", label: "Cyber City" },
-    { id: "1462116613682757888", label: "Retro" },
-    { id: "1144307629225672846", label: "Fire" },
-    { id: "1341506443718688768", label: "Void" },
-    { id: "1447654090640330763", label: "Celestial" },
-    { id: "1483857762890022923", label: "Snowy" },
-    { id: "1479561706672885811", label: "Ice" },
-    { id: "1212569856189407352", label: "Cozy" },
-    { id: "1485784028710830242", label: "New Year" },
-    { id: "1341506444150702080", label: "Abyss" },
-    { id: "1232071712695386162", label: "Spring" },
-    { id: "1220514048068812901", label: "Summer" },
-    { id: "1427463138634109026", label: "Autumn" },
-    { id: "1341506443865489408", label: "Darkness" },
-];
+interface DecorationPreset {
+    asset: string;
+    skuId: string;
+    animated: boolean;
+    name?: string;
+}
 
 export function FakeUserProfileModal({ modalProps }: { modalProps: ModalProps; }) {
     const initial = getCachedTarget();
@@ -177,6 +174,14 @@ export function FakeUserProfileModal({ modalProps }: { modalProps: ModalProps; }
     const [spoofActivities, setSpoofActivities] = useState(settings.store.spoofActivities);
     const [target, setTarget] = useState(initial);
     const [mode, setMode] = useState(settings.store.targetMode ?? "lookup");
+    const [decorations, setDecorations] = useState<DecorationPreset[]>([]);
+
+    useEffect(() => {
+        fetch(DECORATIONS_API)
+            .then(r => r.json())
+            .then((data: DecorationPreset[]) => setDecorations(data))
+            .catch(() => {});
+    }, []);
 
     const [manualId, setManualId] = useState(initialManual.id);
     const [manualUsername, setManualUsername] = useState(initialManual.username);
@@ -430,14 +435,41 @@ export function FakeUserProfileModal({ modalProps }: { modalProps: ModalProps; }
                         <div className="fup-divider" />
 
                         <SectionLabel>Avatar decoration</SectionLabel>
-                        <div className="fup-badges" style={{ marginBottom: 14 }}>
-                            <BadgeBtn label="None" active={!manualAvatarDecoration} onClick={() => { setManualAvatarDecoration(""); setManualDecorationAsset(""); }} />
-                            {AVATAR_DECORATIONS.map(d => (
-                                <BadgeBtn key={d.id} label={d.label} active={manualAvatarDecoration === d.id} onClick={() => {
-                                    const newval = manualAvatarDecoration === d.id ? "" : d.id;
-                                    setManualAvatarDecoration(newval);
-                                    setManualDecorationAsset(newval);
-                                }} />
+                        <div className="fup-decoration-grid">
+                            <div
+                                className={`fup-decoration-item ${!manualAvatarDecoration ? "fup-decoration-item--selected" : ""}`}
+                                onClick={() => { setManualAvatarDecoration(""); setManualDecorationAsset(""); }}
+                            >
+                                <div className="fup-decoration-preview">
+                                    <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                                        <circle cx="12" cy="12" r="10" />
+                                        <line x1="4.93" y1="4.93" x2="19.07" y2="19.07" />
+                                    </svg>
+                                </div>
+                                <span className="fup-decoration-label">None</span>
+                            </div>
+                            {decorations.map(d => (
+                                <div
+                                    key={d.asset}
+                                    className={`fup-decoration-item ${manualAvatarDecoration === d.asset ? "fup-decoration-item--selected" : ""}`}
+                                    onClick={() => {
+                                        const newval = manualAvatarDecoration === d.asset ? "" : d.asset;
+                                        setManualAvatarDecoration(newval);
+                                        setManualDecorationAsset(newval);
+                                    }}
+                                >
+                                    <div className="fup-decoration-preview">
+                                        <img
+                                            src={`https://cdn.discordapp.com/avatar-decoration-presets/${d.asset}.png`}
+                                            alt={d.name || d.asset}
+                                            className="fup-decoration-img"
+                                            onError={e => {
+                                                (e.target as HTMLImageElement).style.display = "none";
+                                            }}
+                                        />
+                                    </div>
+                                    <span className="fup-decoration-label">{d.name || d.asset.slice(0, 8)}</span>
+                                </div>
                             ))}
                         </div>
                         <Field label="Custom decoration asset ID" value={manualDecorationAsset} placeholder="1144307957425778779" onChange={v => { setManualDecorationAsset(v); setManualAvatarDecoration(v); }} />

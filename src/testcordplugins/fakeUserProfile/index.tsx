@@ -13,8 +13,12 @@ import definePlugin from "@utils/types";
 import type { User } from "@vencord/discord-types";
 import { ComponentDispatch, FluxDispatcher, IconUtils, PresenceStore, React, SnowflakeUtils, Tooltip, UsernameUtils, UserStore } from "@webpack/common";
 
+let DecorationGridItem: React.ComponentType<any> | null = null;
+let DecorationGridDecoration: React.ComponentType<any> | null = null;
+let AvatarDecorationModalPreview: React.ComponentType<any> | null = null;
+
 import { getCachedTarget, getManualProfile, isActive, isCurrentUser, loadData, loadTarget, logger, makeDateForUser, makeDateInRange, restoreManualProfileIfNeeded, restoreStoredTarget, setEnabled, settings, subscribe } from "./data";
-import { FakeUserProfileModal } from "./modal";
+import { FakeUserProfileModal, setCapturedComponents } from "./modal";
 
 const FLAG_BADGES: { flag: number; image: string; description: string; }[] = [
     { flag: 1 << 0, image: "https://cdn.discordapp.com/badge-icons/5e74e9b61934fc1f67c65515d1f7e60d.png", description: "Discord Staff" },
@@ -169,6 +173,19 @@ function mergeUser(base: any, overrides: Record<string, unknown>): any {
         } catch { /* ignore */ }
     }
     return wrap;
+}
+
+function useUserAvatarDecoration(user: User) {
+    if (!isActive()) return undefined;
+    if (!isCurrentUser(user?.id)) return undefined;
+    const t = getTargetUser() as any;
+    const manual = getCachedTarget()?.manualProfile;
+    const decoAsset = t?.avatarDecorationData?.asset || manual?.avatarDecoration || manual?.decorationAsset;
+    if (!decoAsset) return undefined;
+    return {
+        asset: decoAsset,
+        skuId: t?.avatarDecorationData?.skuId || decoAsset,
+    };
 }
 
 let cachedWrap: { base: any; target: any; wrap: any; } | null = null;
@@ -791,6 +808,68 @@ export default definePlugin({
                 replace: "($self.bannerHook(arguments[0])??($&))"
             }
         },
+        {
+            find: "isAvatarDecorationAnimating:",
+            group: true,
+            replacement: [
+                {
+                    match: /(?<=\.avatarDecoration,guildId:\i\}\)\),)(?<=user:(\i).+?)/,
+                    replace: "vcFupAvatarDecoration=$self.useUserAvatarDecoration($1),"
+                },
+                {
+                    match: /(?<={avatarDecoration:).{1,20}?(?=,)(?<=avatarDecorationOverride:(\i).+?)/,
+                    replace: "$1??vcFupAvatarDecoration??($&)"
+                },
+                {
+                    match: /(?<=size:\i}\),\[)/,
+                    replace: "vcFupAvatarDecoration,"
+                }
+            ]
+        },
+        {
+            find: "#{intl::ACCOUNT_SPEAKING_WHILE_MUTED}",
+            replacement: [
+                {
+                    match: /(?<=\i\)\({avatarDecoration:)\i(?=,)(?<=currentUser:(\i).+?)/,
+                    replace: "$self.useUserAvatarDecoration($1)??$&"
+                }
+            ]
+        },
+        ...[
+            '"Message Username"',
+            ".nameplatePreview,{",
+            "#{intl::ayozFl::raw}",
+        ].map(find => ({
+            find,
+            replacement: [
+                {
+                    match: /(?<=userValue.{0,25}void 0:)((\i)\.avatarDecoration)/,
+                    replace: "$self.useUserAvatarDecoration($2)??$1"
+                }
+            ]
+        })),
+        {
+            find: "80,onlyAnimateOnHoverOrFocus:!",
+            replacement: [
+                {
+                    match: /(?<==)\i=>{let{children.{20,200}isSelected:\i.{0,5}\}=\i/,
+                    replace: "$self.DecorationGridItem=$&",
+                },
+                {
+                    match: /(?<==)\i=>{let{user:\i,avatarDecoration/,
+                    replace: "$self.DecorationGridDecoration=$&",
+                },
+            ]
+        },
+        {
+            find: "#{intl::PREMIUM_UPSELL_PROFILE_AVATAR_DECO_INLINE_UPSELL_DESCRIPTION}",
+            replacement: [
+                {
+                    match: /(?<==)\i=>{let{user:\i,guildId:\i,avatarDecoration:/,
+                    replace: "$self.AvatarDecorationModalPreview=$&"
+                }
+            ]
+        },
     ],
 
     getUsername(user: User) {
@@ -798,6 +877,23 @@ export default definePlugin({
         const t = getTargetUser();
         if (!t) return undefined;
         return t.globalName || t.username;
+    },
+
+    useUserAvatarDecoration,
+
+    set DecorationGridItem(e: any) {
+        DecorationGridItem = e;
+        setCapturedComponents({ DecorationGridItem, DecorationGridDecoration, AvatarDecorationModalPreview });
+    },
+
+    set DecorationGridDecoration(e: any) {
+        DecorationGridDecoration = e;
+        setCapturedComponents({ DecorationGridItem, DecorationGridDecoration, AvatarDecorationModalPreview });
+    },
+
+    set AvatarDecorationModalPreview(e: any) {
+        AvatarDecorationModalPreview = e;
+        setCapturedComponents({ DecorationGridItem, DecorationGridDecoration, AvatarDecorationModalPreview });
     },
 
     wrapAvatar(original: any) {
@@ -818,8 +914,8 @@ export default definePlugin({
         const manual = getCachedTarget()?.manualProfile;
         const decoAsset = t?.avatarDecorationData?.asset || manual?.avatarDecoration || manual?.decorationAsset;
         if (!decoAsset) return undefined;
-        const animated = canAnimate && decoAsset.startsWith("a_");
-        return `https://cdn.discordapp.com/media/v1/collectibles-shop/${decoAsset}/${animated ? "animated" : "static"}`;
+        const asset = canAnimate && decoAsset.startsWith("a_") ? decoAsset : decoAsset.replace(/^a_/, "");
+        return `https://cdn.discordapp.com/avatar-decoration-presets/${asset}.png`;
     },
 
     profileHook(userId: string, original: any) {
