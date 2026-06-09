@@ -8,6 +8,7 @@ import { ChannelToolbarButton } from "@api/HeaderBar";
 import { resetCacheLimits } from "@utils/cacheLimits";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
+import { findAll } from "@webpack";
 import {
     ActiveJoinedThreadsStore,
     ApplicationCommandIndexStore,
@@ -18,8 +19,6 @@ import {
     EditMessageStore,
     EmojiStore,
     ExperimentStore,
-    GuildMemberStore,
-    GuildStore,
     InviteStore,
     MessageCache,
     MessageStore,
@@ -27,21 +26,29 @@ import {
     PendingReplyStore,
     PresenceStore,
     QuestStore,
-    RelationshipStore,
     RunningGameStore,
+    showToast,
     SoundboardStore,
     SpellCheckStore,
     SpotifyStore,
     StickersStore,
+    Toasts,
     TypingStore,
     UploadAttachmentStore,
     UserAffinitiesStore,
     UserGuildSettingsStore,
     UserProfileStore,
-    UserStore,
-    showToast,
-    Toasts,
 } from "@webpack/common";
+
+interface SpringMod {
+    Globals?: { assign?: (opts: Record<string, unknown>) => void; };
+}
+
+const PASSIVE_EVENTS = ["wheel", "mousewheel", "touchstart", "touchmove", "touchend"];
+
+let boostStyleEl: HTMLStyleElement | null = null;
+let originalAddEventListener: typeof EventTarget.prototype.addEventListener | null = null;
+let springs: SpringMod[] = [];
 
 function CacheIcon(props: React.SVGProps<SVGSVGElement>) {
     return (
@@ -73,12 +80,12 @@ function clearMapCache(name: string, store: any, mapKey: string, cleared: string
     } catch { }
 }
 
-function softReset(): string[] {
+function clearCaches(): string[] {
     const cleared: string[] = [];
 
     try {
         MessageStore.clearCache?.();
-        cleared.push("Message store");
+        cleared.push("Messages");
     } catch { }
 
     try {
@@ -86,50 +93,36 @@ function softReset(): string[] {
         cleared.push("Message cache");
     } catch { }
 
-    try {
-        const keys = Object.keys(MessageCache._channelMessages ?? {});
-        for (const key of keys) {
-            MessageCache._channelMessages[key]._array = [];
-        }
-        cleared.push("Channel messages");
-    } catch { }
+    clearStoreCache("Drafts", DraftStore, cleared);
+    clearStoreCache("Edits", EditMessageStore, cleared);
+    clearStoreCache("Replies", PendingReplyStore, cleared);
+    clearStoreCache("Typing", TypingStore, cleared);
+    clearStoreCache("Emojis", EmojiStore, cleared);
+    clearStoreCache("Stickers", StickersStore, cleared);
+    clearStoreCache("Commands", ApplicationCommandIndexStore, cleared);
+    clearStoreCache("Apps", ApplicationStore, cleared);
+    clearStoreCache("Profiles", UserProfileStore, cleared);
+    clearStoreCache("Invites", InviteStore, cleared);
+    clearStoreCache("Quests", QuestStore, cleared);
+    clearStoreCache("Experiments", ExperimentStore, cleared);
+    clearStoreCache("Soundboard", SoundboardStore, cleared);
+    clearStoreCache("Spellcheck", SpellCheckStore, cleared);
+    clearStoreCache("Games", RunningGameStore, cleared);
+    clearStoreCache("Uploads", UploadAttachmentStore, cleared);
+    clearStoreCache("Threads", ActiveJoinedThreadsStore, cleared);
+    clearStoreCache("Streaming", ApplicationStreamingStore, cleared);
+    clearStoreCache("Stream previews", ApplicationStreamPreviewStore, cleared);
+    clearStoreCache("Guild settings", UserGuildSettingsStore, cleared);
+    clearStoreCache("Notifications", NotificationSettingsStore, cleared);
+    clearStoreCache("Spotify", SpotifyStore, cleared);
+    clearStoreCache("Affinities", UserAffinitiesStore, cleared);
 
-    clearStoreCache("Draft store", DraftStore, cleared);
-    clearStoreCache("Edit message store", EditMessageStore, cleared);
-    clearStoreCache("Pending reply store", PendingReplyStore, cleared);
-    clearStoreCache("Typing store", TypingStore, cleared);
-
-    clearStoreCache("Emoji store", EmojiStore, cleared);
-    clearStoreCache("Stickers store", StickersStore, cleared);
-    clearStoreCache("Application command index", ApplicationCommandIndexStore, cleared);
-    clearStoreCache("Application store", ApplicationStore, cleared);
-    clearStoreCache("User profile store", UserProfileStore, cleared);
-    clearStoreCache("Invite store", InviteStore, cleared);
-    clearStoreCache("Quest store", QuestStore, cleared);
-    clearStoreCache("Experiment store", ExperimentStore, cleared);
-    clearStoreCache("Soundboard store", SoundboardStore, cleared);
-    clearStoreCache("Spellcheck store", SpellCheckStore, cleared);
-    clearStoreCache("Running game store", RunningGameStore, cleared);
-    clearStoreCache("Upload attachment store", UploadAttachmentStore, cleared);
-    clearStoreCache("Active joined threads store", ActiveJoinedThreadsStore, cleared);
-    clearStoreCache("Application streaming store", ApplicationStreamingStore, cleared);
-    clearStoreCache("Application stream preview store", ApplicationStreamPreviewStore, cleared);
-
-    clearStoreCache("User guild settings store", UserGuildSettingsStore, cleared);
-    clearStoreCache("Notification settings store", NotificationSettingsStore, cleared);
-    clearStoreCache("Spotify store", SpotifyStore, cleared);
-    clearStoreCache("User affinities store", UserAffinitiesStore, cleared);
-    clearStoreCache("User store", UserStore, cleared);
-    clearStoreCache("Guild store", GuildStore, cleared);
-    clearStoreCache("Guild member store", GuildMemberStore, cleared);
-    clearStoreCache("Relationship store", RelationshipStore, cleared);
-
-    clearMapCache("Presence store", PresenceStore, "_presences", cleared);
+    clearMapCache("Presence", PresenceStore, "_presences", cleared);
 
     if (typeof (window as any).gc === "function") {
         try {
             (window as any).gc();
-            cleared.push("Garbage collection");
+            cleared.push("GC");
         } catch { }
     }
 
@@ -141,13 +134,100 @@ function softReset(): string[] {
     return cleared;
 }
 
+function applyBoost(): string[] {
+    const applied: string[] = [];
+
+    if (!boostStyleEl) {
+        boostStyleEl = document.createElement("style");
+        boostStyleEl.id = "vc-perf-boost";
+        boostStyleEl.textContent = [
+            "[class*=\"messageListItem_\"] { contain: layout style; }",
+            "[class*=\"chatContent_\"] { contain: style layout; }",
+            "[class*=\"messageContent_\"], [class*=\"markup_\"] { text-rendering: optimizeSpeed; }",
+            "[style*=\"will-change\"], [class*=\"scroller_\"], [class*=\"messageListItem_\"] { will-change: auto !important; }",
+            "[class*=\"backdrop_\"], [class*=\"layer_\"], [class*=\"popout_\"], [class*=\"modal_\"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }",
+            "*, *::before, *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; transition-delay: 0ms !important; }",
+        ].join("\n");
+        document.head.appendChild(boostStyleEl);
+        applied.push("CSS (containment, will-change, blur, animations)");
+    }
+
+    if (springs.length === 0) {
+        springs = findAll(mod => {
+            const m = mod as SpringMod;
+            return typeof m?.Globals === "object" && typeof m?.Springs === "object";
+        }) as SpringMod[];
+    }
+    for (const spring of springs) {
+        spring.Globals?.assign?.({ skipAnimation: true });
+    }
+    if (springs.length > 0) applied.push("Spring animations");
+
+    if (!originalAddEventListener) {
+        originalAddEventListener = EventTarget.prototype.addEventListener;
+        const orig = originalAddEventListener;
+        EventTarget.prototype.addEventListener = function (
+            this: EventTarget,
+            type: string,
+            listener: EventListenerOrEventListenerObject | null,
+            options?: boolean | AddEventListenerOptions
+        ): void {
+            if (PASSIVE_EVENTS.includes(type) && listener != null) {
+                if (typeof options === "boolean" || options === undefined) {
+                    options = { capture: !!options, passive: true };
+                } else if (options.passive === undefined) {
+                    options = { ...options, passive: true };
+                }
+            }
+            return orig.call(this, type, listener, options);
+        } as typeof EventTarget.prototype.addEventListener;
+        applied.push("Passive listeners");
+    }
+
+    document.querySelectorAll<HTMLImageElement>("img").forEach(img => {
+        if (!img.loading) img.loading = "lazy";
+        if (!img.decoding) img.decoding = "async";
+    });
+    applied.push("Lazy images");
+
+    if (typeof (window as any).performance?.memory !== "undefined") {
+        const mem = (window as any).performance.memory;
+        const ratio = mem.usedJSHeapSize / mem.jsHeapSizeLimit;
+        if (ratio > 0.75 && typeof (window as any).gc === "function") {
+            (window as any).gc();
+            applied.push("GC (high memory)");
+        }
+    }
+
+    return applied;
+}
+
+function removeBoost(): void {
+    if (boostStyleEl) {
+        boostStyleEl.remove();
+        boostStyleEl = null;
+    }
+
+    for (const spring of springs) {
+        spring.Globals?.assign?.({ skipAnimation: false });
+    }
+    springs = [];
+
+    if (originalAddEventListener) {
+        EventTarget.prototype.addEventListener = originalAddEventListener;
+        originalAddEventListener = null;
+    }
+}
+
 function CacheResetButton() {
     const handleClick = () => {
-        const cleared = softReset();
+        const cleared = clearCaches();
+        const boosted = applyBoost();
+        const parts: string[] = [];
+        if (cleared.length > 0) parts.push(`Cleared: ${cleared.join(", ")}`);
+        if (boosted.length > 0) parts.push(`Boosted: ${boosted.join(", ")}`);
         showToast(
-            cleared.length > 0
-                ? `Cache cleared: ${cleared.join(", ")}`
-                : "Cache cleared",
+            parts.length > 0 ? parts.join(" | ") : "Cache cleared and boost applied",
             Toasts.Type.SUCCESS
         );
     };
@@ -155,7 +235,7 @@ function CacheResetButton() {
     return (
         <ChannelToolbarButton
             icon={CacheIcon}
-            tooltip="Clear Cache"
+            tooltip="Performance Boost"
             onClick={handleClick}
         />
     );
@@ -163,7 +243,7 @@ function CacheResetButton() {
 
 export default definePlugin({
     name: "CacheResetButton",
-    description: "Adds a button to clear Discord cache to fix lag",
+    description: "Performance boost button: clears caches and applies runtime optimizations (CSS containment, passive listeners, spring skip, lazy images, backdrop blur removal, animation kill).",
     tags: ["Utility", "Performance"],
     authors: [TestcordDevs.x2b],
     dependencies: ["HeaderBarAPI"],
@@ -173,5 +253,9 @@ export default definePlugin({
         icon: CacheIcon,
         render: CacheResetButton,
         priority: 260,
+    },
+
+    stop() {
+        removeBoost();
     },
 });
