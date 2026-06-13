@@ -262,7 +262,18 @@ function triggerLiveUpdate() {
     }
 }
 
-const badgeObserver = new MutationObserver(() => updateBadgeLabels());
+let badgeScanQueued = false;
+const badgeObserver = new MutationObserver(() => {
+    // Only relabel while we actually have a stream, and coalesce a burst of
+    // mutations into a single scan on the next frame instead of scanning the
+    // whole document on every mutation.
+    if (activeConnections.size === 0 || badgeScanQueued) return;
+    badgeScanQueued = true;
+    requestAnimationFrame(() => {
+        badgeScanQueued = false;
+        updateBadgeLabels();
+    });
+});
 let labelUpdaterInterval: any = null; // Added for the new stop() method
 
 function updateBadgeLabels() {
@@ -274,9 +285,10 @@ function updateBadgeLabels() {
     const fpsLabel = s.fpsEnabled ? `${s.fps}fps` : "60fps";
     const targetText = `${resLabel} ${fpsLabel}`;
 
-    // Find standard stream badges like "1080p 60fps", "Source 60fps", "4K 60fps"
-    // Broad selector and check child nodes to ensure we catch it even if nested
-    const elements = document.querySelectorAll("div, span, button, strong, [class*='text']");
+    // Narrowed selector: stream badges are short inline text, never wrapped in
+    // bare divs/buttons. Scanning span/strong/[class*='text'] avoids walking
+    // nearly every element in the document on each pass.
+    const elements = document.querySelectorAll("span, strong, [class*='text']");
     elements.forEach(el => {
         const text = (el.textContent || "").trim();
         // Match things like "1080p 60fps", "Source 60fps", "4K 60fps", "1440p 120fps", "720p 30"
@@ -286,15 +298,12 @@ function updateBadgeLabels() {
     });
 }
 
-function startLabelUpdater() {
-    if (labelUpdaterInterval) clearInterval(labelUpdaterInterval);
-    labelUpdaterInterval = setInterval(() => {
-        if (activeConnections.size === 0) return;
-        updateBadgeLabels();
-    }, 1000);
+function ensureLabelUpdater() {
+    if (labelUpdaterInterval) return;
+    labelUpdaterInterval = setInterval(updateBadgeLabels, 1000);
 }
 
-function stopBadgeUpdater() {
+function stopLabelUpdater() {
     if (labelUpdaterInterval) {
         clearInterval(labelUpdaterInterval);
         labelUpdaterInterval = null;
@@ -308,6 +317,7 @@ function onConnection(connection: any) {
     if (connection.streamUserId && connection.streamUserId !== UserStore.getCurrentUser()?.id) return;
 
     activeConnections.add(connection);
+    ensureLabelUpdater();
 
     const connId = connection.mediaEngineConnectionId;
     if (patchedConnections.has(connId)) return;
@@ -456,6 +466,7 @@ function onConnection(connection: any) {
     const onDestroy = () => {
         patchedConnections.delete(connId);
         activeConnections.delete(connection);
+        if (activeConnections.size === 0) stopLabelUpdater();
         try {
             emitter.removeListener("connected", onConnected);
             emitter.removeListener("destroy", onDestroy);
@@ -518,7 +529,6 @@ export default definePlugin({
             };
 
             emitter.on("connection", connectionHandler);
-            startLabelUpdater(); // Changed from startBadgeUpdater
             badgeObserver.observe(document.body, {
                 childList: true,
                 subtree: true,
@@ -540,7 +550,7 @@ export default definePlugin({
             patchedConnections.clear();
             activeConnections.clear();
             badgeObserver.disconnect();
-            stopBadgeUpdater();
+            stopLabelUpdater();
             logger.info("CustomStreamQuality stopped");
         } catch (e) {
             logger.error("Failed to stop CustomStreamQuality", e);
