@@ -84,17 +84,41 @@ export default definePlugin({
         if (this.settings.store.blockInsults) thingToReturn.push(...badVerbsGeneral);
         return thingToReturn;
     },
+    _nounRegex: null as RegExp | null,
+    _nounRegexKey: "",
+    _verbRegex: null as RegExp | null,
+    _verbRegexKey: "",
+    _settingsKey() {
+        const s = this.settings.store;
+        return `${s.blockBrainrot}|${s.blockInsults}|${s.blockOthers}|${s.blockSexual}|${s.blockSlurs}`;
+    },
+    getNounRegex() {
+        const key = this._settingsKey();
+        if (!this._nounRegex || this._nounRegexKey !== key) {
+            this._nounRegex = new RegExp("\\b(" + this.getEnabledBadNouns().join("|") + ")\\b", "gi");
+            this._nounRegexKey = key;
+        }
+        return this._nounRegex;
+    },
+    getVerbRegex() {
+        const key = this._settingsKey();
+        if (!this._verbRegex || this._verbRegexKey !== key) {
+            this._verbRegex = new RegExp("\\b(" + this.getEnabledBadVerbs().join("|") + ")\\b", "gi");
+            this._verbRegexKey = key;
+        }
+        return this._verbRegex;
+    },
     replaceBadNouns(content) {
-        const regex = new RegExp("\\b(" + this.getEnabledBadNouns().join("|") + ")\\b", "gi");
-
+        const regex = this.getNounRegex();
+        regex.lastIndex = 0;
         return content.replace(regex, function (match) {
             const randomIndex = Math.floor(Math.random() * badNounsReplacements.length);
             return badNounsReplacements[randomIndex];
         });
     },
     replaceBadVerbs(content) {
-        const regex = new RegExp("\\b(" + this.getEnabledBadVerbs().join("|") + ")\\b", "gi");
-
+        const regex = this.getVerbRegex();
+        regex.lastIndex = 0;
         return content.replace(regex, function (match) {
             const randomIndex = Math.floor(Math.random() * badVerbsReplacements.length);
             return badVerbsReplacements[randomIndex];
