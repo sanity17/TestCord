@@ -282,12 +282,21 @@ export default definePlugin({
     authors: [{ name: "Nightcord", id: 0n }],
     settings,
 
+    _startTimer: null as ReturnType<typeof setTimeout> | null,
+
     start() {
         // Small delay to let the DOM be ready
-        setTimeout(applyWallpaper, 300);
+        this._startTimer = setTimeout(() => {
+            this._startTimer = null;
+            applyWallpaper();
+        }, 300);
     },
 
     stop() {
+        if (this._startTimer) {
+            clearTimeout(this._startTimer);
+            this._startTimer = null;
+        }
         removeWallpaperElements();
     },
 });
