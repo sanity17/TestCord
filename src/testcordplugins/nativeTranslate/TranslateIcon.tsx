@@ -36,7 +36,7 @@ export const TranslateChatBarIcon: ChatBarButtonFactory = ({ isMainChat }) => {
         return () => setShouldShowTranslateEnabledTooltip = undefined;
     }, []);
 
-    if (!isMainChat || settings.store.location !== "chatbar") return null;
+    if (!isMainChat) return null;
 
     const toggle = () => {
         settings.store.autoTranslate = !autoTranslate;

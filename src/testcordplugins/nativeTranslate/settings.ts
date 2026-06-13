@@ -8,17 +8,6 @@ import { definePluginSettings } from "@api/Settings";
 import { OptionType } from "@utils/types";
 
 export const settings = definePluginSettings({
-    location: {
-        type: OptionType.SELECT,
-        description: "Where to show the button",
-        options: [
-            { label: "Chat bar", value: "chatbar", default: true },
-            { label: "Header bar", value: "headerbar" },
-            { label: "Channel toolbar", value: "channeltoolbar" },
-            { label: "Disabled", value: "disabled" },
-        ],
-        restartNeeded: true,
-    },
     receivedInput: {
         type: OptionType.STRING,
         description: "Language that received messages should be translated from",
