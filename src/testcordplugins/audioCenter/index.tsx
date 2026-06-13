@@ -78,6 +78,10 @@ const settings = definePluginSettings({
 let selectedPrimaryDevice = "";
 let selectedSecondaryDevice = "";
 
+// Restore closures for every global monkey-patch installed at runtime
+const _patchRestores: Array<() => void> = [];
+let _injected = false;
+
 // Audio mixer state
 interface AudioMixerState {
     isActive: boolean;
@@ -116,10 +120,15 @@ function injectVirtualDevice() {
     try {
         console.log("AudioCenter: Injecting virtual device...");
 
+        if (_injected) return;
+        _injected = true;
+
         // Intercept Discord's getInputDevices function
         if (configModule && configModule.getInputDevices) {
+            const wrappedGetInputDevices = configModule.getInputDevices;
             const originalGetInputDevices =
                 configModule.getInputDevices.bind(configModule);
+            _patchRestores.push(() => { configModule.getInputDevices = wrappedGetInputDevices; });
 
             configModule.getInputDevices = () => {
                 const originalDevices = originalGetInputDevices();
@@ -153,7 +162,9 @@ function injectVirtualDevice() {
 
         // Intercept Discord dispatcher to handle virtual device selection
         if (FluxDispatcher && FluxDispatcher.dispatch) {
+            const wrappedDispatch = FluxDispatcher.dispatch;
             const originalDispatch = FluxDispatcher.dispatch.bind(FluxDispatcher);
+            _patchRestores.push(() => { FluxDispatcher.dispatch = wrappedDispatch; });
 
             FluxDispatcher.dispatch = (action: any) => {
                 // If it's a virtual input device selection
@@ -210,8 +221,10 @@ function patchDiscordComponents() {
                 AudioDeviceModule.getInputDevices &&
                 AudioDeviceModule.getInputDevices !== configModule.getInputDevices
             ) {
+                const wrappedAudioGetInputDevices = AudioDeviceModule.getInputDevices;
                 const originalGetInputDevices =
                     AudioDeviceModule.getInputDevices.bind(AudioDeviceModule);
+                _patchRestores.push(() => { AudioDeviceModule.getInputDevices = wrappedAudioGetInputDevices; });
 
                 AudioDeviceModule.getInputDevices = () => {
                     const devices = originalGetInputDevices();
@@ -245,10 +258,10 @@ function addDirectPatch() {
         console.log("AudioCenter: Adding direct patch...");
 
         // Use Vencord's patch API
-        const { addPatch } = (Vencord as any).Patcher;
+        const Patcher = (Vencord as any).Patcher;
 
         // Directly patch device selection components
-        addPatch({
+        const patchHandle = Patcher.addPatch({
             plugin: "AudioCenter",
             patches: [
                 {
@@ -260,6 +273,10 @@ function addDirectPatch() {
                 },
             ],
         });
+
+        if (patchHandle && typeof patchHandle.unpatch === "function") {
+            _patchRestores.push(() => patchHandle.unpatch());
+        }
 
         console.log("AudioCenter: Direct patch added");
     } catch (error) {
@@ -273,6 +290,7 @@ function createGlobalFunction() {
         console.log("AudioCenter: Creating global function...");
 
         // Create a global function that Discord can use
+        _patchRestores.push(() => { delete (window as any).getInputDevicesWithVirtual; });
         (window as any).getInputDevicesWithVirtual = () => {
             const originalDevices = configModule.getInputDevices();
 
@@ -348,11 +366,13 @@ async function createVirtualInputDevice() {
         );
 
         // Expose the stream as an input device via a custom API
-        if (window.navigator && window.navigator.mediaDevices) {
+        if (window.navigator && window.navigator.mediaDevices && !(navigator.mediaDevices.getUserMedia as any)._audioCenterPatched) {
             // Create a custom function to get the virtual stream
+            const wrappedGetUserMedia = navigator.mediaDevices.getUserMedia;
             const originalGetUserMedia = navigator.mediaDevices.getUserMedia.bind(
                 navigator.mediaDevices
             );
+            _patchRestores.push(() => { navigator.mediaDevices.getUserMedia = wrappedGetUserMedia; });
 
             navigator.mediaDevices.getUserMedia = async (constraints) => {
                 console.log("AudioCenter: getUserMedia called with:", constraints);
@@ -370,6 +390,7 @@ async function createVirtualInputDevice() {
                 // Otherwise, use the original function
                 return originalGetUserMedia(constraints);
             };
+            (navigator.mediaDevices.getUserMedia as any)._audioCenterPatched = true;
         }
 
         console.log("AudioCenter: Virtual input device created successfully");
@@ -1183,11 +1204,11 @@ export default definePlugin({
     stop() {
         stopAudioMixing();
         stopVirtualOutputDevice();
+        while (_patchRestores.length) {
+            const restore = _patchRestores.pop();
+            try { restore?.(); } catch { }
+        }
+        _injected = false;
         console.log("AudioCenter: Plugin stopped");
     },
 });
-
-
-
-
-
