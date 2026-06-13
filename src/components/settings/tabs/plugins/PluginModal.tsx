@@ -93,20 +93,18 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
     const [authors, setAuthors] = useState<Partial<User>[]>([]);
 
     useEffect(() => {
-        (async () => {
-            for (const [index, user] of plugin.authors.slice(0, 6).entries()) {
-                try {
-                    const author = user.id
-                        ? await UserUtils.getUser(String(user.id))
-                            .catch(() => makeDummyUser({ username: user.name }))
-                        : makeDummyUser({ username: user.name });
-
-                    setAuthors(a => [...a, author]);
-                } catch (e) {
-                    continue;
-                }
-            }
-        })();
+        let cancelled = false;
+        Promise.all(
+            plugin.authors.slice(0, 6).map(user =>
+                user.id
+                    ? UserUtils.getUser(String(user.id))
+                        .catch(() => makeDummyUser({ username: user.name }))
+                    : Promise.resolve(makeDummyUser({ username: user.name }))
+            )
+        ).then(resolved => {
+            if (!cancelled) setAuthors(resolved);
+        });
+        return () => { cancelled = true; };
     }, [plugin.authors]);
 
     function handleResetClick() {
@@ -138,7 +136,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                     <Component
                         id={key}
                         setting={setting}
-                        onChange={debounce(onChange)}
+                        onChange={onChange}
                         pluginSettings={pluginSettings}
                         definedSettings={settings}
                         closePluginSettings={onClose}
