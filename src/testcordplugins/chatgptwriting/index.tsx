@@ -215,12 +215,18 @@ export default definePlugin({
     dependencies: ["MessageEventsAPI"],
     settings,
 
+    _presendListener: null as MessageSendListener | null,
+
     start() {
-        addMessagePreSendListener(getPresend());
+        this._presendListener = getPresend();
+        addMessagePreSendListener(this._presendListener);
     },
 
     stop() {
-        removeMessagePreSendListener(getPresend());
+        if (this._presendListener) {
+            removeMessagePreSendListener(this._presendListener);
+            this._presendListener = null;
+        }
     },
 
     renderChatBarButton: (({ isMainChat }) => {
