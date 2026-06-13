@@ -9,10 +9,13 @@ export default definePlugin({
     enabledByDefault: false,
     requiresRestart: true,
 
+    _originalNative: undefined as any,
+
     start() {
         try {
             if (typeof window.DiscordNative !== "undefined") {
                 const originalNative = window.DiscordNative;
+                this._originalNative = originalNative;
 
                 // Try to redefine the property on window safely
                 try {
@@ -57,6 +60,22 @@ export default definePlugin({
             }
         } catch (e) {
             console.error("[OverlayFix] Failed to setup spoofing:", e);
+        }
+    },
+
+    stop() {
+        try {
+            if (this._originalNative !== undefined) {
+                Object.defineProperty(window, "DiscordNative", {
+                    value: this._originalNative,
+                    configurable: true,
+                    enumerable: true,
+                    writable: true
+                });
+                this._originalNative = undefined;
+            }
+        } catch (e) {
+            console.error("[OverlayFix] Failed to restore DiscordNative:", e);
         }
     },
 
