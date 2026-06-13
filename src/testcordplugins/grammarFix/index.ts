@@ -85,16 +85,21 @@ export default definePlugin({
     authors: [TestcordDevs.x2b],
     dependencies: ["MessageEventsAPI"],
     settings,
+    _presendListener: null as MessageSendListener | null,
     async start() {
         let dictionary = await fetch(
             "https://raw.githubusercontent.com/wont-stream/dictionary/6b9d2f06a1d89103fb7249f41de4db6811e3d374/index.min.json",
         );
         dictionary = await dictionary.json();
 
-        addMessagePreSendListener(getPresend(dictionary));
+        this._presendListener = getPresend(dictionary);
+        addMessagePreSendListener(this._presendListener);
     },
     stop() {
-        removeMessagePreSendListener(getPresend({}));
+        if (this._presendListener) {
+            removeMessagePreSendListener(this._presendListener);
+            this._presendListener = null;
+        }
     },
 });
 
