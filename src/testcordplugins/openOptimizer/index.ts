@@ -44,15 +44,21 @@ export default definePlugin({
 		}
 	},
 
-	optimize: (orig: Function) =>
-		// @ts-ignore
-		function (this: Element, ...args: any[]) {
+	optimize(orig: Function) {
+		const timeouts = this.timeouts;
+		return function (this: Element, ...args: any[]) {
 			const el = args[0];
-			if (el && typeof el.className === "string" && deferredPattern.test(el.className))
-				// @ts-ignore
-				return setTimeout(() => orig.apply(this, args), 100);
+			if (el && typeof el.className === "string" && deferredPattern.test(el.className)) {
+				const timer = setTimeout(() => {
+					const idx = timeouts.indexOf(timer);
+					if (idx !== -1) timeouts.splice(idx, 1);
+					orig.apply(this, args);
+				}, 100);
+				timeouts.push(timer);
+				return timer;
+			}
 
-			// @ts-ignore
 			return orig.apply(this, args);
-		},
+		};
+	},
 });
