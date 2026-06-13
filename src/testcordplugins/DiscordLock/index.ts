@@ -477,6 +477,7 @@ export default definePlugin({
 
     stop() {
         FluxDispatcher.unsubscribe("CHANNEL_SELECT", onChannelSelect);
+        window.removeEventListener("load", lockFull);
         unbindActivity();
 
         domObserver?.disconnect();
