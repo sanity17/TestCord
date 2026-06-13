@@ -13,7 +13,8 @@ const STYLE_ID = "smooth-typing-style";
 const CARET_ID = "smooth-typing-caret";
 
 let caretEl: HTMLDivElement | null = null;
-let selectionInterval: ReturnType<typeof setInterval> | null = null;
+let rafId: number | null = null;
+let tracking = false;
 
 const settings = definePluginSettings({
     smoothCaret: {
@@ -206,20 +207,48 @@ function updateCaretPosition() {
     caretEl.style.height = `${rect.height || 20}px`;
 }
 
+function isChatInputFocused() {
+    const focused = document.activeElement;
+    return !!(focused?.closest("[class*='slateTextArea']") || focused?.closest("[class*='textArea']"));
+}
+
+function rafLoop() {
+    if (!tracking) return;
+    // Only do the getSelection + getBoundingClientRect work while the chat input
+    // is actually focused; otherwise park the loop and let focusin restart it.
+    if (isChatInputFocused()) {
+        updateCaretPosition();
+        rafId = requestAnimationFrame(rafLoop);
+    } else {
+        if (caretEl) caretEl.style.display = "none";
+        rafId = null;
+    }
+}
+
+function onFocusIn() {
+    if (tracking && rafId === null && isChatInputFocused()) {
+        rafId = requestAnimationFrame(rafLoop);
+    }
+}
+
 function startTracking() {
     stopTracking();
-    selectionInterval = setInterval(updateCaretPosition, 16);
+    tracking = true;
     document.addEventListener("selectionchange", updateCaretPosition);
     document.addEventListener("keydown", resetBlinkOnKey);
+    document.addEventListener("focusin", onFocusIn);
+    if (isChatInputFocused()) rafId = requestAnimationFrame(rafLoop);
 }
 
 function stopTracking() {
-    if (selectionInterval) {
-        clearInterval(selectionInterval);
-        selectionInterval = null;
+    tracking = false;
+    if (rafId !== null) {
+        cancelAnimationFrame(rafId);
+        rafId = null;
     }
     document.removeEventListener("selectionchange", updateCaretPosition);
     document.removeEventListener("keydown", resetBlinkOnKey);
+    document.removeEventListener("focusin", onFocusIn);
 }
 
 function resetBlinkOnKey() {
