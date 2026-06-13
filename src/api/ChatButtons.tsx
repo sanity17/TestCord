@@ -12,7 +12,7 @@ import { classes } from "@utils/misc";
 import { IconComponent } from "@utils/types";
 import { Channel } from "@vencord/discord-types";
 import { findCssClassesLazy } from "@webpack";
-import { Clickable, Menu, Tooltip } from "@webpack/common";
+import { Clickable, Menu, Tooltip, useEffect, useState } from "@webpack/common";
 import { HTMLProps, JSX, MouseEventHandler, ReactNode } from "react";
 
 import { addContextMenuPatch, findGroupChildrenByChildId } from "./ContextMenu";
@@ -95,6 +95,9 @@ export type ChatBarButtonData = {
 export const ChatBarButtonMap = new Map<string, ChatBarButtonData>();
 const logger = new Logger("ChatButtons");
 
+const chatBarButtonListeners = new Set<() => void>();
+function notifyChatBarButtonChange() { chatBarButtonListeners.forEach(l => l()); }
+
 /**
  * Set of button IDs hidden by the Backpack plugin (Nightcord compat).
  * Buttons in this set should be rendered inside the Backpack popout instead of the main bar.
@@ -105,6 +108,13 @@ export function notifyBackpackChange() { backpackListeners.forEach(l => l()); }
 
 function VencordChatBarButtons(props: ChatBarProps) {
     const { chatBarButtons } = useSettings(["uiElements.chatBarButtons.*"]).uiElements;
+    const [, forceUpdate] = useState(0);
+
+    useEffect(() => {
+        const listener = () => forceUpdate(n => n + 1);
+        chatBarButtonListeners.add(listener);
+        return () => { chatBarButtonListeners.delete(listener); };
+    }, []);
 
     const { analyticsName } = props.type;
     return (
@@ -113,7 +123,7 @@ function VencordChatBarButtons(props: ChatBarProps) {
                 .filter(([key]) => chatBarButtons[key]?.enabled !== false)
                 .map(([key, { render: Button }]) => (
                     <ErrorBoundary noop key={key} onError={e => logger.error(`Failed to render ${key}`, e.error)}>
-                        <Button {...props} isMainChat={analyticsName === "normal"} isAnyChat={["normal", "sidebar"].includes(analyticsName)} />
+                        <Button {...props} isMainChat={analyticsName === "normal"} isAnyChat={analyticsName === "normal" || analyticsName === "sidebar"} />
                     </ErrorBoundary>
                 ))}
         </>
@@ -130,8 +140,14 @@ export function _injectButtons(buttons: ReactNode[], props: ChatBarProps) {
  * The icon argument is used only for Settings UI. Your render function must still render an icon,
  * and it can be different from this one.
  */
-export const addChatBarButton = (id: string, render: ChatBarButtonFactory, icon: IconComponent) => ChatBarButtonMap.set(id, { render, icon });
-export const removeChatBarButton = (id: string) => ChatBarButtonMap.delete(id);
+export const addChatBarButton = (id: string, render: ChatBarButtonFactory, icon: IconComponent) => {
+    ChatBarButtonMap.set(id, { render, icon });
+    notifyChatBarButtonChange();
+};
+export const removeChatBarButton = (id: string) => {
+    ChatBarButtonMap.delete(id);
+    notifyChatBarButtonChange();
+};
 
 export interface ChatBarButtonProps {
     children: ReactNode;
