@@ -109,6 +109,7 @@ export default definePlugin({
             if (!mediaEngine) return;
 
             mediaEngineEmitter = mediaEngine.emitter;
+            if (!mediaEngineEmitter) return;
 
             connectionHandler = (connection: any) => {
                 if (connection.context === "default") {

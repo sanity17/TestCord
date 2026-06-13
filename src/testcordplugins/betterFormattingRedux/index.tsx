@@ -223,7 +223,7 @@ const FormatButton: ChatBarButtonFactory = ({ isMainChat }) => {
             {(_, { isShown }) => (
                 <div ref={buttonRef}>
                     <ChatBarButton
-                        tooltip={isShown ? null : "Text Formatting"}
+                        tooltip={isShown ? "" : "Text Formatting"}
                         onClick={() => setOpen(v => !v)}
                     >
                         <FormatIcon />

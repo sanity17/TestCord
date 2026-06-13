@@ -22,7 +22,7 @@ import definePlugin, { OptionType } from "@utils/types";
 import { Message } from "@vencord/discord-types";
 import { findByPropsLazy } from "@webpack";
 import { ChannelStore, MessageActions, SelectedChannelStore, showToast, Toasts, Tooltip, useMemo, UserStore } from "@webpack/common";
-import { JSX, React } from "react";
+import { JSX } from "react";
 
 import plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
 

@@ -6,8 +6,9 @@
 
 import { TooltipProps } from "@vencord/discord-types";
 import { Tooltip } from "@webpack/common";
+import type { ReactNode } from "react";
 
-export function TooltipContainer({ children, ...props }: Omit<TooltipProps, "children"> & { children: React.ReactNode; }) {
+export function TooltipContainer({ children, ...props }: Omit<TooltipProps, "children"> & { children: ReactNode; }) {
     return (
         <Tooltip {...props}>
             {tooltipProps =>

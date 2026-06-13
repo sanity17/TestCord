@@ -42,6 +42,7 @@ import {
 
 interface SpringMod {
     Globals?: { assign?: (opts: Record<string, unknown>) => void; };
+    Springs?: object;
 }
 
 const PASSIVE_EVENTS = ["wheel", "mousewheel", "touchstart", "touchmove", "touchend"];

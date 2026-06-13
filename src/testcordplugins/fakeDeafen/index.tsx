@@ -194,7 +194,7 @@ export default definePlugin({
         states.deafen = settings.store.enableFakeDeafen;
 
         // Initialize voice channel tracking
-        this.lastVoiceChannelId = SelectedChannelStore.getVoiceChannelId();
+        this.lastVoiceChannelId = SelectedChannelStore.getVoiceChannelId() ?? null;
 
         // Add event listeners
         document.addEventListener('keydown', handleKeydown);
@@ -234,7 +234,7 @@ export default definePlugin({
 
     handleVoiceChannelChange() {
         try {
-            const currentChannelId = SelectedChannelStore.getVoiceChannelId();
+            const currentChannelId = SelectedChannelStore.getVoiceChannelId() ?? null;
             const previousChannelId = this.lastVoiceChannelId || null;
 
             // Update last known channel
