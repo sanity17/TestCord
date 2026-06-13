@@ -492,9 +492,6 @@ export default definePlugin({
         // Clean up cipher
         cipher = null;
 
-        removeHeaderBarButton("SecurecordOpossum");
-        removeChannelToolbarButton("SecurecordOpossum");
-
         console.log("Securecord BlazingOpossum: Plugin stopped");
     },
 
