@@ -45,6 +45,8 @@ export default definePlugin({
         cacheHits: 0
     },
 
+    _autoStartTimer: null as ReturnType<typeof setTimeout> | null,
+
     start() {
         // Plugin configuration
         const PLUGIN_NAME = "MullvadDNS (lighter ver)";
@@ -308,7 +310,8 @@ export default definePlugin({
 
         // Auto-start based on settings
         if (settings.store.autoStart) {
-            setTimeout(() => {
+            this._autoStartTimer = setTimeout(() => {
+                this._autoStartTimer = null;
                 MullvadDNSLight.start();
             }, 2000);
         } else {
@@ -327,9 +330,14 @@ export default definePlugin({
     stop() {
         // Clean shutdown
         try {
+            if (this._autoStartTimer) {
+                clearTimeout(this._autoStartTimer);
+                this._autoStartTimer = null;
+            }
             if (typeof (window as any).MullvadDNSLight?.stop === "function") {
                 (window as any).MullvadDNSLight.stop();
             }
+            try { delete (window as any).MullvadDNSLight; } catch { }
             console.log("[MullvadDNS (lighter ver)] Plugin stopped");
         } catch (error: any) {
             console.error("[MullvadDNS (lighter ver)] Error during shutdown:", error);
