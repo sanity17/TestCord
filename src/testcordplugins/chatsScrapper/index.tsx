@@ -4,14 +4,26 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { ChatBarButton } from "@api/ChatButtons";
+import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import { Devs, TestcordDevs } from "@utils/constants";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
 import { Button, ChannelStore, ContextMenuApi, Menu, React, RestAPI, Toasts, UserStore } from "@webpack/common";
-import { ChatBarButton } from "@api/ChatButtons";
 
 const settings = definePluginSettings({
+    location: {
+        type: OptionType.SELECT,
+        description: "Where to show the button",
+        options: [
+            { label: "Chat bar", value: "chatbar", default: true },
+            { label: "Header bar", value: "headerbar" },
+            { label: "Channel toolbar", value: "channeltoolbar" },
+            { label: "Disabled", value: "disabled" },
+        ],
+        restartNeeded: true,
+    },
     whitelist: {
         type: OptionType.STRING,
         description: "Comma-separated user IDs to keep (DM whitelist)",
@@ -272,8 +284,14 @@ export default definePlugin({
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b],
     settings,
-    renderChatBarButton: (({ isMainChat }: any) => {
-        if (!isMainChat) return null;
+    chatBarButton: {
+        icon: (() => (
+            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Z" />
+            </svg>
+        )) as any,
+        render: (({ isMainChat }: any) => {
+            if (!isMainChat || settings.store.location !== "chatbar") return null;
         return (
             <ChatBarButton
                 tooltip="Chats Scrapper"
@@ -291,7 +309,42 @@ export default definePlugin({
                 </svg>
             </ChatBarButton>
         );
-    }) as any
+    }) as any,
+    },
+
+    start() {
+        const { location } = settings.store;
+        if (location === "headerbar") {
+            addHeaderBarButton("ChatsScrapper", () => (
+                <HeaderBarButton
+                    icon={() => (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Z" />
+                        </svg>
+                    )}
+                    tooltip="Chats Scrapper"
+                    onClick={() => openModal((props: any) => <WhitelistModal modalProps={props} />)}
+                />
+            ), 5);
+        } else if (location === "channeltoolbar") {
+            addChannelToolbarButton("ChatsScrapper", () => (
+                <ChannelToolbarButton
+                    icon={() => (
+                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+                            <path fill="currentColor" d="M12 2a10 10 0 1 0 0 20a10 10 0 0 0 0-20Z" />
+                        </svg>
+                    )}
+                    tooltip="Chats Scrapper"
+                    onClick={() => openModal((props: any) => <WhitelistModal modalProps={props} />)}
+                />
+            ), 5);
+        }
+    },
+
+    stop() {
+        removeHeaderBarButton("ChatsScrapper");
+        removeChannelToolbarButton("ChatsScrapper");
+    },
 });
 
 
