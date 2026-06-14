@@ -5,8 +5,11 @@ import { getUserSettingLazy } from "@api/UserSettings";
 import { ModalContent, ModalFooter, ModalHeader, RenderModalProps, ModalRoot, openModal } from "@utils/modal";
 import { useForceUpdater } from "@utils/react";
 import definePlugin, { OptionType } from "@utils/types";
-import { findByProps } from "@webpack";
-import { Button, Forms, React, RestAPI, TextInput, Toasts, UserStore } from "@webpack/common";
+import { Logger } from "@utils/Logger";
+import { findByPropsLazy } from "@webpack";
+import { Button, Constants, Forms, React, RestAPI, TextInput, Toasts, UserStore } from "@webpack/common";
+
+const logger = new Logger("RotatorSuite");
 
 const SK = "RS_v1";
 const AR_SK = "AvatarRotator_v6";

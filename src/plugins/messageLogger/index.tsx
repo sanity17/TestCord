@@ -517,7 +517,7 @@ export default definePlugin({
                 delete (message as any).__messageloggerAggregated;
             }
 
-            if ((message as any).customRenderedContent?.__messageloggerDiff) {
+            if (!inlineEdits && (message as any).customRenderedContent?.__messageloggerDiff) {
                 clearCustomRenderedContent(message);
             }
 

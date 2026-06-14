@@ -146,10 +146,15 @@ export async function loadTarget(input: string, saveToSettings = true): Promise<
     return result;
 }
 
+let originalGetCurrentUser: typeof UserStore.getCurrentUser | null = null;
+export function setOriginalGetCurrentUser(fn: typeof UserStore.getCurrentUser) {
+    originalGetCurrentUser = fn;
+}
+
 let originalMeId = "";
 export function getOriginalMeId(): string {
     if (!originalMeId) {
-        const me = UserStore.getCurrentUser();
+        const me = originalGetCurrentUser ? originalGetCurrentUser.call(UserStore) : UserStore.getCurrentUser();
         if (me) originalMeId = me.id;
     }
     return originalMeId;

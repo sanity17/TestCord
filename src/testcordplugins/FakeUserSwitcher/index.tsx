@@ -14,7 +14,7 @@ import definePlugin from "@utils/types";
 import type { User } from "@vencord/discord-types";
 import { ApplicationAssetUtils, ChannelStore, FluxDispatcher, GuildMemberStore, IconUtils, Menu, PresenceStore, React, RestAPI, showToast, Toasts, UsernameUtils, UserStore } from "@webpack/common";
 
-import { getActiveTargetForGuild, getCachedTarget, getOriginalMeId, isActive, isCurrentUser, loadCacheFromSettings, loadTarget, logger, preLoadGuildTargets, resolveBadge, setEnabled, settings, subscribe } from "./data";
+import { getActiveTargetForGuild, getCachedTarget, getOriginalMeId, isActive, isCurrentUser, loadCacheFromSettings, loadTarget, logger, preLoadGuildTargets, resolveBadge, setEnabled, setOriginalGetCurrentUser,settings, subscribe } from "./data";
 import { FakeUserProfileModal } from "./legacyModal";
 import { FakeUserSwitcherModal } from "./modal";
 
@@ -314,6 +314,7 @@ function patchStore() {
 
     originalGetUser = UserStore.getUser;
     originalGetCurrentUser = UserStore.getCurrentUser;
+    setOriginalGetCurrentUser(originalGetCurrentUser);
 
     UserStore.getUser = function (userId: string) {
         if (isActive() && isCurrentUser(userId)) {
@@ -846,9 +847,9 @@ function unpatchBadges() {
 }
 
 function notifyUpdate() {
-    clearWrapCache();
     const me = originalGetCurrentUser ? originalGetCurrentUser.call(UserStore) : UserStore.getCurrentUser();
     if (!me) return;
+    clearWrapCache();
     setTimeout(() => {
         try {
             FluxDispatcher.dispatch({ type: "USER_UPDATE", user: me });
@@ -858,11 +859,16 @@ function notifyUpdate() {
     }, 0);
 }
 
+let syncSpoofStateTimer: number | undefined;
 function syncSpoofState() {
-    clearWrapCache();
-    resolveManualAssets().then(() => {
-        notifyUpdate();
-    });
+    if (syncSpoofStateTimer) return;
+    syncSpoofStateTimer = setTimeout(() => {
+        syncSpoofStateTimer = undefined;
+        clearWrapCache();
+        resolveManualAssets().then(() => {
+            notifyUpdate();
+        });
+    }, 0);
 }
 
 function FakeUserSwitcherIcon({ className, style }: { className?: string; style?: React.CSSProperties; }) {
@@ -1102,6 +1108,10 @@ const plugin = definePlugin({
     },
 
     stop() {
+        if (syncSpoofStateTimer !== undefined) {
+            clearTimeout(syncSpoofStateTimer);
+            syncSpoofStateTimer = undefined;
+        }
         clearWrapCache();
         unpatchPresence();
         unpatchBadges();
@@ -1119,11 +1129,6 @@ const plugin = definePlugin({
     flux: {
         CONNECTION_OPEN() {
             if (settings.store.spoofActive && (settings.store.manualMode || getCachedTarget())) {
-                syncSpoofState();
-            }
-        },
-        CHANNEL_SELECT() {
-            if (settings.store.spoofActive) {
                 syncSpoofState();
             }
         },
@@ -1288,7 +1293,7 @@ const plugin = definePlugin({
                 const since = new Date();
                 since.setMonth(since.getMonth() - settings.store.fakeNitroMonths);
                 overrides.premiumType = 2;
-                overrides.premiumSince = since.toISOString();
+                overrides.premiumSince = since;
             }
             overrides.widgets = [];
             overrides.connectedAccounts = [];
@@ -1335,7 +1340,7 @@ const plugin = definePlugin({
             const since = new Date();
             since.setMonth(since.getMonth() - settings.store.fakeNitroMonths);
             overrides.premiumType = 2;
-            overrides.premiumSince = since.toISOString();
+            overrides.premiumSince = since;
 
             if (original) {
                 if (original.bio != null) overrides.bio = original.bio;
