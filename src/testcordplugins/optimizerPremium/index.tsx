@@ -137,8 +137,17 @@ const settings = definePluginSettings({
     },
     freezeGifsUntilHover: {
         type: OptionType.BOOLEAN,
-        description: "Pause animated GIFs and stickers until you hover them. Cuts decode CPU dramatically in active channels. Memory-bounded.",
+        description: "Freeze animated GIFs using canvas capture (shows first frame, plays on hover). More precise but uses per-image canvas overhead.",
         default: false
+    },
+    gifFreezeMethod: {
+        type: OptionType.SELECT,
+        description: "GIF freeze method. Canvas captures first frame, CSS hides until hover (more efficient but shows blank space before hover).",
+        options: [
+            { label: "Canvas (first frame preview)", value: "canvas", default: true },
+            { label: "CSS content-visibility (more efficient)", value: "css" },
+        ],
+        disabled: () => !settings.store.freezeGifsUntilHover,
     },
     throttleResizeObservers: {
         type: OptionType.BOOLEAN,
@@ -269,6 +278,119 @@ const settings = definePluginSettings({
         markers: [0, 50, 100, 200, 500],
         default: 0,
         stickToMarkers: false
+    },
+
+    // --- Advanced CSS optimizations ---
+
+    containMemberList: {
+        type: OptionType.BOOLEAN,
+        description: "Apply content-visibility and layout containment to the member list. Offscreen members skip layout and paint entirely. Best in large servers.",
+        default: false
+    },
+    containServerList: {
+        type: OptionType.BOOLEAN,
+        description: "Apply layout containment to the server/guild list. Reduces layout cost from avatar position changes.",
+        default: false
+    },
+    hideVoicePanel: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the voice channel status/activity panel in the channel list. Saves DOM update cost from voice state changes.",
+        default: false
+    },
+    hideActivityPanel: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the 'Now Playing' game activity panel at the bottom of the channel list. Stops constant game-status repaints.",
+        default: false
+    },
+    hideServerBanner: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the server banner image at the top of the channel list. Saves image decode and paint cost.",
+        default: false
+    },
+    hideAvatarDecorations: {
+        type: OptionType.BOOLEAN,
+        description: "Hide avatar decorations (nitro profile customisation). Saves image decode for each decorated avatar in view.",
+        default: false
+    },
+    suppressProfileEffects: {
+        type: OptionType.BOOLEAN,
+        description: "Hide animated profile effects. Cuts GPU compositing cost from profile backgrounds.",
+        default: false
+    },
+    hideServerBoosting: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the server boost progress bar above the channel list.",
+        default: false
+    },
+    hideNitroUpsell: {
+        type: OptionType.BOOLEAN,
+        description: "Hide nitro upsell elements and promotional buttons.",
+        default: false
+    },
+    hideServerGuide: {
+        type: OptionType.BOOLEAN,
+        description: "Hide server guide and home channel prompts.",
+        default: false
+    },
+    hideServerOnboarding: {
+        type: OptionType.BOOLEAN,
+        description: "Hide server onboarding prompts and resource channels.",
+        default: false
+    },
+    hideSoundboardButton: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the soundboard button from the chat bar.",
+        default: false
+    },
+    hideGiftButton: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the gift button from the chat bar.",
+        default: false
+    },
+    suppressChannelAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove channel list entry, exit, and hover animation effects.",
+        default: false
+    },
+    suppressUnreadBadgeAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove the pulsing animation on unread message badges.",
+        default: false
+    },
+    suppressMentionBadgeAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove the bouncing animation on mention badges.",
+        default: false
+    },
+    suppressStickerAnimation: {
+        type: OptionType.BOOLEAN,
+        description: "Force all stickers to render as static images. Cuts decode cost for animated stickers in busy channels.",
+        default: false
+    },
+    suppressEmbedAutoLoad: {
+        type: OptionType.BOOLEAN,
+        description: "Delay loading images inside link embeds. Saves network and decode cost for image-heavy embed chains. Images lazy-load as you scroll.",
+        default: false
+    },
+    containForumPosts: {
+        type: OptionType.BOOLEAN,
+        description: "Apply content-visibility to forum channel post previews. Offscreen posts skip layout and paint.",
+        default: false
+    },
+    suppressEmojiPickerAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Disable emoji picker entrance and hover animations.",
+        default: false
+    },
+    hideStickerButton: {
+        type: OptionType.BOOLEAN,
+        description: "Hide the sticker picker button from the chat bar.",
+        default: false
+    },
+    killMessageEffects: {
+        type: OptionType.BOOLEAN,
+        description: "Hide per-message effect animations (fireworks, sparkles, etc). CSS-based, does not use webpack patches.",
+        default: false
     }
 });
 
@@ -284,7 +406,7 @@ interface SpringMod {
 
 export default definePlugin({
     name: "optimizerPremium",
-    description: "Combined performance suite: tooltip/emoji/spinner/confetti/gateway patches, bounded image cache, react-spring skip, offscreen media pause, safe DOM throttling, lazy images, DOM batching, React optimization.",
+    description: "All-in-one performance suite: webpack patches (tooltip, emoji, spinner, confetti, analytics, reactions), bounded image cache, react-spring skip, offscreen media pause, MutationObserver DOM throttle, CSS containment (messages, members, servers, channels, forum), backend-blur/sticker/effect/upsell suppression, lazy images/iframes, rAF reduction, passive listeners, console suppression, ResizeObserver throttle, memory manager, GIF freeze, concurrency limit, flux debounce, cache limits.",
     tags: ["Utility", "Developers"],
     authors: [TestcordDevs.x2b, TestcordDevs.SirPhantom89],
     settings,
@@ -379,7 +501,7 @@ export default definePlugin({
     gifMutationObserver: null as MutationObserver | null,
     gifManagedImages: new WeakSet<HTMLImageElement>(),
     lazyImageObserver: null as MutationObserver | null,
-    rafFakeHandles: new Map<number, ReturnType<typeof setTimeout>>(),
+    rafFakeHandles: new Map<number, true>(),
     rafFakeCounter: 1 << 30,
     consolidatedObserver: null as MutationObserver | null,
     observerCallbacks: new Map<string, (records: MutationRecord[]) => void>(),
@@ -406,7 +528,7 @@ export default definePlugin({
         if (settings.store.forcePassiveListeners) this.installPassiveListeners();
         if (settings.store.suppressConsoleSpam) this.installConsoleSuppression();
         if (settings.store.throttleResizeObservers) this.installResizeObserverThrottle();
-        if (settings.store.freezeGifsUntilHover) this.installGifFreezer();
+        if (settings.store.freezeGifsUntilHover && settings.store.gifFreezeMethod !== "css") this.installGifFreezer();
         if (settings.store.lazyEmbedImages) this.installLazyImages();
         if (settings.store.lazyIframes) this.installLazyIframes();
         if (settings.store.optimizeImageDecoding) this.installImageDecodingOptimization();
@@ -538,38 +660,32 @@ export default definePlugin({
     },
 
     installRafReduction() {
-        const original = window.requestAnimationFrame.bind(window);
-        const originalCancel = window.cancelAnimationFrame.bind(window);
         this.originals.rAF = window.requestAnimationFrame;
         this.originals.cAF = window.cancelAnimationFrame;
 
         const reduction = Math.min(100, Math.max(0, settings.store.animationFrameReduction)) / 100;
         const skipEvery = Math.ceil(1 + reduction * 3);
         const fakeHandles = this.rafFakeHandles;
+        const origRaf = this.originals.rAF;
+        const origCaf = this.originals.cAF;
         let frame = 0;
 
         window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
             frame++;
             if (reduction > 0 && frame % skipEvery !== 0) {
                 const id = this.rafFakeCounter++;
-                const t = setTimeout(() => {
-                    fakeHandles.delete(id);
-                    cb(performance.now());
-                }, 16 * (1 + reduction));
-                fakeHandles.set(id, t);
+                fakeHandles.set(id, true);
                 return id;
             }
-            return original(cb);
+            return origRaf.call(window, cb);
         };
 
         window.cancelAnimationFrame = (handle: number) => {
-            const fake = fakeHandles.get(handle);
-            if (fake !== undefined) {
-                clearTimeout(fake);
+            if (fakeHandles.has(handle)) {
                 fakeHandles.delete(handle);
                 return;
             }
-            originalCancel(handle);
+            origCaf.call(window, handle);
         };
     },
 
@@ -582,7 +698,6 @@ export default definePlugin({
             window.cancelAnimationFrame = this.originals.cAF;
             this.originals.cAF = undefined;
         }
-        for (const t of this.rafFakeHandles.values()) clearTimeout(t);
         this.rafFakeHandles.clear();
     },
 
@@ -1176,6 +1291,137 @@ export default definePlugin({
         if (settings.store.suppressEmbedPreviews) {
             rules.push(
                 "article[class*=\"embed_\"], [class*=\"embedWrapper_\"], [class*=\"embedFull_\"], [class*=\"embedInner_\"] { display: none !important; }"
+            );
+        }
+
+        // --- Advanced CSS optimizations ---
+        if (settings.store.freezeGifsUntilHover && settings.store.gifFreezeMethod === "css") {
+            rules.push(
+                "img[src*=\".gif\"]:not([class*=\"emoji\"]):not([data-op-gif-suppressed=\"1\"]) { content-visibility: hidden; }",
+                "img[src*=\".gif\"]:not([class*=\"emoji\"]):hover { content-visibility: visible; }"
+            );
+        }
+        if (settings.store.containMemberList) {
+            rules.push(
+                "[class*=\"membersWrap_\"], [class*=\"members_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }",
+                "[class*=\"member_\"], [class*=\"membersGroup_\"] { contain: layout style; }"
+            );
+        }
+        if (settings.store.containServerList) {
+            rules.push(
+                "[class*=\"guilds_\"], [class*=\"guildList_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }"
+            );
+        }
+        if (settings.store.hideVoicePanel) {
+            rules.push(
+                "[class*=\"voicePanel_\"], [class*=\"voiceCall_\"] { display: none !important; }",
+                "[class*=\"chatToasts_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideActivityPanel) {
+            rules.push(
+                "[class*=\"activityPanel_\"], [class*=\"nowPlaying_\"][class*=\"panel_\"], [class*=\"whatsNew_\"][class*=\"panel_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideServerBanner) {
+            rules.push(
+                "[class*=\"bannerImage_\"], [class*=\"bannerImg_\"] { display: none !important; }",
+                "[class*=\"animatedBanner_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideAvatarDecorations) {
+            rules.push(
+                "[class*=\"avatarDecoration_\"], img[class*=\"decoration_\"], [class*=\"profileEffect_\"], video[src*=\"decorations\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.suppressProfileEffects) {
+            rules.push(
+                "[class*=\"profileEffects_\"], [class*=\"effect_\"][class*=\"profile_\"], video[class*=\"effect_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideServerBoosting) {
+            rules.push(
+                "[class*=\"boostBar_\"] { display: none !important; }",
+                "[class*=\"boostedGuild_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideNitroUpsell) {
+            rules.push(
+                "[class*=\"upsell_\"] { display: none !important; }",
+                "[class*=\"premiumUpsell_\"], [class*=\"premiumPromo_\"] { display: none !important; }",
+                "[href*=\"/shop\"] { display: none !important; }",
+                "[data-testid*=\"upsell\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideServerGuide) {
+            rules.push("[class*=\"homeBanner_\"], [class*=\"serverGuide_\"] { display: none !important; }");
+        }
+        if (settings.store.hideServerOnboarding) {
+            rules.push(
+                "[class*=\"onboarding_\"] { display: none !important; }",
+                "[class*=\"onboardingStep_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideSoundboardButton) {
+            rules.push(
+                "[class*=\"soundButton_\"], [class*=\"soundboardButton_\"], button[aria-label*=\"Soundboard\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideGiftButton) {
+            rules.push(
+                "button[aria-label*=\"Send a gift\"], button[aria-label*=\"Gift\"], [class*=\"giftButton_\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.hideStickerButton) {
+            rules.push(
+                "button[aria-label*=\"Sticker\"], [class*=\"stickerButton_\"], button[class*=\"stickerButton\"] { display: none !important; }"
+            );
+        }
+        if (settings.store.suppressChannelAnimations) {
+            rules.push(
+                "[class*=\"channel_\"], [class*=\"channel_\"] * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }",
+                "[class*=\"sidebar_\"] { animation: none !important; transition: none !important; }"
+            );
+        }
+        if (settings.store.suppressUnreadBadgeAnimations) {
+            rules.push(
+                "[class*=\"unread_\"] { animation: none !important; }",
+                "[class*=\"badge_\"]:not([class*=\"mention_\"]) { animation: none !important; transition: none !important; }"
+            );
+        }
+        if (settings.store.suppressMentionBadgeAnimations) {
+            rules.push(
+                "[class*=\"mention_\"] { animation: none !important; }",
+                "[class*=\"badgePulse_\"] { animation: none !important; }"
+            );
+        }
+        if (settings.store.suppressStickerAnimation) {
+            rules.push(
+                "[class*=\"sticker_\"][class*=\"asset_\"] video { display: none !important; }",
+                "[class*=\"sticker_\"][class*=\"asset_\"] img[src*=\"gif\"] { content-visibility: hidden !important; }",
+                "[class*=\"stickerResults_\"] video { display: none !important; }"
+            );
+        }
+        if (settings.store.suppressEmbedAutoLoad) {
+            rules.push(
+                "article[class*=\"embed_\"] img:not([class*=\"emoji\"]) { content-visibility: hidden; }"
+            );
+        }
+        if (settings.store.containForumPosts) {
+            rules.push(
+                "[class*=\"container_\"][class*=\"grid_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 200px; }",
+                "[class*=\"mainCard_\"] { content-visibility: auto; contain-intrinsic-size: 140px; }"
+            );
+        }
+        if (settings.store.suppressEmojiPickerAnimations) {
+            rules.push(
+                "[class*=\"emojiPicker_\"] *, [class*=\"emojiPicker_\"] *::before, [class*=\"emojiPicker_\"] *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; transition-delay: 0ms !important; }"
+            );
+        }
+        if (settings.store.killMessageEffects) {
+            rules.push(
+                "[class*=\"effectsWrapper_\"], [class*=\"effects_\"], [class*=\"messageEffects_\"] { display: none !important; }",
+                "canvas[class*=\"effectsCanvas_\"] { display: none !important; }"
             );
         }
 
