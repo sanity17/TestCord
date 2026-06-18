@@ -13,7 +13,7 @@ import { showApiKeyWarning } from "@utils/apiKeyWarning";
 import { ModalCloseButton, ModalRoot, openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { ChannelStore, FluxDispatcher, Menu, React, RelationshipStore, RestAPI, useEffect, useRef, UserStore, useState } from "@webpack/common";
+import { ChannelStore, FluxDispatcher, Menu, React, RelationshipStore, RestAPI, useEffect, useMemo, useRef, UserStore, useState } from "@webpack/common";
 
 import { getGroqKey, groqChat, groqFetch, setGroqKey } from "./groqManager";
 
@@ -528,6 +528,62 @@ Rules:
     const providerLabel = "Llama 3.3 70B";
     const SUGGESTIONS = ["Explain AI transformers to me", "Write a poem about the night", "Give me 5 productivity tips"];
 
+    // Render the message list only when messages change, not on every keystroke
+    // in the controlled input. Hoist getCurrentUser() out of the per-row loop.
+    const messageList = useMemo(() => {
+        const currentUser = UserStore.getCurrentUser();
+        const avatarUrl = currentUser?.avatar
+            ? `https://cdn.discordapp.com/avatars/${currentUser.id}/${currentUser.avatar}.webp?size=32`
+            : `https://cdn.discordapp.com/embed/avatars/${(BigInt(currentUser?.id ?? "0") >> 22n) % 6n}.png`;
+        const authorName = currentUser?.globalName ?? currentUser?.username ?? "You";
+        return messages.map((msg, idx) => {
+            const prev = messages[idx - 1];
+            const grouped = prev?.role === msg.role && msg.timestamp - (prev?.timestamp ?? 0) < 90_000;
+
+            return (
+                <div key={msg.id} className={`nai-msg nai-msg--${msg.role}${msg.error ? " nai-msg--err" : ""}${grouped ? " nai-msg--grouped" : ""}`}>
+                    {!grouped && (
+                        <div className="nai-msg-avatar">
+                            {msg.role === "user"
+                                ? <img src={avatarUrl} width="32" height="32" style={{ borderRadius: "50%", objectFit: "cover", width: "32px", height: "32px" }} />
+                                : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fill="currentColor" d="M7.89 13.46a1 1 0 0 1-1.78-.9L7 13l-.9-.45.01-.01.01-.02a2.24 2.24 0 0 1 .14-.23c.1-.14.23-.31.4-.5.37-.36.98-.79 1.84-.79.86 0 1.47.43 1.83.8a3.28 3.28 0 0 1 .55.72v.02h.01v.01L10 13l.9-.45a1 1 0 0 1-1.79.9 1.28 1.28 0 0 0-.19-.25c-.14-.13-.28-.2-.42-.2-.14 0-.28.07-.42.2a1.28 1.28 0 0 0-.19.25ZM13.55 13.9a1 1 0 0 0 1.34-.44c0-.02.02-.04.04-.06.03-.05.08-.13.15-.2.14-.13.28-.2.42-.2.14 0 .28.07.42.2a1.28 1.28 0 0 1 .19.25 1 1 0 0 0 1.78-.9L17 13l.9-.45-.01-.01-.01-.02a2.1 2.1 0 0 0-.14-.23 3.28 3.28 0 0 0-.4-.5c-.37-.36-.98-.79-1.84-.79-.86 0-1.47.43-1.83.8a3.28 3.28 0 0 0-.55.72v.02h-.01v.01L14 13l-.9-.45a1 1 0 0 0 .45 1.34Z" /><path fill="currentColor" fillRule="evenodd" d="M12 21c5.52 0 10-1.86 10-6 0-5.59-2.8-10.07-4.26-11.67a1 1 0 1 0-1.48 1.34 14.8 14.8 0 0 1 2.35 3.86A10.23 10.23 0 0 0 12 6C9.47 6 7.15 7.02 5.4 8.53a14.8 14.8 0 0 1 2.34-3.86 1 1 0 1 0-1.48-1.34A18.65 18.65 0 0 0 2 15c0 4.14 4.48 6 10 6Zm0-12c3.87 0 7 2 7 4.2S15.87 17 12 17s-7-1.6-7-3.8C5 11 8.13 9 12 9Z" clipRule="evenodd" /></svg>
+                            }
+                        </div>
+                    )}
+                    {grouped && <div className="nai-msg-spacer" />}
+                    <div className="nai-msg-body">
+                        {!grouped && (
+                            <div className="nai-msg-meta">
+                                <span className="nai-msg-author">{msg.role === "user" ? authorName : "Testcord AI"}</span>
+                                <span className="nai-msg-time">
+                                    {new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
+                                </span>
+                            </div>
+                        )}
+                        {msg.attachments && msg.attachments.length > 0 && (
+                            <div className="nai-msg-atts">
+                                {msg.attachments.map(att => att.mimeType.startsWith("image/") ? (
+                                    <img key={att.id} src={att.base64} className="nai-msg-img" alt={att.name} title={att.name} />
+                                ) : (
+                                    <div key={att.id} className="nai-msg-file">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" /></svg>
+                                        <span>{att.name}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                        <div className="nai-msg-bubble">
+                            {msg.pending
+                                ? <div className="nai-typing"><span /><span /><span /></div>
+                                : renderMarkdown(msg.content)
+                            }
+                        </div>
+                    </div>
+                </div>
+            );
+        });
+    }, [messages]);
+
     const inner = (
         <div className={panelMode ? "nai-panel" : "nai-container"}>
 
@@ -597,59 +653,7 @@ Rules:
                                 }
                             </div>
                         </div>
-                    ) : messages.map((msg, idx) => {
-                        const prev = messages[idx - 1];
-                        const grouped = prev?.role === msg.role && msg.timestamp - (prev?.timestamp ?? 0) < 90_000;
-
-                        return (
-                            <div key={msg.id} className={`nai-msg nai-msg--${msg.role}${msg.error ? " nai-msg--err" : ""}${grouped ? " nai-msg--grouped" : ""}`}>
-                                {!grouped && (
-                                    <div className="nai-msg-avatar">
-                                        {msg.role === "user"
-                                            ? (() => {
-                                                const u = UserStore.getCurrentUser();
-                                                const url = u?.avatar
-                                                    ? `https://cdn.discordapp.com/avatars/${u.id}/${u.avatar}.webp?size=32`
-                                                    : `https://cdn.discordapp.com/embed/avatars/${(BigInt(u?.id ?? "0") >> 22n) % 6n}.png`;
-                                                return <img src={url} width="32" height="32" style={{ borderRadius: "50%", objectFit: "cover", width: "32px", height: "32px" }} />;
-                                            })()
-                                            : <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path fill="currentColor" d="M7.89 13.46a1 1 0 0 1-1.78-.9L7 13l-.9-.45.01-.01.01-.02a2.24 2.24 0 0 1 .14-.23c.1-.14.23-.31.4-.5.37-.36.98-.79 1.84-.79.86 0 1.47.43 1.83.8a3.28 3.28 0 0 1 .55.72v.02h.01v.01L10 13l.9-.45a1 1 0 0 1-1.79.9 1.28 1.28 0 0 0-.19-.25c-.14-.13-.28-.2-.42-.2-.14 0-.28.07-.42.2a1.28 1.28 0 0 0-.19.25ZM13.55 13.9a1 1 0 0 0 1.34-.44c0-.02.02-.04.04-.06.03-.05.08-.13.15-.2.14-.13.28-.2.42-.2.14 0 .28.07.42.2a1.28 1.28 0 0 1 .19.25 1 1 0 0 0 1.78-.9L17 13l.9-.45-.01-.01-.01-.02a2.1 2.1 0 0 0-.14-.23 3.28 3.28 0 0 0-.4-.5c-.37-.36-.98-.79-1.84-.79-.86 0-1.47.43-1.83.8a3.28 3.28 0 0 0-.55.72v.02h-.01v.01L14 13l-.9-.45a1 1 0 0 0 .45 1.34Z" /><path fill="currentColor" fillRule="evenodd" d="M12 21c5.52 0 10-1.86 10-6 0-5.59-2.8-10.07-4.26-11.67a1 1 0 1 0-1.48 1.34 14.8 14.8 0 0 1 2.35 3.86A10.23 10.23 0 0 0 12 6C9.47 6 7.15 7.02 5.4 8.53a14.8 14.8 0 0 1 2.34-3.86 1 1 0 1 0-1.48-1.34A18.65 18.65 0 0 0 2 15c0 4.14 4.48 6 10 6Zm0-12c3.87 0 7 2 7 4.2S15.87 17 12 17s-7-1.6-7-3.8C5 11 8.13 9 12 9Z" clipRule="evenodd" /></svg>
-                                        }
-                                    </div>
-                                )}
-                                {grouped && <div className="nai-msg-spacer" />}
-                                <div className="nai-msg-body">
-                                    {!grouped && (
-                                        <div className="nai-msg-meta">
-                                            <span className="nai-msg-author">{msg.role === "user" ? (UserStore.getCurrentUser()?.globalName ?? UserStore.getCurrentUser()?.username ?? "You") : "Testcord AI"}</span>
-                                            <span className="nai-msg-time">
-                                                {new Date(msg.timestamp).toLocaleTimeString("en-US", { hour: "2-digit", minute: "2-digit" })}
-                                            </span>
-                                        </div>
-                                    )}
-                                    {/* Attachments in the bubble */}
-                                    {msg.attachments && msg.attachments.length > 0 && (
-                                        <div className="nai-msg-atts">
-                                            {msg.attachments.map(att => att.mimeType.startsWith("image/") ? (
-                                                <img key={att.id} src={att.base64} className="nai-msg-img" alt={att.name} title={att.name} />
-                                            ) : (
-                                                <div key={att.id} className="nai-msg-file">
-                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="currentColor"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8l-6-6zm4 18H6V4h7v5h5v11z" /></svg>
-                                                    <span>{att.name}</span>
-                                                </div>
-                                            ))}
-                                        </div>
-                                    )}
-                                    <div className="nai-msg-bubble">
-                                        {msg.pending
-                                            ? <div className="nai-typing"><span /><span /><span /></div>
-                                            : renderMarkdown(msg.content)
-                                        }
-                                    </div>
-                                </div>
-                            </div>
-                        );
-                    })}
+                    ) : messageList}
                     <div ref={bottomRef} />
                 </div>
             </div>
