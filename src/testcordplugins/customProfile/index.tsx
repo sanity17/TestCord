@@ -652,10 +652,13 @@ function scanNode(node: Node) {
 }
 
 function processDomBatch() {
-    _domQueued = false;
-    if (!isEnabled) { _domMutations = []; return; }
-    const batch = _domMutations; _domMutations = [];
-    for (const m of batch) { if (m.type === "characterData") scanTextNode(m.target as Text); else for (const n of m.addedNodes) scanNode(n); }
+    try {
+        if (!isEnabled) { _domMutations = []; return; }
+        const batch = _domMutations; _domMutations = [];
+        for (const m of batch) for (const n of m.addedNodes) scanNode(n);
+    } finally {
+        _domQueued = false;
+    }
 }
 
 function startDomObserver() {
@@ -664,9 +667,10 @@ function startDomObserver() {
     domObserver = new MutationObserver(mutations => {
         if (!isEnabled || !mutations.length) return;
         _domMutations.push(...mutations);
+        if (_domMutations.length > 5000) _domMutations = _domMutations.slice(-5000);
         if (!_domQueued) { _domQueued = true; setTimeout(() => requestAnimationFrame(processDomBatch), 10); }
     });
-    domObserver.observe(document.body, { childList: true, subtree: true, characterData: true });
+    domObserver.observe(document.body, { childList: true, subtree: true });
 }
 
 function stopDomObserver() {

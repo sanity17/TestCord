@@ -26,6 +26,16 @@ function cancelRequest(userId: string) {
     }
 }
 
+function hasOutgoingRequests(): boolean {
+    try {
+        const rels = (RelationshipStore as any).getRelationships?.() ?? {};
+        for (const type of Object.values(rels)) {
+            if (type === OUTGOING_REQUEST) return true;
+        }
+    } catch {}
+    return false;
+}
+
 function getUserIdFromOutgoingRelationships(): string | null {
     try {
         const rels = (RelationshipStore as any).getRelationships?.() ?? {};
@@ -57,6 +67,9 @@ function patchBtn(btn: HTMLElement, userId: string) {
 }
 
 function scan(root: Document | Element = document) {
+    // Nothing to patch when there are no outgoing requests; skip the document sweeps.
+    if (!hasOutgoingRequests()) return;
+
     // ── Case 1: profile popup ─────────────────────────────────────────────────
     // aria-label="Outgoing Friend Request" — invariant regardless of UI language
     root.querySelectorAll<HTMLElement>('button[aria-label="Outgoing Friend Request"]').forEach(btn => {
