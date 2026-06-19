@@ -202,9 +202,24 @@ export const SettingsStore = new SettingsStoreClass(settings, {
 });
 
 if (!IS_REPORTER) {
+    let flushQueued = false;
+    const changedPaths = new Set<string>();
+
     SettingsStore.addGlobalChangeListener((_, path) => {
-        SettingsStore.plain.cloud.settingsSyncVersion = Date.now();
-        VencordNative.settings.set(SettingsStore.plain, path);
+        changedPaths.add(path);
+
+        if (flushQueued) return;
+        flushQueued = true;
+
+        queueMicrotask(() => {
+            flushQueued = false;
+
+            const path = changedPaths.size === 1 ? changedPaths.values().next().value : "";
+            changedPaths.clear();
+
+            SettingsStore.plain.cloud.settingsSyncVersion = Date.now();
+            VencordNative.settings.set(SettingsStore.plain, path);
+        });
     });
 }
 

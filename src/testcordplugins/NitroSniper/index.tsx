@@ -112,12 +112,14 @@ export default definePlugin({
 
             if (new Date(message.timestamp).getTime() < startTime) return;
 
-            codeQueue.push({
-                code: match[1],
-                channelId: message.channel_id,
-                guildId: message.guild_id,
-                messageId: message.id
-            });
+            if (codeQueue.length < 50) {
+                codeQueue.push({
+                    code: match[1],
+                    channelId: message.channel_id,
+                    guildId: message.guild_id,
+                    messageId: message.id
+                });
+            }
             processQueue();
         }
     }

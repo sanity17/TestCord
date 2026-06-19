@@ -372,6 +372,12 @@ function injectButtons(navList: Element): void {
 }
 
 function tryInject(): void {
+    const pickerOpen = document.getElementById("gif-picker-tab") != null;
+    if (!pickerOpen) {
+        document.getElementById(BUTTONS_ID)?.remove();
+        return;
+    }
+
     const allTabLists = document.querySelectorAll('[role="tablist"]');
     for (const tl of allTabLists) {
         const label = (tl.getAttribute("aria-label") ?? "").toLowerCase();

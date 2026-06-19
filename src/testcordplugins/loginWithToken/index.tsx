@@ -174,8 +174,14 @@ function tryInject() {
 function startObserver() {
     stopObserver();
     tryInject();
+    if (document.getElementById(MOUNT_ID)) return;
     observer = new MutationObserver(() => {
-        if (!document.getElementById(MOUNT_ID)) tryInject();
+        if (document.getElementById(MOUNT_ID)) return;
+        tryInject();
+        if (document.getElementById(MOUNT_ID)) {
+            observer?.disconnect();
+            observer = null;
+        }
     });
     observer.observe(document.body, { childList: true, subtree: true });
 }

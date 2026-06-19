@@ -216,7 +216,7 @@ export default definePlugin({
                 }
             });
         });
-        (this as any)._obs.observe(document.body, { childList: true, subtree: true });
+        (this as any)._obs.observe(document.body, { childList: true });
     },
 
     stop() {
