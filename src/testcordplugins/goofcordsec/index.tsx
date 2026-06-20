@@ -269,6 +269,7 @@ function onMessageCreate(event: { message: any; }) {
     if (!settings.store.autoDecrypt || !settings.store.messageEncryption) return;
     const m = event.message;
     if (!m?.content || typeof m.content !== "string") return;
+    if (!m.content.includes(settings.store.encryptionMark)) return;
     if (!INV_REGEX.test(m.content)) return;
     const decrypted = tryDecrypt(m.content);
     if (!decrypted) return;

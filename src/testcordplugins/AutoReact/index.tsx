@@ -165,6 +165,9 @@ async function addReactionsSequentially(
     }
 }
 
+let cachedRules: AutoReactRule[] = [];
+let lastRulesStr = "";
+
 function handleMessageCreate(data: any) {
     const { message } = data;
     if (!message) return;
@@ -174,7 +177,12 @@ function handleMessageCreate(data: any) {
     // Ignore own messages
     if (message.author?.id === UserStore.getCurrentUser().id) return;
 
-    const rules = parseRules(settings.store.rules);
+    const rulesStr = settings.store.rules;
+    if (rulesStr !== lastRulesStr) {
+        lastRulesStr = rulesStr;
+        cachedRules = parseRules(rulesStr);
+    }
+    const rules = cachedRules;
     if (rules.length === 0) return;
 
     const content = message.content?.toLowerCase() || "";

@@ -197,29 +197,10 @@ const settings = definePluginSettings({
         description: "Defer iframe loading until they scroll into view. Reduces initial page load cost. hcaptcha iframes are excluded to prevent breaking verification.",
         default: true
     },
-    batchDomUpdates: {
-        type: OptionType.BOOLEAN,
-        description: "Batch DOM mutations via microtask scheduling. WARNING: May cause issues.",
-        default: false,
-        restartNeeded: true,
-        hidden: true
-    },
-    optimizeReactReconciliation: {
-        type: OptionType.BOOLEAN,
-        description: "Reduce React reconciliation overhead by skipping unnecessary updates in message lists.",
-        default: true,
-        restartNeeded: true
-    },
     disableAnimatedHeaders: {
         type: OptionType.BOOLEAN,
         description: "Remove animated gradient effects in header areas. Pure cosmetic, big GPU savings.",
         default: false
-    },
-    reduceDomDepth: {
-        type: OptionType.BOOLEAN,
-        description: "Flatten unnecessary nested wrapper divs in modals and popouts. Reduces layout computation.",
-        default: false,
-        restartNeeded: true
     },
     optimizeImageDecoding: {
         type: OptionType.BOOLEAN,
@@ -236,12 +217,6 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Strip entrance/exit animations from reaction buttons. Those pop/glow transitions cause layout on every reaction add.",
         default: true,
-        restartNeeded: true
-    },
-    fluxBatchUpdates: {
-        type: OptionType.BOOLEAN,
-        description: "Coalesce multiple rapid Flux dispatches (e.g. MESSAGE_CREATE spam) into a single update via microtask. Reduces intermediate renders during message bursts.",
-        default: false,
         restartNeeded: true
     },
     messageContentVisibility: {
@@ -391,6 +366,81 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Hide per-message effect animations (fireworks, sparkles, etc). CSS-based, does not use webpack patches.",
         default: false
+    },
+
+    // --- New performance features ---
+
+    limitMessageCache: {
+        type: OptionType.BOOLEAN,
+        description: "Periodically trim Discord's MessageStore for channels not viewed recently. Frees memory from inactive channels.",
+        default: false
+    },
+    limitMessageCacheMinutes: {
+        type: OptionType.SLIDER,
+        description: "Minutes of inactivity before a channel's message cache is trimmed.",
+        markers: [5, 10, 15, 30, 60],
+        default: 15,
+        stickToMarkers: false
+    },
+    throttlePresenceUpdates: {
+        type: OptionType.BOOLEAN,
+        description: "Debounce PRESENCE_UPDATES dispatches to batch rapid status changes into fewer renders.",
+        default: false
+    },
+    debounceReactionUpdates: {
+        type: OptionType.BOOLEAN,
+        description: "Batch rapid MESSAGE_REACTION_ADD/REMOVE dispatches so reaction spam doesn't cause per-event re-renders.",
+        default: false
+    },
+    throttleVoiceStateUpdates: {
+        type: OptionType.BOOLEAN,
+        description: "Debounce VOICE_STATE_UPDATES dispatches to batch rapid voice channel movements into fewer renders.",
+        default: false
+    },
+    debounceChannelSelect: {
+        type: OptionType.BOOLEAN,
+        description: "Debounce rapid CHANNEL_SELECT dispatches (e.g. keyboard arrow navigation) to skip intermediate channels.",
+        default: false
+    },
+    freezeAnimatedAvatars: {
+        type: OptionType.BOOLEAN,
+        description: "Show first frame of animated avatars, playing animation on hover. Reduces continuous decode cost.",
+        default: false
+    },
+    reduceAvatarQuality: {
+        type: OptionType.BOOLEAN,
+        description: "Request smaller avatar images from Discord CDN. Reduces image decode time and memory. May appear slightly blurry on high-DPI screens.",
+        default: false
+    },
+    containDmList: {
+        type: OptionType.BOOLEAN,
+        description: "Apply CSS containment to DM list rows. Reduces layout cost when presence/status changes.",
+        default: false
+    },
+    containEmbeds: {
+        type: OptionType.BOOLEAN,
+        description: "Apply CSS containment to embed elements so the browser can skip painting offscreen embeds.",
+        default: false
+    },
+    lazyEmojiPicker: {
+        type: OptionType.BOOLEAN,
+        description: "Apply CSS containment to emoji picker grid items. Reduces layout/paint cost when picker is open.",
+        default: false
+    },
+    optimizeToasts: {
+        type: OptionType.BOOLEAN,
+        description: "Remove animations and apply containment to notification toasts. Smoother toast appearance.",
+        default: false
+    },
+    simplifySpoilers: {
+        type: OptionType.BOOLEAN,
+        description: "Replace blur overlay on spoiler content with simpler solid color. Reduces GPU compositing cost.",
+        default: false
+    },
+    suppressSkeletonAnimation: {
+        type: OptionType.BOOLEAN,
+        description: "Stop shimmer/skeleton loading animations. Pure cosmetic, reduces repaint during channel loading.",
+        default: false
     }
 });
 
@@ -406,7 +456,7 @@ interface SpringMod {
 
 export default definePlugin({
     name: "optimizerPremium",
-    description: "All-in-one performance suite: webpack patches (tooltip, emoji, spinner, confetti, analytics, reactions), bounded image cache, react-spring skip, offscreen media pause, MutationObserver DOM throttle, CSS containment (messages, members, servers, channels, forum), backend-blur/sticker/effect/upsell suppression, lazy images/iframes, rAF reduction, passive listeners, console suppression, ResizeObserver throttle, memory manager, GIF freeze, concurrency limit, flux debounce, cache limits.",
+    description: "All-in-one performance suite: webpack patches (tooltip, emoji, spinner, confetti, analytics, reactions), bounded image cache, react-spring skip, offscreen media pause, MutationObserver DOM throttle, CSS containment (messages, members, DMs, embeds, servers, channels, forum, emoji picker), backdrop-blur/sticker/effect/upsell/spoiler suppression, lazy images/iframes, rAF reduction, passive listeners, console suppression, ResizeObserver throttle, memory manager, GIF freeze, concurrency limit, flux debounce/throttle (presence, reactions, voice, channel select), message cache trimmer, animated avatar freeze, avatar quality reducer, cache limits.",
     tags: ["Utility", "Developers"],
     authors: [TestcordDevs.x2b, TestcordDevs.SirPhantom89],
     settings,
@@ -514,6 +564,12 @@ export default definePlugin({
     concurrencyActive: 0,
     concurrencyOriginal: null as typeof window.fetch | null,
 
+    // New feature state
+    fluxThrottleOriginal: null as ((event: any) => void) | null,
+    fluxThrottleQueues: {} as Record<string, { events: any[]; timer: ReturnType<typeof setTimeout> | null; delay: number; }>,
+    cacheTrimTimer: null as ReturnType<typeof setInterval> | null,
+    avatarObserver: null as MutationObserver | null,
+
     start() {
         if (settings.store.verboseLogging) logger.info("Starting optimizer suite");
 
@@ -536,6 +592,10 @@ export default definePlugin({
         if (settings.store.suppressGifAutoplay) this.installSuppressGifAutoplay();
         if (settings.store.debounceFluxMessages > 0) this.installFluxMessageDebounce();
         if (settings.store.limitConcurrentRequests > 0) this.installConcurrencyLimit();
+        if (settings.store.throttlePresenceUpdates || settings.store.debounceReactionUpdates || settings.store.throttleVoiceStateUpdates || settings.store.debounceChannelSelect) this.installFluxThrottler();
+        if (settings.store.limitMessageCache) this.installMessageCacheTrimmer();
+        if (settings.store.freezeAnimatedAvatars) this.installAnimatedAvatarOptimizer();
+        if (settings.store.reduceAvatarQuality) this.installAvatarQualityReducer();
         this.installExtraCSS();
 
         if (settings.store.cacheLimitsEnabled) {
@@ -572,6 +632,10 @@ export default definePlugin({
         this.teardownFluxMessageDebounce();
 
         this.teardownConcurrencyLimit();
+        this.teardownFluxThrottler();
+        this.teardownMessageCacheTrimmer();
+        this.teardownAnimatedAvatarOptimizer();
+        this.teardownAvatarQualityReducer();
         this.restoreNetworkLayer();
 
         this.networkCache.clear();
@@ -1425,6 +1489,38 @@ export default definePlugin({
             );
         }
 
+        // --- New CSS containment features ---
+        if (settings.store.containDmList) {
+            rules.push(
+                "[class*=\"privateChannels_\"], [class*=\"channel_\"][class*=\"interactive_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }"
+            );
+        }
+        if (settings.store.containEmbeds) {
+            rules.push(
+                "article[class*=\"embed_\"], [class*=\"embedFull_\"], [class*=\"embedInner_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 200px; }"
+            );
+        }
+        if (settings.store.lazyEmojiPicker) {
+            rules.push(
+                "[class*=\"emojiPicker_\"] [class*=\"emojiItem_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 32px; }"
+            );
+        }
+        if (settings.store.optimizeToasts) {
+            rules.push(
+                "[class*=\"toast_\"] { animation: none !important; transition: none !important; contain: layout style; }"
+            );
+        }
+        if (settings.store.simplifySpoilers) {
+            rules.push(
+                "[class*=\"spoilerContent_\"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; background: var(--background-primary) !important; }"
+            );
+        }
+        if (settings.store.suppressSkeletonAnimation) {
+            rules.push(
+                "[class*=\"skeleton_\"], [class*=\"skeletonWave_\"], [class*=\"skeletonContainer_\"] { animation: none !important; }"
+            );
+        }
+
         if (!rules.length) return;
         this.extraStyleEl = document.createElement("style");
         this.extraStyleEl.id = "op-extra-optimizations";
@@ -1605,5 +1701,175 @@ export default definePlugin({
         }
         this.concurrencyQueue.length = 0;
         this.concurrencyActive = 0;
+    },
+
+    installFluxThrottler() {
+        try {
+            const { FluxDispatcher } = require("@webpack/common") as any;
+            if (!FluxDispatcher?.dispatch) return;
+            if (this.fluxThrottleOriginal) return;
+
+            const original = FluxDispatcher.dispatch.bind(FluxDispatcher);
+            this.fluxThrottleOriginal = original;
+
+            const queues: Record<string, { events: any[]; timer: ReturnType<typeof setTimeout> | null; delay: number; }> = {};
+            if (settings.store.throttlePresenceUpdates) {
+                queues["PRESENCE_UPDATES"] = { events: [], timer: null, delay: 200 };
+            }
+            if (settings.store.debounceReactionUpdates) {
+                queues["MESSAGE_REACTION_ADD"] = { events: [], timer: null, delay: 100 };
+                queues["MESSAGE_REACTION_REMOVE"] = { events: [], timer: null, delay: 100 };
+            }
+            if (settings.store.throttleVoiceStateUpdates) {
+                queues["VOICE_STATE_UPDATES"] = { events: [], timer: null, delay: 200 };
+            }
+            if (settings.store.debounceChannelSelect) {
+                queues["CHANNEL_SELECT"] = { events: [], timer: null, delay: 80 };
+            }
+            this.fluxThrottleQueues = queues;
+
+            const self = this;
+            FluxDispatcher.dispatch = function (event: any) {
+                const q = event?.type && queues[event.type];
+                if (q) {
+                    q.events.push(event);
+                    if (q.timer) clearTimeout(q.timer);
+                    q.timer = setTimeout(() => {
+                        q.timer = null;
+                        const batch = q.events;
+                        q.events = [];
+                        for (const e of batch) original(e);
+                    }, q.delay);
+                } else {
+                    original(event);
+                }
+            };
+        } catch (err) {
+            if (settings.store.verboseLogging) logger.warn("Failed to install flux throttler", err);
+        }
+    },
+
+    teardownFluxThrottler() {
+        for (const q of Object.values(this.fluxThrottleQueues)) {
+            if (q.timer !== null) clearTimeout(q.timer);
+            q.events = [];
+        }
+        this.fluxThrottleQueues = {};
+        if (this.fluxThrottleOriginal) {
+            try {
+                const { FluxDispatcher } = require("@webpack/common") as any;
+                if (FluxDispatcher) FluxDispatcher.dispatch = this.fluxThrottleOriginal;
+            } catch { /* ignore */ }
+            this.fluxThrottleOriginal = null;
+        }
+    },
+
+    installMessageCacheTrimmer() {
+        const intervalMs = 60_000;
+        const inactivityMs = settings.store.limitMessageCacheMinutes * 60_000;
+        this.cacheTrimTimer = setInterval(() => {
+            try {
+                const { MessageStore, ChannelStore, SelectedChannelStore } = require("@webpack/common") as any;
+                if (!MessageStore?.getCachedMessages && !MessageStore?.getMessages) return;
+                const currentId = SelectedChannelStore?.getChannelId?.();
+                const channels = ChannelStore?.getAll?.() ?? [];
+                for (const ch of channels) {
+                    if (ch.id === currentId) continue;
+                    const msgs = MessageStore.getMessages?.(ch.id);
+                    if (!msgs || typeof msgs.size !== "number") continue;
+                    if (msgs.size > 50) {
+                        MessageStore.clearCache?.(ch.id);
+                    }
+                }
+            } catch { /* silent */ }
+        }, intervalMs);
+    },
+
+    teardownMessageCacheTrimmer() {
+        if (this.cacheTrimTimer !== null) {
+            clearInterval(this.cacheTrimTimer);
+            this.cacheTrimTimer = null;
+        }
+    },
+
+    installAnimatedAvatarOptimizer() {
+        const freeze = (img: HTMLImageElement) => {
+            if (img.dataset.opAvFrozen === "1") return;
+            const src = img.src || img.currentSrc;
+            if (!src || !/\/(?:a_|[0-9]+\.gif)/.test(src)) return;
+            if (!img.classList.contains("avatar") && !img.closest("[class*=\"avatar\"]")) return;
+            img.dataset.opAvFrozen = "1";
+            const staticSrc = src.replace(/\.gif(?:\?.*)?$/, ".png").replace(/\?size=\d+/, "?size=80");
+            const originalSrc = src;
+            img.src = staticSrc;
+            img.addEventListener("mouseenter", () => { img.src = originalSrc; }, { once: true });
+            img.addEventListener("mouseleave", () => { img.src = staticSrc; }, { once: true });
+        };
+
+        document.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"]").forEach(freeze);
+
+        const callback = (records: MutationRecord[]) => {
+            for (const r of records) {
+                for (const node of r.addedNodes) {
+                    if (!(node instanceof Element)) continue;
+                    if (node instanceof HTMLImageElement && node.classList.contains("avatar")) freeze(node);
+                    else node.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"]").forEach(freeze);
+                }
+            }
+        };
+
+        if (this.consolidatedObserver) {
+            this.observerCallbacks.set("freezeAnimatedAvatars", callback);
+        } else {
+            this.avatarObserver = new MutationObserver(callback);
+            this.avatarObserver.observe(document.body, { childList: true, subtree: true });
+        }
+    },
+
+    teardownAnimatedAvatarOptimizer() {
+        this.observerCallbacks.delete("freezeAnimatedAvatars");
+        if (this.avatarObserver) {
+            this.avatarObserver.disconnect();
+            this.avatarObserver = null;
+        }
+        document.querySelectorAll<HTMLImageElement>("img[data-op-av-frozen]").forEach(img => {
+            delete img.dataset.opAvFrozen;
+        });
+    },
+
+    installAvatarQualityReducer() {
+        const rewrite = (img: HTMLImageElement) => {
+            if (img.dataset.opAvQuality === "1") return;
+            const src = img.src || img.currentSrc;
+            if (!src.includes("cdn.discord") && !src.includes("media.discord")) return;
+            if (!img.classList.contains("avatar") && !img.closest("[class*=\"avatar\"]") && !img.closest("[class*=\"member\"]")) return;
+            img.dataset.opAvQuality = "1";
+            try {
+                const url = new URL(src, window.location.origin);
+                const size = url.searchParams.get("size");
+                if (!size || Number(size) > 32) url.searchParams.set("size", "32");
+                if (url.toString() !== src) img.src = url.toString();
+            } catch { /* ignore */ }
+        };
+
+        document.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"], [class*=\"member\"] img").forEach(rewrite);
+
+        const callback = (records: MutationRecord[]) => {
+            for (const r of records) {
+                for (const node of r.addedNodes) {
+                    if (!(node instanceof Element)) continue;
+                    if (node instanceof HTMLImageElement && (node.classList.contains("avatar") || node.closest("[class*=\"member\"]"))) rewrite(node);
+                    else node.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"], [class*=\"member\"] img").forEach(rewrite);
+                }
+            }
+        };
+
+        if (this.consolidatedObserver) {
+            this.observerCallbacks.set("avatarQualityReducer", callback);
+        }
+    },
+
+    teardownAvatarQualityReducer() {
+        this.observerCallbacks.delete("avatarQualityReducer");
     }
 });

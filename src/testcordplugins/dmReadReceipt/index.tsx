@@ -22,9 +22,8 @@ function SeenIndicator({ message, channel }: MessageDecorationProps) {
             const msgs = MessageStore.getMessages(channel.id);
             if (!msgs) return null;
             const msgTs = new Date(message.timestamp).getTime();
-            const hasSeen = msgs.some((m: { author: { id: string; }; timestamp: string; }) =>
-                m.author.id === recipientId && new Date(m.timestamp).getTime() > msgTs
-            );
+            const lastMsg = msgs.last();
+            const hasSeen = lastMsg && lastMsg.author?.id === recipientId && new Date(lastMsg.timestamp).getTime() > msgTs;
             return hasSeen ? "seen" as const : null;
         }
     );

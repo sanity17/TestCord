@@ -579,6 +579,8 @@ export default definePlugin({
     flux: {
         MESSAGE_CREATE({ message, optimistic }: { message: Message; optimistic: boolean; }) {
             if (optimistic) return;
+            if ((message as any).__vaAnalyzed) return;
+            (message as any).__vaAnalyzed = true;
             autoAnalyzeMessage(message);
         }
     },
@@ -595,7 +597,10 @@ export default definePlugin({
     },
 
     renderMessageAccessory: props => {
-        autoAnalyzeMessage(props.message);
+        if (!(props.message as any).__vaAnalyzed) {
+            (props.message as any).__vaAnalyzed = true;
+            autoAnalyzeMessage(props.message);
+        }
         return <AnalysisAccessory message={props.message} />;
     },
 });

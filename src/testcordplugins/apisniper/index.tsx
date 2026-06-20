@@ -139,6 +139,8 @@ interface SnipedCredential {
 }
 
 function checkForCredentials(content: string): Array<{ type: string; value: string; }> {
+    // Fast pre-filter: skip 99% of messages that can't possibly be credentials
+    if (content.length < 30 || !/[A-Z0-9_-]{20,}/.test(content)) return [];
     const findings: Array<{ type: string; value: string; }> = [];
 
     for (const [type, pattern] of Object.entries(PATTERNS)) {

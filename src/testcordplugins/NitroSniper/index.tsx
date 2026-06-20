@@ -107,6 +107,7 @@ export default definePlugin({
         MESSAGE_CREATE({ message }) {
             if (!message.content) return;
 
+            if (!message.content.includes("discord.gift") && !message.content.includes("discord.com/gift")) return;
             const match = message.content.match(/(?:discord\.gift\/|discord\.com\/gifts?\/)([a-zA-Z0-9]{16,24})/);
             if (!match) return;
 
