@@ -9,7 +9,7 @@ import { disableCacheLimits, resetCacheLimits } from "@utils/cacheLimits";
 import { TestcordDevs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
-import { findAll } from "@webpack";
+import { findAll, findByPropsLazy } from "@webpack";
 
 const logger = new Logger("OptimizerPremium");
 
@@ -441,6 +441,48 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Stop shimmer/skeleton loading animations. Pure cosmetic, reduces repaint during channel loading.",
         default: false
+    },
+
+    // --- Very high performance features ---
+
+    killSentry: {
+        type: OptionType.BOOLEAN,
+        description: "Block Discord's Sentry error reporting entirely. Eliminates heavy error serialization, WebSocket uploads, and stack trace walking. Major CPU and network savings.",
+        default: false,
+        restartNeeded: true
+    },
+    killPerformanceMetrics: {
+        type: OptionType.BOOLEAN,
+        description: "Neutralize Discord's internal performance.mark and performance.measure calls. Reduces GC pressure from constant metric recording.",
+        default: true
+    },
+    suppressConsoleTimers: {
+        type: OptionType.BOOLEAN,
+        description: "Block console.time and console.timeEnd calls. These create internal timer objects even when console output is suppressed.",
+        default: true
+    },
+    killHoverTransitions: {
+        type: OptionType.BOOLEAN,
+        description: "Remove hover, focus, and active state transitions across the entire client. Eliminates per-mouse-move repaints.",
+        default: false
+    },
+    preconnectDiscordCdn: {
+        type: OptionType.BOOLEAN,
+        description: "Insert preconnect hints to Discord's CDN on startup. Warms DNS+TLS so the first image load is faster.",
+        default: true,
+        restartNeeded: true
+    },
+    forceCompositingLayers: {
+        type: OptionType.BOOLEAN,
+        description: "Add contain:content on major scroll containers to force GPU compositing layers. Reduces CPU-side paint work on scroll.",
+        default: false,
+        restartNeeded: true
+    },
+    suppressIdleCallback: {
+        type: OptionType.BOOLEAN,
+        description: "Replace requestIdleCallback with a faster MessageChannel-based scheduler. Reduces idle callback latency for deferred work.",
+        default: false,
+        restartNeeded: true
     }
 });
 
@@ -523,6 +565,16 @@ export default definePlugin({
                 match: /reactionAnimations:\i,/,
                 replace: "reactionAnimations:{reactionPop:{},reactionBurst:{}},",
             }
+        },
+        {
+            // Kill Sentry init — patch the DSN to empty so the SDK never boots
+            find: /Sentry\.init\(?\{.*?dsn/i,
+            predicate: () => settings.store.killSentry,
+            replacement: {
+                match: /\i\.init\(\{[^}]*dsn:/,
+                replace: "$&\"\","
+            },
+            noWarn: true
         }
     ],
 
@@ -533,7 +585,13 @@ export default definePlugin({
         addEventListener?: typeof EventTarget.prototype.addEventListener;
         resizeObserver?: typeof ResizeObserver;
         console?: { log: typeof console.log; debug: typeof console.debug; info: typeof console.info; };
-        mutationObserver?: typeof MutationObserver;
+        _perfMark?: typeof performance.mark;
+        _perfMeasure?: typeof performance.measure;
+        _consoleTime?: typeof console.time;
+        _consoleTimeEnd?: typeof console.timeEnd;
+        _consoleTimeLog?: typeof console.timeLog;
+        rIC?: typeof window.requestIdleCallback;
+        cIC?: typeof window.cancelIdleCallback;
     },
     springs: [] as SpringMod[],
     networkCache: new Map<string, CacheEntry>(),
@@ -546,29 +604,31 @@ export default definePlugin({
     pausedMedia: new WeakSet<HTMLMediaElement>(),
     optimizerStyleEl: null as HTMLStyleElement | null,
     extraStyleEl: null as HTMLStyleElement | null,
+    domThrottleStyleEl: null as HTMLStyleElement | null,
     domThrottleObserver: null as MutationObserver | null,
-    domThrottleTimers: new Set<ReturnType<typeof setTimeout>>(),
+    domThrottleTimers: new Map<Element, ReturnType<typeof setTimeout>>(),
     gifMutationObserver: null as MutationObserver | null,
     gifManagedImages: new WeakSet<HTMLImageElement>(),
+    gifBlobUrls: new Set<string>(),
     lazyImageObserver: null as MutationObserver | null,
     rafFakeHandles: new Map<number, true>(),
     rafFakeCounter: 1 << 30,
+    rafFrameCounter: 0,
     consolidatedObserver: null as MutationObserver | null,
     observerCallbacks: new Map<string, (records: MutationRecord[]) => void>(),
     animatedEmojiObserver: null as MutationObserver | null,
     gifAutoplayObserver: null as MutationObserver | null,
+    gifAutoplayCleanups: new WeakMap<HTMLVideoElement, () => void>(),
     fluxDispatchOriginal: null as ((event: any) => void) | null,
-    fluxDebounceTimer: null as ReturnType<typeof setTimeout> | null,
-    fluxQueuedMessages: [] as any[],
-    concurrencyQueue: [] as Array<() => void>,
-    concurrencyActive: 0,
-    concurrencyOriginal: null as typeof window.fetch | null,
-
-    // New feature state
-    fluxThrottleOriginal: null as ((event: any) => void) | null,
-    fluxThrottleQueues: {} as Record<string, { events: any[]; timer: ReturnType<typeof setTimeout> | null; delay: number; }>,
-    cacheTrimTimer: null as ReturnType<typeof setInterval> | null,
+    _fluxMessageTimer: null as ReturnType<typeof setTimeout> | null,
     avatarObserver: null as MutationObserver | null,
+    cacheTrimTimer: null as ReturnType<typeof setInterval> | null,
+    originalRIC: null as typeof window.requestIdleCallback | null,
+    originalCIC: null as typeof window.cancelIdleCallback | null,
+    preconnectLink: null as HTMLLinkElement | null,
+    preconnectLink2: null as HTMLLinkElement | null,
+    hoverTransitionStyleEl: null as HTMLStyleElement | null,
+    compositingStyleEl: null as HTMLStyleElement | null,
 
     start() {
         if (settings.store.verboseLogging) logger.info("Starting optimizer suite");
@@ -576,7 +636,7 @@ export default definePlugin({
         if (settings.store.throttleMutationObservers) this.installConsolidatedObserver();
         if (settings.store.domThrottle) this.installDomThrottle();
         if (settings.store.animationFrameReduction > 0) this.installRafReduction();
-        if (settings.store.networkCache || settings.store.forceLowImageQuality) this.installNetworkLayer();
+        if (settings.store.networkCache || settings.store.forceLowImageQuality || settings.store.limitConcurrentRequests > 0) this.installNetworkLayer();
         if (settings.store.disableSpringAnimations) this.installSpringSkip();
         if (settings.store.memoryManagement) this.installMemoryManager();
         if (settings.store.pauseOffscreenMedia) this.installOffscreenMediaPause();
@@ -590,9 +650,13 @@ export default definePlugin({
         if (settings.store.optimizeImageDecoding) this.installImageDecodingOptimization();
         if (settings.store.disableAnimatedEmoji) this.installDisableAnimatedEmoji();
         if (settings.store.suppressGifAutoplay) this.installSuppressGifAutoplay();
-        if (settings.store.debounceFluxMessages > 0) this.installFluxMessageDebounce();
-        if (settings.store.limitConcurrentRequests > 0) this.installConcurrencyLimit();
-        if (settings.store.throttlePresenceUpdates || settings.store.debounceReactionUpdates || settings.store.throttleVoiceStateUpdates || settings.store.debounceChannelSelect) this.installFluxThrottler();
+        if (settings.store.debounceFluxMessages > 0 || settings.store.throttlePresenceUpdates || settings.store.debounceReactionUpdates || settings.store.throttleVoiceStateUpdates || settings.store.debounceChannelSelect) this.installFluxPipeline();
+        if (settings.store.killPerformanceMetrics) this.installPerfMetricsBlocker();
+        if (settings.store.suppressConsoleTimers) this.installConsoleTimerBlocker();
+        if (settings.store.killHoverTransitions) this.installHoverTransitionKiller();
+        if (settings.store.preconnectDiscordCdn) this.installPreconnect();
+        if (settings.store.forceCompositingLayers) this.installCompositingLayers();
+        if (settings.store.suppressIdleCallback) this.installIdleCallbackOptimizer();
         if (settings.store.limitMessageCache) this.installMessageCacheTrimmer();
         if (settings.store.freezeAnimatedAvatars) this.installAnimatedAvatarOptimizer();
         if (settings.store.reduceAvatarQuality) this.installAvatarQualityReducer();
@@ -629,10 +693,13 @@ export default definePlugin({
         this.teardownExtraCSS();
         this.teardownDisableAnimatedEmoji();
         this.teardownSuppressGifAutoplay();
-        this.teardownFluxMessageDebounce();
-
-        this.teardownConcurrencyLimit();
-        this.teardownFluxThrottler();
+        this.teardownFluxPipeline();
+        this.teardownPerfMetricsBlocker();
+        this.teardownConsoleTimerBlocker();
+        this.teardownHoverTransitionKiller();
+        this.teardownPreconnect();
+        this.teardownCompositingLayers();
+        this.teardownIdleCallbackOptimizer();
         this.teardownMessageCacheTrimmer();
         this.teardownAnimatedAvatarOptimizer();
         this.teardownAvatarQualityReducer();
@@ -684,14 +751,24 @@ export default definePlugin({
             return false;
         };
 
+        this.domThrottleStyleEl = document.createElement("style");
+        this.domThrottleStyleEl.id = "op-dom-throttle";
+        this.domThrottleStyleEl.textContent = "[data-op-throttled]{visibility:hidden!important}";
+        document.head.appendChild(this.domThrottleStyleEl);
+
+        const timers = this.domThrottleTimers;
+
         const apply = (el: HTMLElement) => {
-            const prevVis = el.style.visibility;
-            el.style.visibility = "hidden";
+            const existing = timers.get(el);
+            if (existing !== undefined) {
+                clearTimeout(existing);
+            }
+            el.setAttribute("data-op-throttled", "1");
             const t = setTimeout(() => {
-                el.style.visibility = prevVis;
-                this.domThrottleTimers.delete(t);
-            }, delay + Math.random() * delay * 0.5);
-            this.domThrottleTimers.add(t);
+                el.removeAttribute("data-op-throttled");
+                timers.delete(el);
+            }, delay);
+            timers.set(el, t);
         };
 
         const callback = (records: MutationRecord[]) => {
@@ -719,8 +796,13 @@ export default definePlugin({
             this.domThrottleObserver.disconnect();
             this.domThrottleObserver = null;
         }
-        for (const t of this.domThrottleTimers) clearTimeout(t);
+        for (const t of this.domThrottleTimers.values()) clearTimeout(t);
         this.domThrottleTimers.clear();
+        document.querySelectorAll("[data-op-throttled]").forEach(el => el.removeAttribute("data-op-throttled"));
+        if (this.domThrottleStyleEl) {
+            this.domThrottleStyleEl.remove();
+            this.domThrottleStyleEl = null;
+        }
     },
 
     installRafReduction() {
@@ -732,11 +814,10 @@ export default definePlugin({
         const fakeHandles = this.rafFakeHandles;
         const origRaf = this.originals.rAF;
         const origCaf = this.originals.cAF;
-        let frame = 0;
 
         window.requestAnimationFrame = (cb: FrameRequestCallback): number => {
-            frame++;
-            if (reduction > 0 && frame % skipEvery !== 0) {
+            this.rafFrameCounter++;
+            if (reduction > 0 && this.rafFrameCounter % skipEvery !== 0) {
                 const id = this.rafFakeCounter++;
                 fakeHandles.set(id, true);
                 return id;
@@ -769,14 +850,31 @@ export default definePlugin({
         const originalFetch = window.fetch.bind(window);
         this.originals.fetch = window.fetch;
 
-        const cacheMs = settings.store.networkCacheMinutes * 60 * 1000;
         const cacheEnabled = settings.store.networkCache;
+        const concurrencyLimit = settings.store.limitConcurrentRequests;
+        const cacheMs = settings.store.networkCacheMinutes * 60 * 1000;
         const maxEntries = Math.max(10, settings.store.networkCacheMaxEntries | 0);
         const lowQuality = settings.store.forceLowImageQuality;
         const cache = this.networkCache;
         const order = this.networkCacheOrder;
         const isImage = (url: string) => /\.(png|jpe?g|gif|webp)(?:$|[?#])/i.test(url);
         const isDiscordCdn = (url: string) => /(?:cdn|media)\.discord(?:app)?\.(?:com|net)/.test(url);
+
+        const stripCacheBusting = (u: URL) => {
+            u.searchParams.delete("v");
+            u.searchParams.delete("expires");
+            u.searchParams.delete("sig");
+        };
+
+        const normalizeCacheKey = (url: string): string => {
+            try {
+                const u = new URL(url, window.location.origin);
+                stripCacheBusting(u);
+                return u.toString();
+            } catch {
+                return url;
+            }
+        };
 
         const rewriteSize = (url: string): string => {
             if (!lowQuality || !isDiscordCdn(url)) return url;
@@ -803,6 +901,17 @@ export default definePlugin({
             }
         };
 
+        const queue: Array<() => void> = [];
+        let active = 0;
+
+        const dequeue = () => {
+            active--;
+            if (queue.length > 0 && active < concurrencyLimit) {
+                const next = queue.shift();
+                if (next) next();
+            }
+        };
+
         window.fetch = function patched(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
             const rawUrl = typeof input === "string" ? input : input instanceof URL ? input.toString() : input.url;
             const finalUrl = rewriteSize(rawUrl);
@@ -810,14 +919,15 @@ export default definePlugin({
             const useCache = cacheEnabled && isImage(finalUrl) && method === "GET";
 
             if (useCache) {
-                const hit = cache.get(finalUrl);
+                const cacheKey = normalizeCacheKey(finalUrl);
+                const hit = cache.get(cacheKey);
                 if (hit && Date.now() - hit.timestamp < cacheMs) {
-                    touch(finalUrl);
+                    touch(cacheKey);
                     return Promise.resolve(hit.response.clone());
                 }
                 if (hit) {
-                    cache.delete(finalUrl);
-                    const idx = order.indexOf(finalUrl);
+                    cache.delete(cacheKey);
+                    const idx = order.indexOf(cacheKey);
                     if (idx !== -1) order.splice(idx, 1);
                 }
             }
@@ -826,14 +936,29 @@ export default definePlugin({
                 ? (typeof input === "string" ? finalUrl : new Request(finalUrl, input instanceof Request ? input : undefined))
                 : input;
 
-            return originalFetch(target, init).then(res => {
-                if (useCache && res.ok) {
-                    cache.set(finalUrl, { response: res.clone(), timestamp: Date.now() });
-                    touch(finalUrl);
-                    evict();
-                }
-                return res;
-            });
+            const doFetch = () => {
+                active++;
+                return originalFetch(target, init).then(res => {
+                    if (useCache && res.ok) {
+                        const cacheKey = normalizeCacheKey(finalUrl);
+                        cache.set(cacheKey, { response: res.clone(), timestamp: Date.now() });
+                        touch(cacheKey);
+                        evict();
+                    }
+                    if (concurrencyLimit > 0) dequeue();
+                    return res;
+                }, err => {
+                    if (concurrencyLimit > 0) dequeue();
+                    throw err;
+                });
+            };
+
+            if (concurrencyLimit > 0 && active >= concurrencyLimit) {
+                return new Promise<Response>((resolve, reject) => {
+                    queue.push(() => { doFetch().then(resolve, reject); });
+                });
+            }
+            return doFetch();
         };
 
         if (cacheEnabled) {
@@ -1066,32 +1191,32 @@ export default definePlugin({
         class ThrottledResizeObserver {
             private _observer: ResizeObserver;
             private _pendingEntries: ResizeObserverEntry[] = [];
-            private _rafId: number | null = null;
+            private _timerId: ReturnType<typeof setTimeout> | null = null;
             private _userCb: ResizeObserverCallback;
 
             constructor(callback: ResizeObserverCallback) {
                 this._userCb = callback;
                 this._observer = new Native(entries => {
                     this._pendingEntries.push(...entries);
-                    if (this._rafId !== null) return;
-                    this._rafId = requestAnimationFrame(() => {
+                    if (this._timerId !== null) return;
+                    this._timerId = setTimeout(() => {
                         const flushed = this._pendingEntries;
                         this._pendingEntries = [];
-                        this._rafId = null;
+                        this._timerId = null;
                         try {
                             this._userCb(flushed, this._observer);
                         } catch (err) {
                             if (settings.store.verboseLogging) logger.warn("ResizeObserver cb threw", err);
                         }
-                    });
+                    }, 0);
                 });
             }
 
             observe(target: Element, options?: ResizeObserverOptions) { this._observer.observe(target, options); }
             unobserve(target: Element) { this._observer.unobserve(target); }
             disconnect() {
-                if (this._rafId !== null) cancelAnimationFrame(this._rafId);
-                this._rafId = null;
+                if (this._timerId !== null) clearTimeout(this._timerId);
+                this._timerId = null;
                 this._pendingEntries = [];
                 this._observer.disconnect();
             }
@@ -1115,6 +1240,7 @@ export default definePlugin({
     installGifFreezer() {
         const sharedCanvas = document.createElement("canvas");
         const ctx = sharedCanvas.getContext("2d");
+        const blobUrls = this.gifBlobUrls;
 
         const isAnimated = (img: HTMLImageElement) => /\.gif(?:$|[?#])/i.test(img.src);
 
@@ -1137,8 +1263,9 @@ export default definePlugin({
                     ctx.drawImage(img, 0, 0);
                     sharedCanvas.toBlob(b => {
                         if (!b) return;
-                        if (frozenUrl) URL.revokeObjectURL(frozenUrl);
+                        if (frozenUrl) { URL.revokeObjectURL(frozenUrl); blobUrls.delete(frozenUrl); }
                         frozenUrl = URL.createObjectURL(b);
+                        blobUrls.add(frozenUrl);
                         if (img.dataset.opGifState !== "playing") img.src = frozenUrl;
                     }, "image/png");
                     return null;
@@ -1166,7 +1293,7 @@ export default definePlugin({
                 img.removeEventListener("mouseenter", onEnter);
                 img.removeEventListener("mouseleave", onLeave);
                 img.removeEventListener("load", onLoad);
-                if (frozenUrl) URL.revokeObjectURL(frozenUrl);
+                if (frozenUrl) { URL.revokeObjectURL(frozenUrl); blobUrls.delete(frozenUrl); }
                 frozenUrl = null;
             };
         };
@@ -1204,14 +1331,16 @@ export default definePlugin({
             }
             delete img.dataset.opGifState;
         });
+        for (const url of this.gifBlobUrls) URL.revokeObjectURL(url);
+        this.gifBlobUrls.clear();
     },
 
     installLazyImages() {
         const apply = (img: HTMLImageElement) => {
             if (img.dataset.opLazy === "1") return;
             img.dataset.opLazy = "1";
-            if (!img.loading) img.loading = "lazy";
-            if (!img.decoding) img.decoding = "async";
+            if (!img.hasAttribute("loading")) img.loading = "lazy";
+            if (!img.hasAttribute("decoding")) img.decoding = "async";
         };
         document.querySelectorAll<HTMLImageElement>("img").forEach(apply);
 
@@ -1254,7 +1383,7 @@ export default definePlugin({
                     }
                 }
             }
-        }, { threshold: 0.1 });
+        }, { threshold: 0 });
 
         const observeIframe = (iframe: HTMLIFrameElement) => {
             if (iframe.dataset.opLazyLoad) return;
@@ -1264,7 +1393,7 @@ export default definePlugin({
             iframe.dataset.opLazyLoad = "pending";
             if (src && !iframe.dataset.src) {
                 iframe.dataset.src = src;
-                iframe.removeAttribute("src");
+                iframe.src = "about:blank";
             }
             this.lazyIframeObserver?.observe(iframe);
         };
@@ -1291,13 +1420,21 @@ export default definePlugin({
             this.lazyIframeObserver.disconnect();
             this.lazyIframeObserver = null;
         }
+        document.querySelectorAll<HTMLIFrameElement>("iframe[data-src]").forEach(iframe => {
+            const orig = iframe.dataset.src;
+            if (orig) {
+                iframe.src = orig;
+                delete iframe.dataset.src;
+            }
+            delete iframe.dataset.opLazyLoad;
+        });
     },
 
     installImageDecodingOptimization() {
         const apply = (img: HTMLImageElement) => {
             if (img.dataset.opDecoding === "1") return;
             img.dataset.opDecoding = "1";
-            if (!img.decoding) img.decoding = "async";
+            if (!img.hasAttribute("decoding")) img.decoding = "async";
         };
 
         document.querySelectorAll<HTMLImageElement>("img").forEach(apply);
@@ -1536,10 +1673,12 @@ export default definePlugin({
     },
 
     installDisableAnimatedEmoji() {
+        const isDiscordEmoji = (url: string) => /(?:cdn|media)\.discord(?:app)?\.(?:com|net)\/emojis\//.test(url);
         const rewrite = (img: HTMLImageElement) => {
             const src = img.src || img.currentSrc;
             if (!src) return;
             if (!/\/(?:a_|[0-9]+\.gif)/.test(src)) return;
+            if (!isDiscordEmoji(src)) return;
             if (img.dataset.opEmojiStatic === "1") return;
             img.dataset.opEmojiStatic = "1";
             const staticSrc = src.replace(/\.gif(?:\?.*)?$/, ".webp").replace(/(\?.*)?$/, "?size=48&quality=lossless");
@@ -1578,6 +1717,8 @@ export default definePlugin({
     },
 
     installSuppressGifAutoplay() {
+        const cleanups = this.gifAutoplayCleanups;
+
         const pause = (el: HTMLVideoElement | HTMLImageElement) => {
             if (el.dataset.opGifSuppressed === "1") return;
             const src = el.src || el.currentSrc;
@@ -1586,8 +1727,14 @@ export default definePlugin({
 
             if (el instanceof HTMLVideoElement && !el.paused) {
                 el.pause();
-                el.addEventListener("mouseenter", () => el.play().catch(() => undefined), { once: true });
-                el.addEventListener("mouseleave", () => el.pause(), { once: true });
+                const onEnter = () => el.play().catch(() => undefined);
+                const onLeave = () => el.pause();
+                el.addEventListener("mouseenter", onEnter);
+                el.addEventListener("mouseleave", onLeave);
+                cleanups.set(el, () => {
+                    el.removeEventListener("mouseenter", onEnter);
+                    el.removeEventListener("mouseleave", onLeave);
+                });
             }
         };
 
@@ -1617,12 +1764,15 @@ export default definePlugin({
             this.gifAutoplayObserver.disconnect();
             this.gifAutoplayObserver = null;
         }
+        document.querySelectorAll<HTMLVideoElement>("video[data-op-gif-suppressed]").forEach(video => {
+            const cleanup = this.gifAutoplayCleanups.get(video);
+            if (cleanup) cleanup();
+            delete video.dataset.opGifSuppressed;
+        });
+        this.gifAutoplayCleanups = new WeakMap();
     },
 
-    installFluxMessageDebounce() {
-        const delay = settings.store.debounceFluxMessages;
-        if (delay <= 0) return;
-
+    installFluxPipeline() {
         try {
             const { FluxDispatcher } = require("@webpack/common") as any;
             if (!FluxDispatcher?.dispatch) return;
@@ -1630,107 +1780,43 @@ export default definePlugin({
             const original = FluxDispatcher.dispatch.bind(FluxDispatcher);
             this.fluxDispatchOriginal = original;
 
-            const self = this;
-            FluxDispatcher.dispatch = function (event: any) {
-                if (event && event.type === "MESSAGE_CREATE") {
-                    self.fluxQueuedMessages.push(event);
-                    if (self.fluxDebounceTimer) clearTimeout(self.fluxDebounceTimer);
-                    self.fluxDebounceTimer = setTimeout(() => {
-                        self.fluxDebounceTimer = null;
-                        const batch = self.fluxQueuedMessages;
-                        self.fluxQueuedMessages = [];
-                        for (const e of batch) original(e);
-                    }, delay);
-                } else {
-                    original(event);
-                }
-            };
-        } catch (err) {
-            if (settings.store.verboseLogging) logger.warn("Failed to install flux message debounce", err);
-        }
-    },
+            const messageDelay = settings.store.debounceFluxMessages;
+            const messageQueue: any[] = [];
+            let messageTimer: ReturnType<typeof setTimeout> | null = null;
 
-    teardownFluxMessageDebounce() {
-        if (this.fluxDebounceTimer !== null) {
-            clearTimeout(this.fluxDebounceTimer);
-            this.fluxDebounceTimer = null;
-        }
-        this.fluxQueuedMessages = [];
-        if (this.fluxDispatchOriginal) {
-            try {
-                const { FluxDispatcher } = require("@webpack/common") as any;
-                if (FluxDispatcher) FluxDispatcher.dispatch = this.fluxDispatchOriginal;
-            } catch { /* ignore */ }
-            this.fluxDispatchOriginal = null;
-        }
-    },
-
-    installConcurrencyLimit() {
-        const limit = settings.store.limitConcurrentRequests;
-        if (limit <= 0) return;
-
-        const originalFetch = window.fetch.bind(window);
-        this.concurrencyOriginal = window.fetch;
-        const queue = this.concurrencyQueue;
-
-        const dequeue = () => {
-            this.concurrencyActive--;
-            if (queue.length > 0 && this.concurrencyActive < limit) {
-                const next = queue.shift();
-                if (next) next();
-            }
-        };
-
-        window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
-            if (this.concurrencyActive >= limit) {
-                return new Promise<Response>((resolve, reject) => {
-                    queue.push(() => {
-                        originalFetch(input, init).then(resolve, reject);
-                    });
-                });
-            }
-            this.concurrencyActive++;
-            return originalFetch(input, init).finally(() => dequeue());
-        }) as typeof window.fetch;
-    },
-
-    teardownConcurrencyLimit() {
-        if (this.concurrencyOriginal) {
-            window.fetch = this.concurrencyOriginal;
-            this.concurrencyOriginal = null;
-        }
-        this.concurrencyQueue.length = 0;
-        this.concurrencyActive = 0;
-    },
-
-    installFluxThrottler() {
-        try {
-            const { FluxDispatcher } = require("@webpack/common") as any;
-            if (!FluxDispatcher?.dispatch) return;
-            if (this.fluxThrottleOriginal) return;
-
-            const original = FluxDispatcher.dispatch.bind(FluxDispatcher);
-            this.fluxThrottleOriginal = original;
-
-            const queues: Record<string, { events: any[]; timer: ReturnType<typeof setTimeout> | null; delay: number; }> = {};
+            const throttledTypes: Record<string, { events: any[]; timer: ReturnType<typeof setTimeout> | null; delay: number; }> = {};
             if (settings.store.throttlePresenceUpdates) {
-                queues["PRESENCE_UPDATES"] = { events: [], timer: null, delay: 200 };
+                throttledTypes["PRESENCE_UPDATES"] = { events: [], timer: null, delay: 200 };
             }
             if (settings.store.debounceReactionUpdates) {
-                queues["MESSAGE_REACTION_ADD"] = { events: [], timer: null, delay: 100 };
-                queues["MESSAGE_REACTION_REMOVE"] = { events: [], timer: null, delay: 100 };
+                throttledTypes["MESSAGE_REACTION_ADD"] = { events: [], timer: null, delay: 100 };
+                throttledTypes["MESSAGE_REACTION_REMOVE"] = { events: [], timer: null, delay: 100 };
             }
             if (settings.store.throttleVoiceStateUpdates) {
-                queues["VOICE_STATE_UPDATES"] = { events: [], timer: null, delay: 200 };
+                throttledTypes["VOICE_STATE_UPDATES"] = { events: [], timer: null, delay: 200 };
             }
             if (settings.store.debounceChannelSelect) {
-                queues["CHANNEL_SELECT"] = { events: [], timer: null, delay: 80 };
+                throttledTypes["CHANNEL_SELECT"] = { events: [], timer: null, delay: 80 };
             }
-            this.fluxThrottleQueues = queues;
 
             const self = this;
             FluxDispatcher.dispatch = function (event: any) {
-                const q = event?.type && queues[event.type];
+                const type = event?.type;
+
+                if (messageDelay > 0 && type === "MESSAGE_CREATE") {
+                    messageQueue.push(event);
+                    if (messageTimer) clearTimeout(messageTimer);
+                    messageTimer = setTimeout(() => {
+                        messageTimer = null;
+                        self._fluxMessageTimer = null;
+                        const batch = messageQueue.splice(0);
+                        for (const e of batch) original(e);
+                    }, messageDelay);
+                    self._fluxMessageTimer = messageTimer;
+                    return;
+                }
+
+                const q = type && throttledTypes[type];
                 if (q) {
                     q.events.push(event);
                     if (q.timer) clearTimeout(q.timer);
@@ -1740,27 +1826,171 @@ export default definePlugin({
                         q.events = [];
                         for (const e of batch) original(e);
                     }, q.delay);
-                } else {
-                    original(event);
+                    return;
                 }
+
+                original(event);
             };
         } catch (err) {
-            if (settings.store.verboseLogging) logger.warn("Failed to install flux throttler", err);
+            if (settings.store.verboseLogging) logger.warn("Failed to install flux pipeline", err);
         }
     },
 
-    teardownFluxThrottler() {
-        for (const q of Object.values(this.fluxThrottleQueues)) {
-            if (q.timer !== null) clearTimeout(q.timer);
-            q.events = [];
+    teardownFluxPipeline() {
+        if (this._fluxMessageTimer !== null) {
+            clearTimeout(this._fluxMessageTimer);
+            this._fluxMessageTimer = null;
         }
-        this.fluxThrottleQueues = {};
-        if (this.fluxThrottleOriginal) {
+        if (this.fluxDispatchOriginal) {
             try {
                 const { FluxDispatcher } = require("@webpack/common") as any;
-                if (FluxDispatcher) FluxDispatcher.dispatch = this.fluxThrottleOriginal;
+                if (FluxDispatcher) FluxDispatcher.dispatch = this.fluxDispatchOriginal;
             } catch { /* ignore */ }
-            this.fluxThrottleOriginal = null;
+            this.fluxDispatchOriginal = null;
+        }
+    },
+
+    installPerfMetricsBlocker() {
+        this.originals._perfMark = performance.mark.bind(performance);
+        this.originals._perfMeasure = performance.measure.bind(performance);
+        // ponytail: return type varies by spec, cast to any for noop
+        performance.mark = (() => { }) as any;
+        performance.measure = (() => { }) as any;
+    },
+
+    teardownPerfMetricsBlocker() {
+        if (this.originals._perfMark) {
+            performance.mark = this.originals._perfMark;
+            this.originals._perfMark = undefined;
+        }
+        if (this.originals._perfMeasure) {
+            performance.measure = this.originals._perfMeasure;
+            this.originals._perfMeasure = undefined;
+        }
+    },
+
+    installConsoleTimerBlocker() {
+        this.originals._consoleTime = console.time.bind(console);
+        this.originals._consoleTimeEnd = console.timeEnd.bind(console);
+        this.originals._consoleTimeLog = console.timeLog.bind(console);
+        console.time = () => undefined;
+        console.timeEnd = () => undefined;
+        console.timeLog = () => undefined;
+    },
+
+    teardownConsoleTimerBlocker() {
+        if (this.originals._consoleTime) {
+            console.time = this.originals._consoleTime;
+            this.originals._consoleTime = undefined;
+        }
+        if (this.originals._consoleTimeEnd) {
+            console.timeEnd = this.originals._consoleTimeEnd;
+            this.originals._consoleTimeEnd = undefined;
+        }
+        if (this.originals._consoleTimeLog) {
+            console.timeLog = this.originals._consoleTimeLog;
+            this.originals._consoleTimeLog = undefined;
+        }
+    },
+
+    installHoverTransitionKiller() {
+        const css = "*,*::before,*::after{transition-duration:0s!important;transition-delay:0s!important}";
+        this.hoverTransitionStyleEl = document.createElement("style");
+        this.hoverTransitionStyleEl.id = "op-kill-hover";
+        this.hoverTransitionStyleEl.textContent = css;
+        document.head.appendChild(this.hoverTransitionStyleEl);
+    },
+
+    teardownHoverTransitionKiller() {
+        if (this.hoverTransitionStyleEl) {
+            this.hoverTransitionStyleEl.remove();
+            this.hoverTransitionStyleEl = null;
+        }
+    },
+
+    installPreconnect() {
+        const link = document.createElement("link");
+        link.rel = "preconnect";
+        link.href = "https://cdn.discordapp.com";
+        link.crossOrigin = "anonymous";
+        document.head.appendChild(link);
+        this.preconnectLink = link;
+
+        const link2 = document.createElement("link");
+        link2.rel = "dns-prefetch";
+        link2.href = "https://media.discordapp.net";
+        document.head.appendChild(link2);
+        this.preconnectLink2 = link2;
+    },
+
+    teardownPreconnect() {
+        if (this.preconnectLink) {
+            this.preconnectLink.remove();
+            this.preconnectLink = null;
+        }
+        if (this.preconnectLink2) {
+            this.preconnectLink2.remove();
+            this.preconnectLink2 = null;
+        }
+    },
+
+    installCompositingLayers() {
+        const css = "[class*=\"scroller_\"][class*=\"content_\"]{contain:content}[class*=\"guilds\"]{contain:layout}[class*=\"membersWrap_\"]{contain:layout}";
+        this.compositingStyleEl = document.createElement("style");
+        this.compositingStyleEl.id = "op-compositing";
+        this.compositingStyleEl.textContent = css;
+        document.head.appendChild(this.compositingStyleEl);
+    },
+
+    teardownCompositingLayers() {
+        if (this.compositingStyleEl) {
+            this.compositingStyleEl.remove();
+            this.compositingStyleEl = null;
+        }
+    },
+
+    installIdleCallbackOptimizer() {
+        const Channel = typeof MessageChannel !== "undefined" ? new MessageChannel() : null;
+        if (!Channel) return;
+
+        this.originals.rIC = window.requestIdleCallback;
+        this.originals.cIC = window.cancelIdleCallback;
+
+        const scheduled = new Map<number, { cb: IdleRequestCallback; timer: ReturnType<typeof setTimeout> }>();
+        let nextId = 1;
+
+        Channel.port1.onmessage = (e: MessageEvent) => {
+            const entry = scheduled.get(e.data);
+            if (entry) {
+                scheduled.delete(e.data);
+                try { entry.cb({ didTimeout: false, timeRemaining: () => 16 }); } catch { /* swallow */ }
+            }
+        };
+
+        window.requestIdleCallback = ((cb: IdleRequestCallback, _opts?: { timeout?: number }) => {
+            const id = nextId++;
+            const timer = setTimeout(() => Channel.port2.postMessage(id), 0);
+            scheduled.set(id, { cb, timer });
+            return id;
+        }) as typeof window.requestIdleCallback;
+
+        window.cancelIdleCallback = ((handle: number) => {
+            const entry = scheduled.get(handle);
+            if (entry) {
+                clearTimeout(entry.timer);
+                scheduled.delete(handle);
+            }
+        }) as typeof window.cancelIdleCallback;
+    },
+
+    teardownIdleCallbackOptimizer() {
+        if (this.originals.rIC) {
+            window.requestIdleCallback = this.originals.rIC;
+            this.originals.rIC = undefined;
+        }
+        if (this.originals.cIC) {
+            window.cancelIdleCallback = this.originals.cIC;
+            this.originals.cIC = undefined;
         }
     },
 
@@ -1802,8 +2032,14 @@ export default definePlugin({
             const staticSrc = src.replace(/\.gif(?:\?.*)?$/, ".png").replace(/\?size=\d+/, "?size=80");
             const originalSrc = src;
             img.src = staticSrc;
-            img.addEventListener("mouseenter", () => { img.src = originalSrc; }, { once: true });
-            img.addEventListener("mouseleave", () => { img.src = staticSrc; }, { once: true });
+            const onEnter = () => { img.src = originalSrc; };
+            const onLeave = () => { img.src = staticSrc; };
+            img.addEventListener("mouseenter", onEnter);
+            img.addEventListener("mouseleave", onLeave);
+            (img as any).__opAvCleanup = () => {
+                img.removeEventListener("mouseenter", onEnter);
+                img.removeEventListener("mouseleave", onLeave);
+            };
         };
 
         document.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"]").forEach(freeze);
@@ -1833,6 +2069,11 @@ export default definePlugin({
             this.avatarObserver = null;
         }
         document.querySelectorAll<HTMLImageElement>("img[data-op-av-frozen]").forEach(img => {
+            const cleanup = (img as any).__opAvCleanup;
+            if (typeof cleanup === "function") {
+                cleanup();
+                delete (img as any).__opAvCleanup;
+            }
             delete img.dataset.opAvFrozen;
         });
     },
