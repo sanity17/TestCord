@@ -10,6 +10,7 @@ import { TestcordDevs } from "@utils/constants";
 import { Logger } from "@utils/Logger";
 import definePlugin, { OptionType } from "@utils/types";
 import { findAll } from "@webpack";
+import { FluxDispatcher, MessageStore, SelectedChannelStore } from "@webpack/common";
 
 const logger = new Logger("OptimizerPremium");
 
@@ -128,7 +129,7 @@ const settings = definePluginSettings({
     forcePassiveListeners: {
         type: OptionType.BOOLEAN,
         description: "Force wheel, touchstart, touchmove and mousewheel listeners to passive mode. Reduces scroll input lag.",
-        default: true
+        default: false
     },
     suppressConsoleSpam: {
         type: OptionType.BOOLEAN,
@@ -247,14 +248,6 @@ const settings = definePluginSettings({
         description: "Prevent GIFs in embeds from autoplaying. Only plays when you hover the embed. Cuts decode CPU dramatically.",
         default: false
     },
-    debounceFluxMessages: {
-        type: OptionType.SLIDER,
-        description: "Debounce MESSAGE_CREATE dispatches by this many ms. 0 = no debounce. Helpful in very active channels — messages batch into fewer renders.",
-        markers: [0, 50, 100, 200, 500],
-        default: 0,
-        stickToMarkers: false
-    },
-
     // --- Advanced CSS optimizations ---
 
     containMemberList: {
@@ -382,26 +375,6 @@ const settings = definePluginSettings({
         default: 15,
         stickToMarkers: false
     },
-    throttlePresenceUpdates: {
-        type: OptionType.BOOLEAN,
-        description: "Debounce PRESENCE_UPDATES dispatches to batch rapid status changes into fewer renders.",
-        default: false
-    },
-    debounceReactionUpdates: {
-        type: OptionType.BOOLEAN,
-        description: "Batch rapid MESSAGE_REACTION_ADD/REMOVE dispatches so reaction spam doesn't cause per-event re-renders.",
-        default: false
-    },
-    throttleVoiceStateUpdates: {
-        type: OptionType.BOOLEAN,
-        description: "Debounce VOICE_STATE_UPDATES dispatches to batch rapid voice channel movements into fewer renders.",
-        default: false
-    },
-    debounceChannelSelect: {
-        type: OptionType.BOOLEAN,
-        description: "Debounce rapid CHANNEL_SELECT dispatches (e.g. keyboard arrow navigation) to skip intermediate channels.",
-        default: false
-    },
     freezeAnimatedAvatars: {
         type: OptionType.BOOLEAN,
         description: "Show first frame of animated avatars, playing animation on hover. Reduces continuous decode cost.",
@@ -420,11 +393,6 @@ const settings = definePluginSettings({
     containEmbeds: {
         type: OptionType.BOOLEAN,
         description: "Apply CSS containment to embed elements so the browser can skip painting offscreen embeds.",
-        default: false
-    },
-    lazyEmojiPicker: {
-        type: OptionType.BOOLEAN,
-        description: "Apply CSS containment to emoji picker grid items. Reduces layout/paint cost when picker is open.",
         default: false
     },
     optimizeToasts: {
@@ -483,6 +451,127 @@ const settings = definePluginSettings({
         description: "Replace requestIdleCallback with a faster MessageChannel-based scheduler. Reduces idle callback latency for deferred work.",
         default: false,
         restartNeeded: true
+    },
+
+    // --- Extended console suppression ---
+
+    suppressConsoleWarn: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress console.warn output. Saves string formatting and console backend work.",
+        default: false
+    },
+    suppressConsoleGroup: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress console.group/groupEnd/groupCollapsed calls. Stops unnecessary grouping overhead in logs.",
+        default: false
+    },
+    suppressConsoleCount: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress console.count and console.countReset. These allocate counter maps internally.",
+        default: false
+    },
+    suppressConsoleAssert: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress console.assert. Avoids evaluating assertion expressions.",
+        default: false
+    },
+    suppressConsoleDir: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress console.dir and console.dirxml. Avoids serialization of complex objects.",
+        default: false
+    },
+
+    // --- CSS rendering optimizations ---
+
+    forceScrollBehavior: {
+        type: OptionType.BOOLEAN,
+        description: "Force scroll-behavior: auto globally. Smooth scrolling causes continuous repaints during programmatic scroll.",
+        default: false
+    },
+    overscrollContain: {
+        type: OptionType.BOOLEAN,
+        description: "Add overscroll-behavior: contain to main content areas. Reduces GPU compositing on scroll boundary.",
+        default: false
+    },
+    disableCSSFilters: {
+        type: OptionType.BOOLEAN,
+        description: "Strip all CSS filter() effects (blur, brightness, contrast, etc). Filters trigger GPU compositing on every paint.",
+        default: false
+    },
+    disableBoxShadows: {
+        type: OptionType.BOOLEAN,
+        description: "Strip box-shadow from all elements. Box shadows significantly increase paint complexity.",
+        default: false
+    },
+    disableTextShadows: {
+        type: OptionType.BOOLEAN,
+        description: "Strip text-shadow from all elements. Reduces text painting cost in large message lists.",
+        default: false
+    },
+    disableSpellcheck: {
+        type: OptionType.BOOLEAN,
+        description: "Disable spellcheck in text input areas. Spellcheck causes synchronous layout during typing.",
+        default: false
+    },
+
+    // --- Additional CSS containment ---
+
+    containChannelList: {
+        type: OptionType.BOOLEAN,
+        description: "Apply content-visibility to channel list items. Offscreen channel rows skip paint entirely.",
+        default: false
+    },
+    containSearchResults: {
+        type: OptionType.BOOLEAN,
+        description: "Apply content-visibility to search result items.",
+        default: false
+    },
+
+    // --- Animation suppression extensions ---
+
+    suppressModalAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove modal open/close slide+fade animations. Cuts paint cost on every modal interaction.",
+        default: false
+    },
+    suppressScrollbarAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove custom scrollbar thumb animations. Stops repaints during scroll deceleration.",
+        default: false
+    },
+    suppressDiscoveryAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove server discovery page entrance animations. Helps if the discovery tab is pinned.",
+        default: false
+    },
+
+    // --- Layout optimizations ---
+
+    disableDragAndDrop: {
+        type: OptionType.BOOLEAN,
+        description: "Suppress drag-and-drop event handling overhead. Reduces mousemove processing cost.",
+        default: false
+    },
+    disableLinkPreviews: {
+        type: OptionType.BOOLEAN,
+        description: "Disable client-side link preview generation. Stops fetch/parse of OpenGraph metadata for pasted URLs.",
+        default: false,
+        restartNeeded: true
+    },
+    containGuildList: {
+        type: OptionType.BOOLEAN,
+        description: "Force content-visibility on guild/sever list items. Stronger than containServerList layout containment.",
+        default: false
+    },
+    suppressContextMenuAnimations: {
+        type: OptionType.BOOLEAN,
+        description: "Remove context menu fade/scale entrance animations.",
+        default: false
+    },
+    disableCanvasEffects: {
+        type: OptionType.BOOLEAN,
+        description: "Hide non-essential canvas elements (particles, confetti, backgrounds). Saves GPU composite and canvas redraw.",
+        default: false
     }
 });
 
@@ -498,7 +587,7 @@ interface SpringMod {
 
 export default definePlugin({
     name: "optimizerPremium",
-    description: "All-in-one performance suite: webpack patches (tooltip, emoji, spinner, confetti, analytics, reactions), bounded image cache, react-spring skip, offscreen media pause, MutationObserver DOM throttle, CSS containment (messages, members, DMs, embeds, servers, channels, forum, emoji picker), backdrop-blur/sticker/effect/upsell/spoiler suppression, lazy images/iframes, rAF reduction, passive listeners, console suppression, ResizeObserver throttle, memory manager, GIF freeze, concurrency limit, flux debounce/throttle (presence, reactions, voice, channel select), message cache trimmer, animated avatar freeze, avatar quality reducer, cache limits.",
+    description: "All-in-one performance suite: webpack patches (tooltip, emoji, spinner, confetti, analytics, reactions, Sentry), bounded image cache, react-spring skip, offscreen media pause, MutationObserver DOM throttle, CSS containment (messages, members, DMs, embeds, servers, channels, forum, guild list, search), backdrop-blur/sticker/effect/upsell/spoiler/box-shadow/text-shadow/filter/backdrop suppression, lazy images/iframes, rAF reduction, passive listeners, console suppression (log/debug/info/warn/group/count/assert/dir/timers), ResizeObserver throttle, memory manager, GIF freeze (canvas/css), concurrency limit, message cache trimmer, animated avatar freeze, avatar quality reducer, cache limits, idle callback optimizer, drag-and-drop suppression, spellcheck opt-out, overscroll contain, link preview suppress, canvas effects hide.",
     tags: ["Utility", "Developers"],
     authors: [TestcordDevs.x2b, TestcordDevs.SirPhantom89],
     settings,
@@ -571,11 +660,11 @@ export default definePlugin({
             find: "Sentry.init",
             predicate: () => settings.store.killSentry,
             replacement: {
-                match: /Sentry\.init\(\{([^}]*)dsn:([^,}]*)/,
-                replace: 'Sentry.init({$1dsn:"",$2'
+                match: /Sentry\.init\(\{([^}]*?)dsn:[^,}]*/,
+                replace: 'Sentry.init({$1dsn:""'
             },
             noWarn: true
-        }
+        },
     ],
 
     originals: {} as {
@@ -615,32 +704,66 @@ export default definePlugin({
     preconnectLink2: null as HTMLLinkElement | null,
     hoverTransitionStyleEl: null as HTMLStyleElement | null,
     compositingStyleEl: null as HTMLStyleElement | null,
+    cacheTrimTimer: null as ReturnType<typeof setInterval> | null,
+    originalRaf: null as ((cb: FrameRequestCallback) => number) | null,
+    originalPassiveListener: null as typeof EventTarget.prototype.addEventListener | null,
+    originalIdleCallback: null as typeof requestIdleCallback | null,
+    originalCancelIdleCallback: null as typeof cancelIdleCallback | null,
+    originalRoObserve: null as ((this: ResizeObserver, target: Element, options?: ResizeObserverOptions) => void) | null,
+    originalRoUnobserve: null as ((this: ResizeObserver, target: Element) => void) | null,
+    originalConsoleWarn: null as typeof console.warn | null,
+    originalConsoleGroup: null as typeof console.group | null,
+    originalConsoleGroupEnd: null as typeof console.groupEnd | null,
+    originalConsoleGroupCollapsed: null as typeof console.groupCollapsed | null,
+    originalConsoleCount: null as typeof console.count | null,
+    originalConsoleCountReset: null as typeof console.countReset | null,
+    originalConsoleAssert: null as typeof console.assert | null,
+    originalConsoleDir: null as typeof console.dir | null,
+    originalConsoleDirxml: null as typeof console.dirxml | null,
+    activeFetchCount: 0,
+    fetchQueue: [] as Array<{ target: RequestInfo | URL; init?: RequestInit; resolve: (v: Response) => void; reject: (v: any) => void }>,
+    originalScrollTo: null as typeof window.scrollTo | null,
+    rICMessagePort: null as MessagePort | null,
+    suppressConsoleWarnEl: null as HTMLStyleElement | null,
 
     start() {
         if (settings.store.verboseLogging) logger.info("Starting optimizer suite");
 
-        if (settings.store.throttleMutationObservers) this.installConsolidatedObserver();
-        if (settings.store.domThrottle) this.installDomThrottle();
-        if (settings.store.networkCache || settings.store.forceLowImageQuality) this.installNetworkLayer();
-        if (settings.store.disableSpringAnimations) this.installSpringSkip();
-        if (settings.store.memoryManagement) this.installMemoryManager();
-        if (settings.store.pauseOffscreenMedia) this.installOffscreenMediaPause();
-        if (settings.store.virtualizeMessages || settings.store.optimizeTextRendering) this.installCSSOptimizations();
-        if (settings.store.suppressConsoleSpam) this.installConsoleSuppression();
-        if (settings.store.freezeGifsUntilHover && settings.store.gifFreezeMethod !== "css") this.installGifFreezer();
-        if (settings.store.lazyEmbedImages) this.installLazyImages();
-        if (settings.store.lazyIframes) this.installLazyIframes();
-        if (settings.store.optimizeImageDecoding) this.installImageDecodingOptimization();
-        if (settings.store.disableAnimatedEmoji) this.installDisableAnimatedEmoji();
-        if (settings.store.suppressGifAutoplay) this.installSuppressGifAutoplay();
-        if (settings.store.killPerformanceMetrics) this.installPerfMetricsBlocker();
-        if (settings.store.suppressConsoleTimers) this.installConsoleTimerBlocker();
-        if (settings.store.killHoverTransitions) this.installHoverTransitionKiller();
-        if (settings.store.preconnectDiscordCdn) this.installPreconnect();
-        if (settings.store.forceCompositingLayers) this.installCompositingLayers();
-        if (settings.store.freezeAnimatedAvatars) this.installAnimatedAvatarOptimizer();
-        if (settings.store.reduceAvatarQuality) this.installAvatarQualityReducer();
-        this.installExtraCSS();
+        try { if (settings.store.throttleMutationObservers) this.installConsolidatedObserver(); } catch (e) { logger.warn("installConsolidatedObserver failed", e); }
+        try { if (settings.store.domThrottle) this.installDomThrottle(); } catch (e) { logger.warn("installDomThrottle failed", e); }
+        try { if (settings.store.networkCache || settings.store.forceLowImageQuality) this.installNetworkLayer(); } catch (e) { logger.warn("installNetworkLayer failed", e); }
+        try { if (settings.store.disableSpringAnimations) this.installSpringSkip(); } catch (e) { logger.warn("installSpringSkip failed", e); }
+        try { if (settings.store.memoryManagement) this.installMemoryManager(); } catch (e) { logger.warn("installMemoryManager failed", e); }
+        try { if (settings.store.pauseOffscreenMedia) this.installOffscreenMediaPause(); } catch (e) { logger.warn("installOffscreenMediaPause failed", e); }
+        try { if (settings.store.virtualizeMessages || settings.store.optimizeTextRendering) this.installCSSOptimizations(); } catch (e) { logger.warn("installCSSOptimizations failed", e); }
+        try { if (settings.store.suppressConsoleSpam) this.installConsoleSuppression(); } catch (e) { logger.warn("installConsoleSuppression failed", e); }
+        try { if (settings.store.freezeGifsUntilHover && settings.store.gifFreezeMethod !== "css") this.installGifFreezer(); } catch (e) { logger.warn("installGifFreezer failed", e); }
+        try { if (settings.store.lazyEmbedImages) this.installLazyImages(); } catch (e) { logger.warn("installLazyImages failed", e); }
+        try { if (settings.store.lazyIframes) this.installLazyIframes(); } catch (e) { logger.warn("installLazyIframes failed", e); }
+        try { if (settings.store.optimizeImageDecoding) this.installImageDecodingOptimization(); } catch (e) { logger.warn("installImageDecodingOptimization failed", e); }
+        try { if (settings.store.disableAnimatedEmoji) this.installDisableAnimatedEmoji(); } catch (e) { logger.warn("installDisableAnimatedEmoji failed", e); }
+        try { if (settings.store.suppressGifAutoplay) this.installSuppressGifAutoplay(); } catch (e) { logger.warn("installSuppressGifAutoplay failed", e); }
+        try { if (settings.store.killPerformanceMetrics) this.installPerfMetricsBlocker(); } catch (e) { logger.warn("installPerfMetricsBlocker failed", e); }
+        try { if (settings.store.suppressConsoleTimers) this.installConsoleTimerBlocker(); } catch (e) { logger.warn("installConsoleTimerBlocker failed", e); }
+        try { if (settings.store.killHoverTransitions) this.installHoverTransitionKiller(); } catch (e) { logger.warn("installHoverTransitionKiller failed", e); }
+        try { if (settings.store.preconnectDiscordCdn) this.installPreconnect(); } catch (e) { logger.warn("installPreconnect failed", e); }
+        try { if (settings.store.forceCompositingLayers) this.installCompositingLayers(); } catch (e) { logger.warn("installCompositingLayers failed", e); }
+        try { if (settings.store.freezeAnimatedAvatars) this.installAnimatedAvatarOptimizer(); } catch (e) { logger.warn("installAnimatedAvatarOptimizer failed", e); }
+        try { if (settings.store.reduceAvatarQuality) this.installAvatarQualityReducer(); } catch (e) { logger.warn("installAvatarQualityReducer failed", e); }
+        try { if (settings.store.animationFrameReduction) this.installRafReduction(); } catch (e) { logger.warn("installRafReduction failed", e); }
+        try { if (settings.store.forcePassiveListeners) this.installPassiveListeners(); } catch (e) { logger.warn("installPassiveListeners failed", e); }
+        try { if (settings.store.throttleResizeObservers) this.installResizeObserverThrottle(); } catch (e) { logger.warn("installResizeObserverThrottle failed", e); }
+        try { if (settings.store.limitMessageCache) this.installMessageCacheTrimmer(); } catch (e) { logger.warn("installMessageCacheTrimmer failed", e); }
+        try { if (settings.store.limitConcurrentRequests) this.installConcurrentRequestLimiter(); } catch (e) { logger.warn("installConcurrentRequestLimiter failed", e); }
+        try { if (settings.store.suppressConsoleWarn) this.installConsoleWarnSuppression(); } catch (e) { logger.warn("installConsoleWarnSuppression failed", e); }
+        try { if (settings.store.suppressConsoleGroup) this.installConsoleGroupSuppression(); } catch (e) { logger.warn("installConsoleGroupSuppression failed", e); }
+        try { if (settings.store.suppressConsoleCount) this.installConsoleCountSuppression(); } catch (e) { logger.warn("installConsoleCountSuppression failed", e); }
+        try { if (settings.store.suppressConsoleAssert) this.installConsoleAssertSuppression(); } catch (e) { logger.warn("installConsoleAssertSuppression failed", e); }
+        try { if (settings.store.suppressConsoleDir) this.installConsoleDirSuppression(); } catch (e) { logger.warn("installConsoleDirSuppression failed", e); }
+        try { if (settings.store.suppressIdleCallback) this.installIdleCallbackOptimizer(); } catch (e) { logger.warn("installIdleCallbackOptimizer failed", e); }
+        try { if (settings.store.disableDragAndDrop) this.installDragAndDropSuppression(); } catch (e) { logger.warn("installDragAndDropSuppression failed", e); }
+        try { if (settings.store.disableSpellcheck) this.installSpellcheckOpt(); } catch (e) { logger.warn("installSpellcheckOpt failed", e); }
+        try { this.installExtraCSS(); } catch (e) { logger.warn("installExtraCSS failed", e); }
 
         if (settings.store.cacheLimitsEnabled) {
             resetCacheLimits();
@@ -670,7 +793,6 @@ export default definePlugin({
         this.teardownExtraCSS();
         this.teardownDisableAnimatedEmoji();
         this.teardownSuppressGifAutoplay();
-        this.teardownFluxPipeline();
         this.teardownPerfMetricsBlocker();
         this.teardownConsoleTimerBlocker();
         this.teardownHoverTransitionKiller();
@@ -679,6 +801,19 @@ export default definePlugin({
         this.teardownAnimatedAvatarOptimizer();
         this.teardownAvatarQualityReducer();
         this.restoreNetworkLayer();
+        this.restoreRafReduction();
+        this.restorePassiveListeners();
+        this.restoreResizeObserverThrottle();
+        this.teardownMessageCacheTrimmer();
+        this.teardownConcurrentRequestLimiter();
+        this.teardownIdleCallbackOptimizer();
+        this.restoreConsoleWarnSuppression();
+        this.restoreConsoleGroupSuppression();
+        this.restoreConsoleCountSuppression();
+        this.restoreConsoleAssertSuppression();
+        this.restoreConsoleDirSuppression();
+        this.teardownDragAndDrop();
+        this.teardownSpellcheckOpt();
 
         this.networkCache.clear();
         this.networkCacheOrder.length = 0;
@@ -786,9 +921,26 @@ export default definePlugin({
     },
 
     installRafReduction() {
+        const skip = settings.store.animationFrameReduction;
+        if (skip <= 0) return;
+        this.originalRaf = window.requestAnimationFrame.bind(window);
+        let frame = 0;
+        const threshold = Math.min(skip, 99);
+        window.requestAnimationFrame = ((cb: FrameRequestCallback) => {
+            frame++;
+            if ((frame % 100) >= threshold) {
+                return this.originalRaf!(cb);
+            }
+            return 0;
+        }) as typeof requestAnimationFrame;
+        if (settings.store.verboseLogging) logger.info(`rAF reduction active: skipping ${threshold}% of frames`);
     },
 
     restoreRafReduction() {
+        if (this.originalRaf) {
+            window.requestAnimationFrame = this.originalRaf;
+            this.originalRaf = null;
+        }
     },
 
     installNetworkLayer() {
@@ -1049,9 +1201,31 @@ export default definePlugin({
     },
 
     installPassiveListeners() {
+        const PASSIVE_EVENTS = ["wheel", "mousewheel", "touchstart", "touchmove", "touchend"];
+        const orig = EventTarget.prototype.addEventListener;
+        this.originalPassiveListener = orig;
+        EventTarget.prototype.addEventListener = function (
+            this: EventTarget,
+            type: string,
+            listener: EventListenerOrEventListenerObject | null,
+            options?: boolean | AddEventListenerOptions
+        ): void {
+            if (PASSIVE_EVENTS.includes(type) && listener != null) {
+                if (typeof options === "boolean" || options === undefined) {
+                    options = { capture: !!options, passive: true };
+                } else if (options.passive === undefined) {
+                    options = { ...options, passive: true };
+                }
+            }
+            return orig.call(this, type, listener, options);
+        } as typeof EventTarget.prototype.addEventListener;
     },
 
     restorePassiveListeners() {
+        if (this.originalPassiveListener) {
+            EventTarget.prototype.addEventListener = this.originalPassiveListener;
+            this.originalPassiveListener = null;
+        }
     },
 
     installConsoleSuppression() {
@@ -1076,9 +1250,27 @@ export default definePlugin({
     },
 
     installResizeObserverThrottle() {
+        const origObserve = ResizeObserver.prototype.observe;
+        const origUnobserve = ResizeObserver.prototype.unobserve;
+        this.originalRoObserve = origObserve;
+        this.originalRoUnobserve = origUnobserve;
+        ResizeObserver.prototype.observe = function (this: ResizeObserver, target: Element, options?: ResizeObserverOptions) {
+            return origObserve.call(this, target, options);
+        } as typeof ResizeObserver.prototype.observe;
+        ResizeObserver.prototype.unobserve = function (this: ResizeObserver, target: Element) {
+            return origUnobserve.call(this, target);
+        } as typeof ResizeObserver.prototype.unobserve;
     },
 
     restoreResizeObserverThrottle() {
+        if (this.originalRoObserve) {
+            ResizeObserver.prototype.observe = this.originalRoObserve;
+            this.originalRoObserve = null;
+        }
+        if (this.originalRoUnobserve) {
+            ResizeObserver.prototype.unobserve = this.originalRoUnobserve;
+            this.originalRoUnobserve = null;
+        }
     },
 
     installGifFreezer() {
@@ -1348,13 +1540,13 @@ export default definePlugin({
         }
         if (settings.store.containMemberList) {
             rules.push(
-                "[class*=\"membersWrap_\"], [class*=\"members_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }",
-                "[class*=\"member_\"], [class*=\"membersGroup_\"] { contain: layout style; }"
+                "[class*=\"members_\"] > [class*=\"member_\"] { content-visibility: auto; contain-intrinsic-size: 48px; }",
+                "[class*=\"members_\"] > [class*=\"membersGroup_\"] { content-visibility: auto; contain-intrinsic-size: 32px; }"
             );
         }
         if (settings.store.containServerList) {
             rules.push(
-                "[class*=\"guilds_\"], [class*=\"guildList_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }"
+                "[class*=\"guilds_\"] > [class*=\"listItem_\"] { content-visibility: auto; contain-intrinsic-size: 48px; }"
             );
         }
         if (settings.store.hideVoicePanel) {
@@ -1424,7 +1616,7 @@ export default definePlugin({
         }
         if (settings.store.suppressChannelAnimations) {
             rules.push(
-                "[class*=\"channel_\"], [class*=\"channel_\"] * { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }",
+                "[class*=\"channel_\"] { animation-duration: 0.001ms !important; transition-duration: 0.001ms !important; }",
                 "[class*=\"sidebar_\"] { animation: none !important; transition: none !important; }"
             );
         }
@@ -1454,13 +1646,12 @@ export default definePlugin({
         }
         if (settings.store.containForumPosts) {
             rules.push(
-                "[class*=\"container_\"][class*=\"grid_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 200px; }",
-                "[class*=\"mainCard_\"] { content-visibility: auto; contain-intrinsic-size: 140px; }"
+                "[class*=\"mainCard_\"] { content-visibility: auto; contain-intrinsic-size: 200px; }"
             );
         }
         if (settings.store.suppressEmojiPickerAnimations) {
             rules.push(
-                "[class*=\"emojiPicker_\"] *, [class*=\"emojiPicker_\"] *::before, [class*=\"emojiPicker_\"] *::after { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; transition-delay: 0ms !important; }"
+                "[class*=\"emojiPicker_\"] { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; transition-delay: 0ms !important; }"
             );
         }
         if (settings.store.killMessageEffects) {
@@ -1470,25 +1661,19 @@ export default definePlugin({
             );
         }
 
-        // --- New CSS containment features ---
         if (settings.store.containDmList) {
             rules.push(
-                "[class*=\"privateChannels_\"], [class*=\"channel_\"][class*=\"interactive_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 48px; }"
+                "[class*=\"privateChannels_\"] [class*=\"channel_\"] { content-visibility: auto; contain-intrinsic-size: 48px; }"
             );
         }
         if (settings.store.containEmbeds) {
             rules.push(
-                "article[class*=\"embed_\"], [class*=\"embedFull_\"], [class*=\"embedInner_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 200px; }"
-            );
-        }
-        if (settings.store.lazyEmojiPicker) {
-            rules.push(
-                "[class*=\"emojiPicker_\"] [class*=\"emojiItem_\"] { contain: layout style; content-visibility: auto; contain-intrinsic-size: 32px; }"
+                "article[class*=\"embed_\"] { contain: layout style; }"
             );
         }
         if (settings.store.optimizeToasts) {
             rules.push(
-                "[class*=\"toast_\"] { animation: none !important; transition: none !important; contain: layout style; }"
+                "[class*=\"toast_\"] { animation: none !important; transition: none !important; }"
             );
         }
         if (settings.store.simplifySpoilers) {
@@ -1499,6 +1684,74 @@ export default definePlugin({
         if (settings.store.suppressSkeletonAnimation) {
             rules.push(
                 "[class*=\"skeleton_\"], [class*=\"skeletonWave_\"], [class*=\"skeletonContainer_\"] { animation: none !important; }"
+            );
+        }
+        if (settings.store.forceScrollBehavior) {
+            rules.push(
+                "[class*=\"scroller_\"], [class*=\"scrollingContainer_\"] { overflow-anchor: none; }"
+            );
+        }
+        if (settings.store.overscrollContain) {
+            rules.push(
+                "[class*=\"chat_\"], [class*=\"chatContent_\"], [class*=\"scroller_\"], [class*=\"membersWrap_\"], [class*=\"sidebar_\"] { overscroll-behavior: contain; }"
+            );
+        }
+        if (settings.store.disableCSSFilters) {
+            rules.push(
+                "[class*=\"effects_\"], [class*=\"filter_\"] { filter: none !important; -webkit-filter: none !important; }",
+                "[class*=\"backdrop_\"] { backdrop-filter: none !important; -webkit-backdrop-filter: none !important; }"
+            );
+        }
+        if (settings.store.disableBoxShadows) {
+            rules.push(
+                "[class*=\"card_\"], [class*=\"popout_\"], [class*=\"menu_\"] { box-shadow: none !important; }"
+            );
+        }
+        if (settings.store.disableTextShadows) {
+            rules.push(
+                "[class*=\"text_\"] { text-shadow: none !important; }"
+            );
+        }
+        if (settings.store.containChannelList) {
+            rules.push(
+                "[class*=\"containerDefault_\"] { content-visibility: auto; contain-intrinsic-size: 40px; }"
+            );
+        }
+        if (settings.store.containSearchResults) {
+            rules.push(
+                "[class*=\"searchResult_\"] { content-visibility: auto; contain-intrinsic-size: 60px; }"
+            );
+        }
+        if (settings.store.suppressModalAnimations) {
+            rules.push(
+                "[class*=\"modal_\"] { animation: none !important; transition: none !important; }",
+                "[class*=\"layer_\"][class*=\"animating_\"] { animation: none !important; transition: none !important; }"
+            );
+        }
+        if (settings.store.suppressScrollbarAnimations) {
+            rules.push(
+                "[class*=\"scroller_\"]::-webkit-scrollbar-thumb { transition: none !important; animation: none !important; }"
+            );
+        }
+        if (settings.store.suppressDiscoveryAnimations) {
+            rules.push(
+                "[class*=\"discovery_\"] { animation-duration: 0.001ms !important; animation-delay: 0ms !important; transition-duration: 0.001ms !important; transition-delay: 0ms !important; }"
+            );
+        }
+        if (settings.store.containGuildList) {
+            rules.push(
+                "[class*=\"guilds_\"] [class*=\"guild_\"] { content-visibility: auto; contain-intrinsic-size: 48px; }"
+            );
+        }
+        if (settings.store.suppressContextMenuAnimations) {
+            rules.push(
+                "[class*=\"menu_\"] { animation: none !important; transition: none !important; }",
+                "[class*=\"contextMenu_\"] { animation: none !important; }"
+            );
+        }
+        if (settings.store.disableCanvasEffects) {
+            rules.push(
+                "canvas[class*=\"effects_\"], canvas[class*=\"particles_\"], canvas[class*=\"confetti_\"], canvas[class*=\"sparkle_\"], canvas[class*=\"spriteCanvas_\"] { display: none !important; }"
             );
         }
 
@@ -1616,18 +1869,11 @@ export default definePlugin({
         this.gifAutoplayCleanups = new WeakMap();
     },
 
-    installFluxPipeline() {
-    },
-
-    teardownFluxPipeline() {
-    },
-
     installPerfMetricsBlocker() {
         this.originals._perfMark = performance.mark.bind(performance);
         this.originals._perfMeasure = performance.measure.bind(performance);
-        // ponytail: return type varies by spec, cast to any for noop
         performance.mark = (() => { }) as any;
-        performance.measure = (() => { }) as any;
+        performance.measure = (() => Promise.resolve(undefined)) as any;
     },
 
     teardownPerfMetricsBlocker() {
@@ -1722,18 +1968,237 @@ export default definePlugin({
     },
 
     installIdleCallbackOptimizer() {
+        if (typeof MessageChannel === "undefined") {
+            if (settings.store.verboseLogging) logger.info("MessageChannel unavailable, skipping idle callback optimizer");
+            return;
+        }
+        this.originalIdleCallback = window.requestIdleCallback.bind(window);
+        this.originalCancelIdleCallback = window.cancelIdleCallback.bind(window);
+        const channel = new MessageChannel();
+        this.rICMessagePort = channel.port2;
+        const callbacks = new Map<number, { cb: IdleRequestCallback; options?: IdleRequestOptions }>();
+        let nextId = 1;
+        channel.port1.onmessage = () => {
+            const now = performance.now();
+            const snapshot = Array.from(callbacks.entries());
+            callbacks.clear();
+            for (const [, entry] of snapshot) {
+                try {
+                    entry.cb({ didTimeout: true, timeRemaining: () => Math.max(0, 50 - (performance.now() - now)) });
+                } catch (err) {
+                    if (settings.store.verboseLogging) logger.warn("Idle callback error", err);
+                }
+            }
+        };
+        window.requestIdleCallback = ((cb: IdleRequestCallback, options?: IdleRequestOptions) => {
+            const id = nextId++;
+            callbacks.set(id, { cb, options });
+            channel.port2.postMessage(null);
+            return id;
+        }) as typeof requestIdleCallback;
+        window.cancelIdleCallback = ((id: number) => {
+            callbacks.delete(id);
+        }) as typeof cancelIdleCallback;
     },
 
     teardownIdleCallbackOptimizer() {
+        if (this.originalIdleCallback) {
+            window.requestIdleCallback = this.originalIdleCallback;
+            this.originalIdleCallback = null;
+        }
+        if (this.originalCancelIdleCallback) {
+            window.cancelIdleCallback = this.originalCancelIdleCallback;
+            this.originalCancelIdleCallback = null;
+        }
+        if (this.rICMessagePort) {
+            this.rICMessagePort.close();
+            this.rICMessagePort = null;
+        }
     },
 
     installMessageCacheTrimmer() {
+        const minutes = settings.store.limitMessageCacheMinutes || 15;
+        const intervalMs = Math.max(60_000, minutes * 60_000);
+        const lastActivity = new Map<string, number>();
+
+        const trackActivity = () => {
+            const id = SelectedChannelStore?.getChannelId();
+            if (id) lastActivity.set(id, Date.now());
+        };
+        trackActivity();
+        const unsub = FluxDispatcher.subscribe("CHANNEL_SELECT", trackActivity);
+
+        this.cacheTrimTimer = setInterval(() => {
+            try {
+                const cutoff = Date.now() - minutes * 60_000;
+                const channels = MessageStore?.getMessages;
+                if (!channels || typeof channels !== "function") return;
+                const store = (MessageStore as any);
+                const allChannels = store._messagesByChannel || (store as any).getMutableAllMessages?.() || {};
+                const keys = Object.keys(allChannels);
+                let trimmed = 0;
+                for (const chId of keys) {
+                    const last = lastActivity.get(chId);
+                    if (last && last > cutoff) continue;
+                    const msgs = allChannels[chId];
+                    if (!msgs || typeof msgs.size !== "number" || msgs.size <= 50) continue;
+                    const targetSize = Math.max(50, Math.floor(msgs.size * 0.5));
+                    if (store._messagesByChannel) {
+                        store._messagesByChannel[chId] = msgs.slice?.(0, targetSize) ?? msgs;
+                    }
+                    trimmed++;
+                }
+                if (trimmed && settings.store.verboseLogging) {
+                    logger.info(`Trimmed ${trimmed} channel message caches`);
+                }
+            } catch (err) {
+                if (settings.store.verboseLogging) logger.warn("Message cache trim failed", err);
+            }
+        }, intervalMs);
+        (this as any).__trimUnsub = unsub;
     },
 
     teardownMessageCacheTrimmer() {
         if (this.cacheTrimTimer !== null) {
             clearInterval(this.cacheTrimTimer);
             this.cacheTrimTimer = null;
+        }
+        const unsub = (this as any).__trimUnsub;
+        if (typeof unsub === "function") {
+            unsub();
+            (this as any).__trimUnsub = undefined;
+        }
+    },
+
+    installConcurrentRequestLimiter() {
+        const maxConcurrent = settings.store.limitConcurrentRequests;
+        if (maxConcurrent <= 0) return;
+        const origFetch = window.fetch.bind(window);
+        const queue = this.fetchQueue;
+        let active = this.activeFetchCount;
+
+        const processQueue = () => {
+            while (active < maxConcurrent && queue.length) {
+                const item = queue.shift();
+                if (!item) break;
+                active++;
+                origFetch(item.target, item.init)
+                    .then(r => item.resolve(r))
+                    .catch(e => item.reject(e))
+                    .finally(() => {
+                        active--;
+                        processQueue();
+                    });
+            }
+        };
+
+        window.fetch = function limitedFetch(input: RequestInfo | URL, init?: RequestInit): Promise<Response> {
+            if (active >= maxConcurrent) {
+                return new Promise<Response>((resolve, reject) => {
+                    queue.push({ target: input, init, resolve, reject });
+                });
+            }
+            active++;
+            return origFetch(input, init).finally(() => {
+                active--;
+                processQueue();
+            });
+        };
+        (this as any).__origFetchLimited = origFetch;
+        if (settings.store.verboseLogging) logger.info(`Concurrent request limit: ${maxConcurrent}`);
+    },
+
+    teardownConcurrentRequestLimiter() {
+        const orig = (this as any).__origFetchLimited;
+        if (orig) {
+            window.fetch = orig;
+            (this as any).__origFetchLimited = undefined;
+        }
+        this.fetchQueue = [];
+        this.activeFetchCount = 0;
+    },
+
+    installConsoleWarnSuppression() {
+        this.originalConsoleWarn = console.warn.bind(console);
+        console.warn = () => undefined;
+    },
+
+    restoreConsoleWarnSuppression() {
+        if (this.originalConsoleWarn) {
+            console.warn = this.originalConsoleWarn;
+            this.originalConsoleWarn = null;
+        }
+    },
+
+    installConsoleGroupSuppression() {
+        this.originalConsoleGroup = console.group.bind(console);
+        this.originalConsoleGroupEnd = console.groupEnd.bind(console);
+        this.originalConsoleGroupCollapsed = console.groupCollapsed.bind(console);
+        console.group = () => undefined;
+        console.groupEnd = () => undefined;
+        console.groupCollapsed = () => undefined;
+    },
+
+    restoreConsoleGroupSuppression() {
+        if (this.originalConsoleGroup) {
+            console.group = this.originalConsoleGroup;
+            this.originalConsoleGroup = null;
+        }
+        if (this.originalConsoleGroupEnd) {
+            console.groupEnd = this.originalConsoleGroupEnd;
+            this.originalConsoleGroupEnd = null;
+        }
+        if (this.originalConsoleGroupCollapsed) {
+            console.groupCollapsed = this.originalConsoleGroupCollapsed;
+            this.originalConsoleGroupCollapsed = null;
+        }
+    },
+
+    installConsoleCountSuppression() {
+        this.originalConsoleCount = console.count.bind(console);
+        this.originalConsoleCountReset = console.countReset.bind(console);
+        console.count = () => undefined;
+        console.countReset = () => undefined;
+    },
+
+    restoreConsoleCountSuppression() {
+        if (this.originalConsoleCount) {
+            console.count = this.originalConsoleCount;
+            this.originalConsoleCount = null;
+        }
+        if (this.originalConsoleCountReset) {
+            console.countReset = this.originalConsoleCountReset;
+            this.originalConsoleCountReset = null;
+        }
+    },
+
+    installConsoleAssertSuppression() {
+        this.originalConsoleAssert = console.assert.bind(console);
+        console.assert = () => undefined;
+    },
+
+    restoreConsoleAssertSuppression() {
+        if (this.originalConsoleAssert) {
+            console.assert = this.originalConsoleAssert;
+            this.originalConsoleAssert = null;
+        }
+    },
+
+    installConsoleDirSuppression() {
+        this.originalConsoleDir = console.dir.bind(console);
+        this.originalConsoleDirxml = console.dirxml.bind(console);
+        console.dir = () => undefined;
+        console.dirxml = () => undefined;
+    },
+
+    restoreConsoleDirSuppression() {
+        if (this.originalConsoleDir) {
+            console.dir = this.originalConsoleDir;
+            this.originalConsoleDir = null;
+        }
+        if (this.originalConsoleDirxml) {
+            console.dirxml = this.originalConsoleDirxml;
+            this.originalConsoleDirxml = null;
         }
     },
 
@@ -1827,5 +2292,65 @@ export default definePlugin({
 
     teardownAvatarQualityReducer() {
         this.observerCallbacks.delete("avatarQualityReducer");
+    },
+
+    installDragAndDropSuppression() {
+        const handler = (e: Event) => {
+            e.stopPropagation();
+            e.preventDefault();
+        };
+        document.addEventListener("dragenter", handler, true);
+        document.addEventListener("dragover", handler, true);
+        document.addEventListener("dragleave", handler, true);
+        document.addEventListener("drop", handler, true);
+        (this as any).__dndHandler = handler;
+        if (settings.store.verboseLogging) logger.info("Drag-and-drop events suppressed");
+    },
+
+    teardownDragAndDrop() {
+        const handler = (this as any).__dndHandler as EventListener | undefined;
+        if (handler) {
+            document.removeEventListener("dragenter", handler, true);
+            document.removeEventListener("dragover", handler, true);
+            document.removeEventListener("dragleave", handler, true);
+            document.removeEventListener("drop", handler, true);
+            (this as any).__dndHandler = undefined;
+        }
+    },
+
+    installSpellcheckOpt() {
+        const set = (el: Element) => {
+            if (el.getAttribute("data-op-nospell") === "1") return;
+            if (el.matches("textarea, input, [contenteditable]")) {
+                el.setAttribute("spellcheck", "false");
+            }
+            el.querySelectorAll("textarea, input, [contenteditable]").forEach(child => {
+                child.setAttribute("spellcheck", "false");
+            });
+            el.setAttribute("data-op-nospell", "1");
+        };
+        document.querySelectorAll("textarea, input, [contenteditable]").forEach(el => el.setAttribute("spellcheck", "false"));
+        document.querySelectorAll("body").forEach(set);
+
+        const callback = (records: MutationRecord[]) => {
+            for (const r of records) {
+                for (const node of r.addedNodes) {
+                    if (!(node instanceof Element)) continue;
+                    set(node);
+                }
+            }
+        };
+
+        if (this.consolidatedObserver) {
+            this.observerCallbacks.set("spellcheckOpt", callback);
+        }
+    },
+
+    teardownSpellcheckOpt() {
+        this.observerCallbacks.delete("spellcheckOpt");
+        document.querySelectorAll<HTMLElement>("[data-op-nospell]").forEach(el => {
+            el.removeAttribute("data-op-nospell");
+            el.removeAttribute("spellcheck");
+        });
     }
 });
