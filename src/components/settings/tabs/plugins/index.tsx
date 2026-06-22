@@ -30,6 +30,7 @@ import { Paragraph } from "@components/Paragraph";
 import { SettingsTab } from "@components/settings";
 import { debounce } from "@shared/debounce";
 import { ChangeList } from "@utils/ChangeList";
+import { Devs, EquicordDevs, TestcordDevs } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import { isTruthy } from "@utils/guards";
 import { Logger } from "@utils/Logger";
@@ -41,7 +42,6 @@ import { Alerts, ConfirmModal, lodash, openModal, Parser, React, SearchableSelec
 import { JSX } from "react";
 
 import Plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
-import { Devs, EquicordDevs, TestcordDevs } from "@utils/constants";
 
 import { PluginCard } from "./PluginCard";
 import { openWarningModal } from "./PluginModal";
@@ -492,7 +492,7 @@ export default function PluginSettings() {
                     <SearchableSelect
                         options={[{ label: "All Authors", value: "" }, ...authorOptions]}
                         value={searchValue.author}
-                        onChange={(v) => setSearchValue(prev => ({ ...prev, author: v ?? "" }))}
+                        onChange={v => setSearchValue(prev => ({ ...prev, author: v ?? "" }))}
                         closeOnSelect={true}
                         placeholder="Filter by Author"
                     />
@@ -553,22 +553,3 @@ export function PluginDependencyList({ deps }: { deps: string[]; }) {
         </>
     );
 }
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
