@@ -374,8 +374,3 @@ export default definePlugin({
         removeChannelToolbarButton("ChatButtonsPlus");
     }
 });
-
-
-
-
-
