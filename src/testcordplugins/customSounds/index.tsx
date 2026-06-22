@@ -8,7 +8,7 @@ import "./styles.css";
 
 import { definePluginSettings } from "@api/Settings";
 import { classNameFactory } from "@api/Styles";
-import { Devs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Button, Forms, React, showToast, TextInput } from "@webpack/common";
 
@@ -129,7 +129,6 @@ const settings = definePluginSettings({
                 URL.revokeObjectURL(url);
             };
 
-
             const filteredSoundTypes = allSoundTypes.filter(type =>
                 type.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
                 type.id.toLowerCase().includes(searchQuery.toLowerCase())
@@ -223,8 +222,3 @@ export default definePlugin({
     findOverride,
     isOverriden,
 });
-
-
-
-
-
