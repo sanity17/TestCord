@@ -4,11 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { TRANSLATION_CACHE_MAX } from "@utils/cacheLimits";
 import { Logger } from "@utils/Logger";
 
 import { settings } from "../settings";
 import { CachedTranslation, TranslateResponse } from "../types";
-import { TRANSLATION_CACHE_MAX } from "@utils/cacheLimits";
 
 const logger = new Logger("MessageTranslate");
 
