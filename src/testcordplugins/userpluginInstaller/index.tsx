@@ -15,8 +15,8 @@ import { findByPropsLazy, findComponentByCodeLazy } from "@webpack";
 
 import SettingsTab from "./components/SettingsTab";
 import UserpluginInstallButton from "./components/UserpluginInstallButton";
-import { VariableWithCallbacks } from "./VariableWithCallbacks";
 import { CLONE_LINK_REGEX } from "./misc/constants";
+import { VariableWithCallbacks } from "./VariableWithCallbacks";
 
 // @ts-ignore
 export const Native = VencordNative.pluginHelpers.UserpluginInstaller as PluginNative<typeof import("./native")>;
