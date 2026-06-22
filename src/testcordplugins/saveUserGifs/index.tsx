@@ -1,17 +1,17 @@
 /*
- * TestCord, a Discord client mod
- * Copyright (c) 2024 Mixiruri
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { definePluginSettings } from "@api/Settings";
 import { addContextMenuPatch, NavContextMenuPatchCallback, removeContextMenuPatch } from "@api/ContextMenu";
 import { DataStore } from "@api/index";
+import { definePluginSettings } from "@api/Settings";
 import { Link } from "@components/Link";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { showToast, Toasts, Menu, SelectedChannelStore } from "@webpack/common";
-import { findByPropsLazy, findByCodeLazy } from "@webpack";
+import { findByCodeLazy,findByPropsLazy } from "@webpack";
+import { Menu, SelectedChannelStore,showToast, Toasts } from "@webpack/common";
 
 const TokenStore = findByPropsLazy("getToken");
 const addFavoriteGif = findByCodeLazy("favoriteGifs", "order", "updateAsync");
@@ -65,7 +65,6 @@ const settings = definePluginSettings({
 let isScanning = false;
 let currentGifsFound = 0;
 let stopRequested = false;
-
 
 // ─── HeartGifs Integration ───────────────────────────────────────────────────
 
