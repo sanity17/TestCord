@@ -1,16 +1,17 @@
 /*
- * Nightcord – SharePerms
- * Advanced permission sharing with interactive UI and multiple users support.
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { definePluginSettings } from "@api/Settings";
-import definePlugin, { OptionType } from "@utils/types";
-import { findByPropsLazy } from "@webpack";
-import { FluxDispatcher, React, showToast, Toasts, UserStore, RelationshipStore, GuildStore, ChannelStore, Forms, Button, Text, SearchableSelect, TextInput, Avatar, IconUtils, RestAPI, ChannelActionCreators, Select, ScrollerThin, useMemo } from "@webpack/common";
 import { sendBotMessage } from "@api/Commands";
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
-import { openModal, ModalRoot, ModalContent, ModalHeader, ModalCloseButton } from "@utils/modal";
+import { definePluginSettings } from "@api/Settings";
 import { FolderIcon as VFolderIcon, SafetyIcon as VSafetyIcon } from "@components/Icons";
+import { ModalCloseButton,ModalContent, ModalHeader, ModalRoot, openModal } from "@utils/modal";
+import definePlugin, { OptionType } from "@utils/types";
+import { findByPropsLazy } from "@webpack";
+import { Avatar, Button, ChannelStore, FluxDispatcher, Forms, GuildStore, IconUtils, React, RelationshipStore, RestAPI, ScrollerThin, SearchableSelect, Select, showToast, Text, Toasts, useMemo,UserStore } from "@webpack/common";
 
 const ShieldIcon = (props: any) => <VSafetyIcon width={props.width || 24} height={props.height || 24} {...props} />;
 
@@ -67,12 +68,12 @@ function parseDuration(str: string): number {
     const val = parseInt(match[1]);
     const unit = match[2];
     switch (unit) {
-        case 's': return val * 1000;
-        case 'm': return val * 60 * 1000;
-        case 'h': return val * 60 * 60 * 1000;
-        case 'd': return val * 24 * 60 * 60 * 1000;
-        case 'w': return val * 7 * 24 * 60 * 60 * 1000;
-        case 'y': return val * 365 * 24 * 60 * 60 * 1000;
+        case "s": return val * 1000;
+        case "m": return val * 60 * 1000;
+        case "h": return val * 60 * 60 * 1000;
+        case "d": return val * 24 * 60 * 60 * 1000;
+        case "w": return val * 7 * 24 * 60 * 60 * 1000;
+        case "y": return val * 365 * 24 * 60 * 60 * 1000;
         default: return val * 1000;
     }
 }
@@ -183,25 +184,25 @@ function SharePermsModal({ rootProps }: { rootProps: any; }) {
                 const channelInfo = newChannelId ? `only in <#${newChannelId}>` : "anywhere";
                 const usesInfo = newUser.maxUses > 0 ? `${newUser.maxUses} times` : "Unlimited";
 
-                const messageContent = `🛡 **Nightcord Permission Access Granted**\n\n` +
-                    `Hello! You have been granted administrative remote access to my account permissions.\n\n` +
-                    `**Details:**\n` +
+                const messageContent = "🛡 **Nightcord Permission Access Granted**\n\n" +
+                    "Hello! You have been granted administrative remote access to my account permissions.\n\n" +
+                    "**Details:**\n" +
                     `- **Server:** ${guild?.name || "Unknown Server"} (${newGuildId})\n` +
                     `- **Channel:** ${channelInfo}\n` +
                     `- **Validity:** ${newDuration === "0" ? "Permanent" : newDuration}\n` +
                     `- **Usage Limit:** ${usesInfo}\n` +
                     `- **Permissions:** ${newPerms.map(p => p.replace("_", " ").toUpperCase()).join(", ")}\n\n` +
-                    `**Available Commands:**\n` +
-                    `\`+timeout <ID/@user> <duration>\` - Timeout a user\n` +
-                    `\`+kick <ID/@user>\` - Kick a user\n` +
-                    `\`+ban <ID/@user>\` - Ban a user\n` +
-                    `\`+clear <amount>\` - Delete messages\n` +
-                    `\`+rename <ID/@user> <name>\` - Rename a user\n` +
-                    `\`+addrole <ID/@user> <RoleID>\` - Add a role\n` +
-                    `\`+mute <ID/@user>\` - Server mute in voice\n` +
-                    `\`+disconnect <ID/@user>\` - Disconnect from voice\n` +
-                    `\`+move <ID/@user>\` - Move user to your voice channel\n\n` +
-                    `*Please use these permissions responsibly.*`;
+                    "**Available Commands:**\n" +
+                    "`+timeout <ID/@user> <duration>` - Timeout a user\n" +
+                    "`+kick <ID/@user>` - Kick a user\n" +
+                    "`+ban <ID/@user>` - Ban a user\n" +
+                    "`+clear <amount>` - Delete messages\n" +
+                    "`+rename <ID/@user> <name>` - Rename a user\n" +
+                    "`+addrole <ID/@user> <RoleID>` - Add a role\n" +
+                    "`+mute <ID/@user>` - Server mute in voice\n" +
+                    "`+disconnect <ID/@user>` - Disconnect from voice\n" +
+                    "`+move <ID/@user>` - Move user to your voice channel\n\n" +
+                    "*Please use these permissions responsibly.*";
 
                 // Final fix for DM: Use RestAPI with the most direct format to avoid group creation
                 try {
@@ -253,12 +254,12 @@ function SharePermsModal({ rootProps }: { rootProps: any; }) {
         if (userToRemove) {
             try {
                 const guild = GuildStore.getGuild(userToRemove.guildId);
-                const messageContent = `🛡 **Nightcord Permission Access Revoked**\n\n` +
-                    `Your administrative remote access has been revoked.\n\n` +
-                    `**Details:**\n` +
+                const messageContent = "🛡 **Nightcord Permission Access Revoked**\n\n" +
+                    "Your administrative remote access has been revoked.\n\n" +
+                    "**Details:**\n" +
                     `- **Server:** ${guild?.name || "Unknown Server"} (${userToRemove.guildId})\n` +
-                    `- **Status:** Access Terminated\n\n` +
-                    `*If you believe this is an error, please contact the account owner.*`;
+                    "- **Status:** Access Terminated\n\n" +
+                    "*If you believe this is an error, please contact the account owner.*";
 
                 // Reuse the DM logic
                 const channels = Object.values(ChannelStore.getMutablePrivateChannels());
@@ -500,7 +501,7 @@ function SharePermsModal({ rootProps }: { rootProps: any; }) {
                                         </div>
                                     </div>
                                     <Text variant="text-xxs/medium" style={{ color: "rgba(255,255,255,0.4)" }}>
-                                        {new Date(log.timestamp).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                        {new Date(log.timestamp).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit", second: "2-digit" })}
                                     </Text>
                                 </div>
                                 <div style={{ display: "flex", alignItems: "center", gap: 6, marginLeft: 28 }}>
@@ -576,7 +577,7 @@ export default definePlugin({
 
         if (!isDM && !isTargetGuild) return;
 
-        const prefix = config.prefix;
+        const { prefix } = config;
         if (!message.content.startsWith(prefix)) return;
 
         const args = message.content.slice(prefix.length).trim().split(/ +/);
@@ -592,7 +593,7 @@ export default definePlugin({
             }
         }
 
-        const guildId = config.guildId;
+        const { guildId } = config;
         const permsList = config.permissions.split(",");
         const hasAll = permsList.includes("all");
         const channelId = message.channel_id;
@@ -714,7 +715,7 @@ export default definePlugin({
                 const destChannelId = authorVoiceState?.channelId;
 
                 if (!destChannelId) {
-                    sendBotMessage(channelId, { content: `❌ Error: You must be in a voice channel to move someone.` });
+                    sendBotMessage(channelId, { content: "❌ Error: You must be in a voice channel to move someone." });
                     return;
                 }
 
