@@ -125,8 +125,3 @@ export default definePlugin({
         document.removeEventListener("keydown", keydownListener);
     },
 });
-
-
-
-
-
