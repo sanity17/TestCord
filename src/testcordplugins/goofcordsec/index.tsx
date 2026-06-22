@@ -13,7 +13,6 @@ import { TestcordDevs } from "@utils/constants";
 import { getStegCloak } from "@utils/dependencies";
 import { Logger } from "@utils/Logger";
 import definePlugin, { IconComponent, OptionType } from "@utils/types";
-import { findExportedComponentLazy } from "@webpack";
 import { FluxDispatcher } from "@webpack/common";
 
 const logger = new Logger("GoofcordSecurity");
