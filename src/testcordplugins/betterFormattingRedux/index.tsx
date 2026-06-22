@@ -107,51 +107,51 @@ type FormatTag =
 interface FormatDef { tag: FormatTag; icon: string; tooltip: string; }
 
 const FORMATS: FormatDef[] = [
-    { tag: "bold",          icon: "B",   tooltip: "Bold" },
-    { tag: "italic",        icon: "I",   tooltip: "Italic" },
-    { tag: "underline",     icon: "U",   tooltip: "Underline" },
-    { tag: "strikethrough", icon: "S̶",  tooltip: "Strikethrough" },
-    { tag: "spoiler",       icon: "!",   tooltip: "Spoiler" },
-    { tag: "code",          icon: "<>",  tooltip: "Inline Code" },
-    { tag: "codeblock",     icon: "{ }", tooltip: "Codeblock" },
-    { tag: "blockquote",    icon: "»",   tooltip: "Blockquote" },
-    { tag: "list",          icon: "•",   tooltip: "Bullet List" },
-    { tag: "superscript",   icon: "x²",  tooltip: "Superscript" },
-    { tag: "smallcaps",     icon: "SC",  tooltip: "Small Caps" },
-    { tag: "fullwidth",     icon: "Ｆ",  tooltip: "Fullwidth" },
-    { tag: "upsidedown",    icon: "∩",   tooltip: "Upside Down" },
-    { tag: "varied",        icon: "V",   tooltip: "Varied Caps" },
-    { tag: "1337",          icon: "13",  tooltip: "Leet Speak" },
-    { tag: "thicc",         icon: "丅",   tooltip: "Extra Thicc" },
-    { tag: "uppercase",     icon: "AA",  tooltip: "UPPERCASE" },
-    { tag: "lowercase",     icon: "aa",  tooltip: "lowercase" },
-    { tag: "firstcaps",     icon: "Aa",  tooltip: "First Caps" },
+    { tag: "bold", icon: "B", tooltip: "Bold" },
+    { tag: "italic", icon: "I", tooltip: "Italic" },
+    { tag: "underline", icon: "U", tooltip: "Underline" },
+    { tag: "strikethrough", icon: "S̶", tooltip: "Strikethrough" },
+    { tag: "spoiler", icon: "!", tooltip: "Spoiler" },
+    { tag: "code", icon: "<>", tooltip: "Inline Code" },
+    { tag: "codeblock", icon: "{ }", tooltip: "Codeblock" },
+    { tag: "blockquote", icon: "»", tooltip: "Blockquote" },
+    { tag: "list", icon: "•", tooltip: "Bullet List" },
+    { tag: "superscript", icon: "x²", tooltip: "Superscript" },
+    { tag: "smallcaps", icon: "SC", tooltip: "Small Caps" },
+    { tag: "fullwidth", icon: "Ｆ", tooltip: "Fullwidth" },
+    { tag: "upsidedown", icon: "∩", tooltip: "Upside Down" },
+    { tag: "varied", icon: "V", tooltip: "Varied Caps" },
+    { tag: "1337", icon: "13", tooltip: "Leet Speak" },
+    { tag: "thicc", icon: "丅", tooltip: "Extra Thicc" },
+    { tag: "uppercase", icon: "AA", tooltip: "UPPERCASE" },
+    { tag: "lowercase", icon: "aa", tooltip: "lowercase" },
+    { tag: "firstcaps", icon: "Aa", tooltip: "First Caps" },
 ];
 
 function formatText(tag: FormatTag, text: string): string {
     switch (tag) {
-        case "bold":          return wrapOrUnwrap("**", text);
-        case "italic":        return wrapOrUnwrap("*", text);
-        case "underline":     return wrapOrUnwrap("__", text);
+        case "bold": return wrapOrUnwrap("**", text);
+        case "italic": return wrapOrUnwrap("*", text);
+        case "underline": return wrapOrUnwrap("__", text);
         case "strikethrough": return wrapOrUnwrap("~~", text);
-        case "spoiler":       return wrapOrUnwrap("||", text);
-        case "code":          return wrapOrUnwrap("`", text);
+        case "spoiler": return wrapOrUnwrap("||", text);
+        case "code": return wrapOrUnwrap("`", text);
         case "codeblock":
             if (text.startsWith("```") && text.endsWith("```")) return text.slice(3, -3).trim();
             return `\`\`\`\n${text}\n\`\`\``;
-        case "blockquote":    return mapLines("> ", text);
-        case "list":          return mapLines("- ", text);
-        case "superscript":   return mapChars(superscriptList, text);
-        case "smallcaps":     return mapChars(smallCapsList, text);
-        case "fullwidth":     return mapChars(fullwidthList, text);
-        case "upsidedown":    return mapChars(upsidedownList, text).split("").reverse().join("");
-        case "varied":        return text.split("").map((c, i) => i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()).join("");
-        case "1337":          return mapChars(leetList, text);
-        case "thicc":         return mapChars(thiccList, text);
-        case "uppercase":     return text.toUpperCase();
-        case "lowercase":     return text.toLowerCase();
-        case "firstcaps":     return text.split(" ").map(w => w.length ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
-        default:              return text;
+        case "blockquote": return mapLines("> ", text);
+        case "list": return mapLines("- ", text);
+        case "superscript": return mapChars(superscriptList, text);
+        case "smallcaps": return mapChars(smallCapsList, text);
+        case "fullwidth": return mapChars(fullwidthList, text);
+        case "upsidedown": return mapChars(upsidedownList, text).split("").reverse().join("");
+        case "varied": return text.split("").map((c, i) => i % 2 === 0 ? c.toUpperCase() : c.toLowerCase()).join("");
+        case "1337": return mapChars(leetList, text);
+        case "thicc": return mapChars(thiccList, text);
+        case "uppercase": return text.toUpperCase();
+        case "lowercase": return text.toLowerCase();
+        case "firstcaps": return text.split(" ").map(w => w.length ? w[0].toUpperCase() + w.slice(1) : w).join(" ");
+        default: return text;
     }
 }
 
