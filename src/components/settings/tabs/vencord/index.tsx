@@ -294,5 +294,3 @@ export function isVencordDonor(userId: string): boolean {
     const donorBadges = BadgeAPI.getDonorBadges(userId);
     return GuildMemberStore.getMember(VC_GUILD_ID, userId)?.roles.includes(VC_DONOR_ROLE_ID) || !!donorBadges;
 }
-
-
