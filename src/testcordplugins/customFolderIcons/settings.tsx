@@ -27,5 +27,3 @@ const settings = definePluginSettings({
     }
 });
 export default settings;
-
-
