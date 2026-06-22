@@ -7,12 +7,12 @@
 import "./style.css";
 
 import { classNameFactory } from "@api/Styles";
+import { TestcordDevs } from "@utils/constants";
 import { classes } from "@utils/misc";
 import { useForceUpdater } from "@utils/react";
 import definePlugin from "@utils/types";
 import { findComponentByCodeLazy } from "@webpack";
 import { React, useDrag, useDrop, useRef } from "@webpack/common";
-import { TestcordDevs } from "@utils/constants";
 
 const AttachmentItem = findComponentByCodeLazy(/channelId:\i,draftType:\i,upload:\i,/);
 const ItemType = "DND_ATTACHMENT";
