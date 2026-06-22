@@ -5,7 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { Devs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { ChannelStore, SelectedChannelStore } from "@webpack/common";
 
@@ -75,8 +75,3 @@ export default definePlugin({
         videoStates.clear();
     },
 });
-
-
-
-
-
