@@ -7,7 +7,7 @@
 import { ApplicationCommandInputType, ApplicationCommandOptionType } from "@api/Commands";
 import { openUserProfile } from "@utils/discord";
 import { sleep } from "@utils/misc";
-import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "@utils/modal";
+import { ModalContent, ModalFooter, ModalHeader, ModalRoot, ModalSize, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { React, Text } from "@webpack/common";
