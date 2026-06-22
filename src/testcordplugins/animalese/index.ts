@@ -5,7 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import {TestcordDevs} from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { FluxDispatcher } from "@webpack/common";
 
@@ -202,8 +202,3 @@ export default definePlugin({
         currentChannelId = null;
     },
 });
-
-
-
-
-
