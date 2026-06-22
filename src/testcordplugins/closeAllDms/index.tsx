@@ -8,17 +8,16 @@ import {
   findGroupChildrenByChildId,
   NavContextMenuPatchCallback,
 } from "@api/ContextMenu";
-import { Devs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { findByPropsLazy, findStoreLazy } from "@webpack";
 import {
   ChannelStore,
   FluxDispatcher,
+  Menu,
   showToast,
   Toasts,
-  Menu,
 } from "@webpack/common";
-import { Channel } from "@vencord/discord-types";
 
 // Find ChannelActionCreators to close DMs
 const ChannelActionCreators = findByPropsLazy(
@@ -36,7 +35,7 @@ async function closeDMWithDelay(
   channelId: string,
   delay: number
 ): Promise<void> {
-  return new Promise((resolve) => {
+  return new Promise(resolve => {
     setTimeout(() => {
       try {
         const channel = ChannelStore.getChannel(channelId);
@@ -169,8 +168,3 @@ export default definePlugin({
     "guild-context": ServerContextMenuPatch,
   },
 });
-
-
-
-
-
