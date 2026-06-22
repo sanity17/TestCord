@@ -1,3 +1,9 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import definePlugin from "@utils/types";
 import { filters, find } from "@webpack";
 import { FluxDispatcher } from "@webpack/common";
@@ -8,7 +14,7 @@ export default definePlugin({
     tags: ["Privacy", "Utility"],
     authors: [{
         name: "dxrx99",
-        id: 1463629522359423152n 
+        id: 1463629522359423152n
     },
     {
         name: "omaw",
@@ -37,7 +43,7 @@ export default definePlugin({
                 replace: "false",
             },
         },
-        
+
         {
             find: "#{intl::AGE_GATE_NSFW_BODY}",
             replacement: {
@@ -72,19 +78,18 @@ export default definePlugin({
 
         const restores: Array<() => void> = (this as any)._patchRestores = [];
 
-
         const applyMasterMask = () => {
             const user = UserStore?.getCurrentUser();
             if (!user) return;
 
-            const adultDOB = "1997-11-24"; 
+            const adultDOB = "1997-11-24";
 
             Object.defineProperties(user, {
-                
+
                 date_of_birth: { get: () => adultDOB, configurable: true },
-                ageGroup: { get: () => 1, configurable: true }, 
-                
-                ageVerificationStatus: { get: () => 3, configurable: true }, 
+                ageGroup: { get: () => 1, configurable: true },
+
+                ageVerificationStatus: { get: () => 3, configurable: true },
                 age_gate_done: { get: () => true, configurable: true },
                 underage: { get: () => false, configurable: true },
                 nsfwAllowed: { get: () => true, configurable: true },
@@ -92,8 +97,8 @@ export default definePlugin({
             });
 
             if (typeof user.flags === "number") {
-                user.flags |= 2; 
-                user.flags |= (1 << 18); 
+                user.flags |= 2;
+                user.flags |= (1 << 18);
             }
         };
 
@@ -120,7 +125,7 @@ export default definePlugin({
             InviteStore.getInvite = function(...args: any[]) {
                 const invite = originalGetInvite.apply(this, args);
                 if (invite) {
-                    invite.is_minimum_age_verified = true; 
+                    invite.is_minimum_age_verified = true;
                     invite.state = "RESOLVED";
                     if (invite.guild) {
                         invite.guild.nsfw = false;
