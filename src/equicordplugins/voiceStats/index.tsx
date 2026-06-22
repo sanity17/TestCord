@@ -9,13 +9,13 @@ import "./styles.css";
 import { get, set } from "@api/DataStore";
 import { BaseText } from "@components/BaseText";
 import ErrorBoundary from "@components/ErrorBoundary";
+import { TOTALS_MAX } from "@utils/cacheLimits";
 import { EquicordDevs } from "@utils/constants";
 import { useTimer } from "@utils/react";
 import definePlugin from "@utils/types";
 import { VoiceState } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy } from "@webpack";
 import { SelectedChannelStore, UserStore, VoiceStateStore } from "@webpack/common";
-import { TOTALS_MAX } from "@utils/cacheLimits";
 
 const wrapperClasses = findCssClassesLazy("memberSinceWrapper");
 const containerClasses = findCssClassesLazy("memberSince");
