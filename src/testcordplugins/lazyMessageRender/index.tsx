@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { enableStyle, disableStyle, setStyleClassNames } from "@api/Styles";
+import { disableStyle, enableStyle, setStyleClassNames } from "@api/Styles";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { findCssClassesLazy } from "@webpack";
