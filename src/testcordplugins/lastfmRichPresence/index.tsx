@@ -84,7 +84,7 @@ async function fetchNowPlaying(): Promise<LFMTrack | null> {
             `${LASTFM_API}/?method=user.getRecentTracks` +
             `&user=${encodeURIComponent(username)}` +
             `&api_key=${encodeURIComponent(apiKey)}` +
-            `&format=json&limit=1`
+            "&format=json&limit=1"
         );
         if (!res.ok) return null;
 
