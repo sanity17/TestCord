@@ -13,7 +13,6 @@ import { Avatar, ChannelStore, MessageStore, NavigationRouter, React, RestAPI, T
 
 import { settings } from "./index";
 import { MediaGrid, MediaItemsCache, searchMediaMessages } from "./MediaGrid";
-import styles from "./styles.css?managed";
 
 const PrivateChannelSortStore = findStoreLazy("PrivateChannelSortStore") as { getPrivateChannelIds: () => string[]; };
 
