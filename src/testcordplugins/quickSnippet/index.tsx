@@ -7,7 +7,7 @@
 import "./style.css";
 
 import { definePluginSettings } from "@api/Settings";
-import { Devs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { Button, MessageStore, useState } from "@webpack/common";
@@ -92,8 +92,3 @@ export default definePlugin({
     ],
     AppendButton: (code: CodeBlock, context: Context) => <AppendButton code={code} context={context} />
 });
-
-
-
-
-
