@@ -13,6 +13,9 @@ import definePlugin from "@utils/types";
 import { Channel, Guild, User } from "@vencord/discord-types";
 import { Menu, React } from "@webpack/common";
 
+import { HotkeyReferenceButton } from "./components/HotkeyReferenceButton";
+import { WorkspaceHost } from "./components/WorkspaceHost";
+import { WorkspaceSwitcherButton } from "./components/WorkspaceSwitcherButton";
 import {
     attachKeyListener,
     buildRouteTargetFromRouteProps,
@@ -28,13 +31,10 @@ import {
     toggleAutoLayoutMode,
     toggleScratchpadById,
 } from "./controller";
-import { HotkeyReferenceButton } from "./components/HotkeyReferenceButton";
 import { settings } from "./settings";
 import { HyprTilesStore, initializeHyprTilesStore } from "./store";
 import managedStyle from "./styles.css?managed";
 import { RouteRenderPropsLike } from "./types";
-import { WorkspaceHost } from "./components/WorkspaceHost";
-import { WorkspaceSwitcherButton } from "./components/WorkspaceSwitcherButton";
 
 type ContextMenuChildren = Array<React.ReactElement<object> | null | undefined>;
 const cl = classNameFactory("vc-hyprtiles-");
