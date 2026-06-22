@@ -26,7 +26,7 @@ import { ChannelStore, FluxDispatcher, Menu, MessageStore, Parser, SelectedChann
 
 import overlayStyle from "./deleteStyleOverlay.css?managed";
 import textStyle from "./deleteStyleText.css?managed";
-import { precomputeDiff, computeDiffAsync, DiffPart } from "./diffUtils";
+import { computeDiffAsync, DiffPart,precomputeDiff } from "./diffUtils";
 import { openHistoryModal } from "./HistoryModal";
 
 interface MLMessage extends Message {
