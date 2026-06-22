@@ -7,31 +7,30 @@
 import "./style/styles.css";
 
 import { findGroupChildrenByChildId, NavContextMenuPatchCallback } from "@api/ContextMenu";
+import { Button, TextButton } from "@components/Button";
+import { LinkIcon, OpenExternalIcon, SafetyIcon } from "@components/Icons";
 import { ModalContent, ModalFooter, ModalHeader, ModalRoot, ModalSize, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
 import { Message } from "@vencord/discord-types";
 import { Alerts, Menu, React, TextInput, useState } from "@webpack/common";
-import { Button, TextButton } from "@components/Button";
-
-import { LinkIcon, OpenExternalIcon, SafetyIcon } from "@components/Icons";
 
 import { AnalysisAccessory, handleAnalysis } from "./AnalysisAccesory";
-import { getThreat } from "./threatStore";
+import { analyzeWithCertPL } from "./analyzers/CertPL";
 import { analyzeUserWithCordCat } from "./analyzers/CordCat";
+import { analyzeWithCrtSh } from "./analyzers/CrtSh";
 import { lookDangeCord } from "./analyzers/Dangercord";
 import { analyzeDiscordInvite, isDiscordInvite } from "./analyzers/DiscordInvite";
-import { analyzeFileWithHybridAnalysis, analyzeUrlWithHybridAnalysis } from "./analyzers/HybridAnalysis";
-import { analyzeWithCertPL } from "./analyzers/CertPL";
-import { analyzeWithCrtSh } from "./analyzers/CrtSh";
 import { analyzeWithFishFish } from "./analyzers/FishFish";
+import { analyzeFileWithHybridAnalysis, analyzeUrlWithHybridAnalysis } from "./analyzers/HybridAnalysis";
+import { runModularScan } from "./analyzers/ModularScan";
 import { analyzeWithSucuri } from "./analyzers/Sucuri";
 import { analyzeWithVirusTotal } from "./analyzers/VirusTotal";
 import { analyzeWithWhereGoes } from "./analyzers/WhereGoes";
-import { runModularScan } from "./analyzers/ModularScan";
 import { autoAnalyzeMessage, extractUrlsFromMessage, manualAnalyzeUrls } from "./autoAnalyze";
-import { settings } from "./settings";
 import { getModulesSync } from "./modularScanStore";
-import { initFilters, setCustomWhitelist, setCustomBlocklist } from "./urlFilter";
+import { settings } from "./settings";
+import { getThreat } from "./threatStore";
+import { initFilters, setCustomBlocklist,setCustomWhitelist } from "./urlFilter";
 import { extractCdnFileUrls, truncateUrl } from "./utils";
 
 async function genericAnalyze(messageId: string, url: string, analyzer: (url: string, silent: boolean) => Promise<any>, silent = false) {
