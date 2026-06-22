@@ -86,17 +86,15 @@ export async function addGifToScreen() {
             gifElement.style.bottom = `${y}px`;
 
             if (!gifElement.parentNode) break;
-            await new Promise(resolve => {
+            await new Promise<void>(resolve => {
                 if (!gifElement.parentNode) return resolve();
-                gifElement.addEventListener("transitionend", resolve, { once: true });
+                gifElement.addEventListener("transitionend", () => resolve(), { once: true });
             });
         }
     };
 
     if (maxwellRunning) timeToGetReallySilly();
 }
-
-
 
 
 

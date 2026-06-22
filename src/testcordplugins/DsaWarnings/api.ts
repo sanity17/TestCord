@@ -255,7 +255,7 @@ export async function fetchActiveWarnings(parsedId: string): Promise<DsaLookupRe
                     const parsed = parseReadyResponse(parsedId, retryResult.body);
                     if (parsed) return setCache(parsedId, parsed);
                 }
-                const msg = `CordCat returned ${retryResult?.status ?? "unknown"} after captcha authentication`;
+                const msg = `CordCat returned ${retryResult?.ok ? retryResult.status : "unknown"} after captcha authentication`;
                 logger.warn(msg);
                 return setCache(parsedId, { kind: "error", error: msg });
             } catch (e) {

@@ -22,9 +22,13 @@ let currentChannelIndex: number = 0;
 let channelRotationTimer: number = 0;
 let channelRotationCountdownId: NodeJS.Timeout | null = null;
 
+interface AlertButton extends HTMLElement {
+    _alertClickHandler?: () => void;
+}
+
 // Alert system variables
 let alertAudio: { stop: () => void; } | null = null;
-let alertButton: HTMLElement | null = null;
+let alertButton: AlertButton | null = null;
 let isAlertActive = false;
 let isPaused = false;
 let alertDetectedUserId: string = "";
@@ -167,7 +171,7 @@ function removeTimerDisplay() {
 function createAlertButton() {
     if (alertButton) return alertButton;
 
-    const button = document.createElement("div");
+    const button = document.createElement("div") as AlertButton;
     button.id = "verification-alert-button";
     button.style.cssText = `
         position: fixed;

@@ -41,6 +41,7 @@ function RulesFileControl({ setValue }: { setValue(value: boolean): void; }) {
     return React.createElement(
         SettingsSection,
         {
+            id: "rulesFile",
             name: "rulesFile",
             description: "Enable JSON5 rules and auto-layout overrides. When off, HyprTiles uses the plugin layout settings only.",
             inlineSetting: true

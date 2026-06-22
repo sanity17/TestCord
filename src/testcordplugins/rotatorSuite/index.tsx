@@ -6,7 +6,7 @@ import { ModalContent, ModalFooter, ModalHeader, RenderModalProps, ModalRoot, op
 import { useForceUpdater } from "@utils/react";
 import definePlugin, { OptionType } from "@utils/types";
 import { Logger } from "@utils/Logger";
-import { findByPropsLazy } from "@webpack";
+import { findByProps, findByPropsLazy } from "@webpack";
 import { Button, Constants, Forms, React, RestAPI, TextInput, Toasts, UserStore } from "@webpack/common";
 
 const logger = new Logger("RotatorSuite");

@@ -859,7 +859,7 @@ function notifyUpdate() {
     }, 0);
 }
 
-let syncSpoofStateTimer: number | undefined;
+let syncSpoofStateTimer: ReturnType<typeof setTimeout> | undefined;
 function syncSpoofState() {
     if (syncSpoofStateTimer) return;
     syncSpoofStateTimer = setTimeout(() => {

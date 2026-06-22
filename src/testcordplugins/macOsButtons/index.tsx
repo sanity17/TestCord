@@ -84,7 +84,7 @@ const CSS = `
 
 let focusHandler: (() => void) | null = null;
 let blurHandler: (() => void) | null = null;
-let btnHandlers: { close?: (e: MouseEvent) => void; min?: (e: MouseEvent) => void; max?: (e: MouseEvent) => void; } | null = null;
+let btnHandlers: { close?: EventListener; min?: EventListener; max?: EventListener; } | null = null;
 
 function injectMacOsButtons() {
     if (document.getElementById("macos-window-controls")) return;
@@ -109,24 +109,25 @@ function injectMacOsButtons() {
     btnClose.className = "macos-btn macos-btn-close";
     btnClose.title = "Close";
     btnClose.innerHTML = "<span class=\"macos-btn-icon\"><svg width=\"6\" height=\"6\" viewBox=\"0 0 6 6\" fill=\"none\"><path d=\"M1 1L5 5M5 1L1 5\" stroke=\"#4d0000\" stroke-width=\"1.3\" stroke-linecap=\"round\"/></svg></span>";
-    (btnHandlers ??= {}).close = e => { e.stopPropagation(); Native.closeWindow(); };
-    btnClose.addEventListener("click", (btnHandlers ??= {}).close);
+    const handlers = btnHandlers ??= {};
+    handlers.close = e => { e.stopPropagation(); Native.closeWindow(); };
+    btnClose.addEventListener("click", handlers.close);
 
     // Yellow — Minimize
     const btnMin = document.createElement("button");
     btnMin.className = "macos-btn macos-btn-min";
     btnMin.title = "Minimize";
     btnMin.innerHTML = "<span class=\"macos-btn-icon\"><svg width=\"7\" height=\"2\" viewBox=\"0 0 7 2\" fill=\"none\"><path d=\"M0.5 1H6.5\" stroke=\"#6d4c00\" stroke-width=\"1.3\" stroke-linecap=\"round\"/></svg></span>";
-    (btnHandlers ??= {}).min = e => { e.stopPropagation(); Native.minimizeWindow(); };
-    btnMin.addEventListener("click", btnHandlers.min);
+    handlers.min = e => { e.stopPropagation(); Native.minimizeWindow(); };
+    btnMin.addEventListener("click", handlers.min);
 
     // Green — Maximize
     const btnMax = document.createElement("button");
     btnMax.className = "macos-btn macos-btn-max";
     btnMax.title = "Maximize / Restore";
     btnMax.innerHTML = "<span class=\"macos-btn-icon\"><svg width=\"7\" height=\"7\" viewBox=\"0 0 7 7\" fill=\"none\"><path d=\"M1 6L6 1M1 3.5V1H3.5M3.5 6H6V3.5\" stroke=\"#0a3a00\" stroke-width=\"1.2\" stroke-linecap=\"round\" stroke-linejoin=\"round\"/></svg></span>";
-    (btnHandlers ??= {}).max = e => { e.stopPropagation(); Native.maximizeWindow(); };
-    btnMax.addEventListener("click", btnHandlers.max);
+    handlers.max = e => { e.stopPropagation(); Native.maximizeWindow(); };
+    btnMax.addEventListener("click", handlers.max);
 
     container.appendChild(btnClose);
     container.appendChild(btnMin);
@@ -168,11 +169,12 @@ function pushToolbarLeft() {
 function removeMacOsButtons() {
     const container = document.getElementById("macos-window-controls");
     if (container && btnHandlers) {
+        const handlers = btnHandlers;
         const btns = container.querySelectorAll("button");
         btns.forEach(btn => {
-            if (btnHandlers.close) btn.removeEventListener("click", btnHandlers.close);
-            if (btnHandlers.min) btn.removeEventListener("click", btnHandlers.min);
-            if (btnHandlers.max) btn.removeEventListener("click", btnHandlers.max);
+            if (handlers.close) btn.removeEventListener("click", handlers.close);
+            if (handlers.min) btn.removeEventListener("click", handlers.min);
+            if (handlers.max) btn.removeEventListener("click", handlers.max);
         });
     }
     btnHandlers = null;
