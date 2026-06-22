@@ -5,12 +5,11 @@
  */
 
 import { copyToClipboard } from "@utils/clipboard";
-import { Devs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { User } from "@vencord/discord-types";
 import { findByCodeLazy } from "@webpack";
 import { Toasts } from "@webpack/common";
-
 
 interface MakeContextMenuProps {
     user: User,
@@ -67,8 +66,3 @@ export default definePlugin({
         };
     }
 });
-
-
-
-
-
