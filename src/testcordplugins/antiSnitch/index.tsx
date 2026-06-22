@@ -1,9 +1,15 @@
-import definePlugin, { OptionType } from "@utils/types";
-import { TestcordDevs } from "@utils/constants";
-import { Toasts, FluxDispatcher, UserStore } from "@webpack/common";
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
 import { definePluginSettings } from "@api/Settings";
-import { findStoreLazy } from "@webpack";
+import { TestcordDevs } from "@utils/constants";
 import { makeLazy } from "@utils/lazy";
+import definePlugin, { OptionType } from "@utils/types";
+import { findStoreLazy } from "@webpack";
+import { FluxDispatcher, Toasts, UserStore } from "@webpack/common";
 
 const VoiceStateStore = findStoreLazy("VoiceStateStore");
 
@@ -38,8 +44,7 @@ export default definePlugin({
     }
 });
 
-
-const cb = (e) => {
+const cb = e => {
     const state = e.voiceStates[0];
     if (!state?.channelId) return;
     if (state.userId === UserStore.getCurrentUser().id || !state.userId) return;
@@ -65,7 +70,6 @@ const cb = (e) => {
         audio();
     }
 };
-
 
 function audio() {
     const audioElement = document.createElement("audio");
