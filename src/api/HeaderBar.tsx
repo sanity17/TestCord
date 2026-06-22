@@ -249,8 +249,6 @@ export function _addChannelToolbarButtons(toolbar: ReactNode[]) {
     toolbar.push(<ChannelToolbarButtons key="vc-channel-toolbar-buttons" />);
 }
 
-
-
 // ══════════════════════════════════════════════════════════════════
 // STEALTH MODE (Nightcord compat) — exposed for plugins that hide UI
 // ══════════════════════════════════════════════════════════════════
