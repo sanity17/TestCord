@@ -9,7 +9,7 @@ import "./style.css";
 import { definePluginSettings } from "@api/Settings";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
-import { FluxDispatcher, Forms, React, TextInput, UserStore, RestAPI } from "@webpack/common";
+import { FluxDispatcher, Forms, React, RestAPI,TextInput, UserStore } from "@webpack/common";
 
 interface AutoReactRule {
     triggerWord: string;
