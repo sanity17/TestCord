@@ -5,7 +5,7 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { Devs, EquicordDevs, TestcordDevs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import { humanFriendlyJoin } from "@utils/text";
 import definePlugin, { OptionType } from "@utils/types";
 import { Message, User } from "@vencord/discord-types";
@@ -152,8 +152,3 @@ export default definePlugin({
         },
     },
 });
-
-
-
-
-
