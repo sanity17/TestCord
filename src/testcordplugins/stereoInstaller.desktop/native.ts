@@ -7,7 +7,6 @@
 import { VENCORD_USER_AGENT } from "@shared/vencordUserAgent";
 import { spawn } from "child_process";
 import { app, dialog, type IpcMainInvokeEvent } from "electron";
-
 import { appendFileSync, constants, type Dirent, existsSync, mkdirSync } from "fs";
 import { access, chmod, cp, mkdir, readdir, readFile, rm, stat, writeFile } from "fs/promises";
 import { arch, homedir, platform as osPlatform, release } from "os";
