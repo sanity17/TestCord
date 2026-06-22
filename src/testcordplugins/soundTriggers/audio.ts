@@ -52,5 +52,3 @@ const playTrigger = async (trigger: SoundTrigger): Promise<void> => {
         audio.play();
     });
 };
-
-
