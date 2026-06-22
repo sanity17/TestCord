@@ -16,9 +16,9 @@
  * along with this program.  If not, see <https://www.gnu.org/licenses/>.
 */
 
+import type { ModalProps, RenderModalProps } from "@vencord/discord-types";
 import { filters, findComponentByCodeLazy, mapMangledModuleLazy } from "@webpack";
 import { closeAllModals, closeModal, openMediaModal, openModal, openModalLazy } from "@webpack/common";
-import type { ModalProps, RenderModalProps } from "@vencord/discord-types";
 
 import { LazyComponent } from "./react";
 
