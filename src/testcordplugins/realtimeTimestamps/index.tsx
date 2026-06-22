@@ -6,7 +6,7 @@
 
 import { definePluginSettings } from "@api/Settings";
 import definePlugin, { OptionType } from "@utils/types";
-import { moment, useCallback, useEffect, useReducer } from "@webpack/common";
+import { moment, useEffect, useReducer } from "@webpack/common";
 
 // ─── Settings ────────────────────────────────────────────────────────────────
 
