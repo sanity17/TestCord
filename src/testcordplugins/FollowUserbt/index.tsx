@@ -10,7 +10,7 @@ import { UserAreaButton, UserAreaRenderProps } from "@api/UserArea";
 import { EquicordDevs } from "@utils/constants";
 import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSize, openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
-import { Channel, User, VoiceState } from "@vencord/discord-types";
+import { VoiceState } from "@vencord/discord-types";
 import { findByPropsLazy } from "@webpack";
 import { Button, ChannelStore, GuildStore, Menu, React, RelationshipStore, Toasts, UserStore, VoiceStateStore } from "@webpack/common";
 
@@ -586,7 +586,7 @@ export default definePlugin({
                     (voiceState as any).oldChannelId &&
                     (voiceState as any).oldChannelId === followedUserInfo.lastChannelId &&
                     currentUserVoiceState?.channelId !== followedUserInfo.lastChannelId &&
-                    followedUserCurrentVs?.channelId === followedUserInfo.lastChannelId  // ← follower must still be there
+                    followedUserCurrentVs?.channelId === followedUserInfo.lastChannelId // ← follower must still be there
                 ) {
                     voiceChannelAction.selectVoiceChannel(followedUserInfo.lastChannelId);
                     if (settings.store.showToasts) {
