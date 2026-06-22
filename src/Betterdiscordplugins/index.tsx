@@ -1,12 +1,14 @@
 /*
- * Testcord BetterDiscord Plugin Manager
- * This plugin manages BD plugin settings and provides the global API
+ * Vencord, a Discord client mod
+ * Copyright (c) 2026 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import definePlugin from "@utils/types";
 import { Logger } from "@utils/Logger";
-import { BDPluginManager } from "./PluginManager";
+import definePlugin from "@utils/types";
+
 import { bundledPlugins } from "./bundledPlugins";
+import { BDPluginManager } from "./PluginManager";
 
 const logger = new Logger("BetterDiscordPlugins", "#ff7373");
 
