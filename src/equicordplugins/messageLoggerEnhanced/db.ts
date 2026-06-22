@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { CACHED_MESSAGES_MAX } from "@utils/cacheLimits";
 import { ChannelStore, Toasts } from "@webpack/common";
 import { DBSchema, IDBPDatabase, openDB } from "idb";
 
@@ -12,7 +13,6 @@ import { getMessageStatus } from "./utils";
 import { stripTransientRenderState } from "./utils/cleanUp";
 import { DB_NAME, DB_VERSION } from "./utils/constants";
 import { getAttachmentBlobUrl } from "./utils/saveImage";
-import { CACHED_MESSAGES_MAX } from "@utils/cacheLimits";
 
 export enum DBMessageStatus {
     DELETED = "DELETED",
