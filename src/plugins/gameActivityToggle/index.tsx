@@ -22,9 +22,9 @@ import { UserAreaButton, UserAreaRenderProps } from "@api/UserArea";
 import { getUserSettingLazy } from "@api/UserSettings";
 import testcordToolbox from "@testcordplugins/testcordToolbox";
 import { Devs } from "@utils/constants";
+import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Menu } from "@webpack/common";
-import { TestcordDevs } from "@utils/constants";
 
 const ShowCurrentGame = getUserSettingLazy<boolean>("status", "showCurrentGame")!;
 
@@ -88,8 +88,8 @@ function GameActivityToggleButton({ iconForeground, hideTooltips, nameplate }: U
             className="button__201d5 wrapper__201d5"
             tooltipText={hideTooltips ? void 0 : showCurrentGame ? "Disable Game Activity" : "Enable Game Activity"}
             role="switch"
-            aria-checked={showCurrentGame} 
-            redGlow={!showCurrentGame} 
+            aria-checked={showCurrentGame}
+            redGlow={!showCurrentGame}
             plated={nameplate != null}
             onClick={() => ShowCurrentGame.updateSetting(old => !old)}
             icon={<Icon className={iconForeground} />}
