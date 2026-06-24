@@ -18,110 +18,48 @@
 
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Channel, User } from "@vencord/discord-types";
-import { ChannelStore, GuildStore, React, UserStore } from "@webpack/common";
 import { JSX } from "react";
-
-import { isPluginEnabled, plugins } from "./PluginManager";
 
 export type DecoratorProps = {
     type: "guild" | "dm";
-    user?: User;
+    user: User;
     /** only present when this is a DM list item */
-    channel?: Channel;
+    channel: Channel;
     /** only present when this is a guild list item */
-    isOwner?: boolean;
-};
-
-type RawDecoratorProps = Partial<DecoratorProps> & {
-    userId?: string;
-    member?: {
-        user?: User;
-        userId?: string;
-    };
-    guildId?: string;
-    channelId?: string;
-    guild?: {
-        ownerId?: string;
-    };
+    isOwner: boolean;
 };
 
 export type MemberListDecoratorFactory = (props: DecoratorProps) => JSX.Element | null;
 type OnlyIn = "guilds" | "dms";
 
 export const decoratorsFactories = new Map<string, { render: MemberListDecoratorFactory, onlyIn?: OnlyIn; }>();
-const listeners = new Set<() => void>();
-let syncedPluginDecorators = false;
-const decoratorPriorities: Record<string, number> = {
-    MoreUserTags: -20,
-    PlatformIndicators: -10,
-};
-
-function emitChange() {
-    for (const listener of listeners) listener();
-}
 
 export function addMemberListDecorator(identifier: string, render: MemberListDecoratorFactory, onlyIn?: OnlyIn) {
     decoratorsFactories.set(identifier, { render, onlyIn });
-    emitChange();
 }
 
 export function removeMemberListDecorator(identifier: string) {
     decoratorsFactories.delete(identifier);
-    emitChange();
 }
 
-function normalizeProps(props: RawDecoratorProps, type: "guild" | "dm"): DecoratorProps {
-    const userId = props.user?.id ?? props.userId ?? props.member?.user?.id ?? props.member?.userId ?? props.channel?.recipients?.[0];
-    const user = props.user ?? props.member?.user ?? (userId ? UserStore.getUser(userId) : undefined);
-    const channel = props.channel ?? (props.channelId ? ChannelStore.getChannel(props.channelId) : undefined);
-    const guildId = props.guildId ?? channel?.guild_id;
-    const isOwner = props.isOwner ?? (user ? (props.guild?.ownerId ?? (guildId ? GuildStore.getGuild(guildId)?.ownerId : undefined)) === user.id : false);
-
-    return { ...props, type, user, channel, isOwner };
-}
-
-export function __getDecorators(props: RawDecoratorProps, type: "guild" | "dm"): JSX.Element {
-    syncPluginDecorators();
-    return <MemberListDecorators props={props} type={type} />;
-}
-
-function syncPluginDecorators() {
-    if (syncedPluginDecorators) return;
-    syncedPluginDecorators = true;
-
-    for (const [name, plugin] of Object.entries(plugins)) {
-        if (name === "MemberListDecoratorsAPI" || !isPluginEnabled(name) || decoratorsFactories.has(name)) continue;
-        if (plugin.renderMemberListDecorator) decoratorsFactories.set(name, { render: plugin.renderMemberListDecorator });
-    }
-}
-
-function MemberListDecorators({ props, type }: { props: RawDecoratorProps; type: "guild" | "dm"; }) {
-    const [, forceUpdate] = React.useReducer(x => x + 1, 0);
-
-    React.useEffect(() => {
-        listeners.add(forceUpdate);
-        return () => void listeners.delete(forceUpdate);
-    }, []);
-
-    const normalizedProps = normalizeProps(props, type);
+export function __getDecorators(props: DecoratorProps, type: "guild" | "dm"): JSX.Element {
     const decorators = Array.from(
-        Array.from(decoratorsFactories.entries())
-            .sort(([a], [b]) => (decoratorPriorities[a] ?? 0) - (decoratorPriorities[b] ?? 0)),
+        decoratorsFactories.entries(),
         ([key, { render: Decorator, onlyIn }]) => {
             if ((onlyIn === "guilds" && type !== "guild") || (onlyIn === "dms" && type !== "dm"))
                 return null;
 
             return (
                 <ErrorBoundary noop key={key} message={`Failed to render ${key} Member List Decorator`}>
-                    <Decorator {...normalizedProps} />
+                    <Decorator {...props} type={type} />
                 </ErrorBoundary>
             );
         }
     );
 
     return (
-        <span className="vc-member-list-decorators-wrapper" data-op-member-list-decorator="true">
+        <div className="vc-member-list-decorators-wrapper">
             {decorators}
-        </span>
+        </div>
     );
 }

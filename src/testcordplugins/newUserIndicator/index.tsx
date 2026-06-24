@@ -83,7 +83,7 @@ export default definePlugin({
         );
         addMemberListDecorator("newuser-indicator", props =>
             <ErrorBoundary noop>
-                {props.user ? checkUser(props.user, "decorators") : null}
+                {checkUser(props.user, "decorators")}
             </ErrorBoundary>
         );
 

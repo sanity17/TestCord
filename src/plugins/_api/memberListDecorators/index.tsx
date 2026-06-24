@@ -18,70 +18,26 @@
 
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
-import { find } from "@webpack";
-import { React } from "@webpack/common";
 
 import managedStyle from "./style.css?managed";
-
-interface DiscordMemberDecorators {
-    type?: (props: Record<string, unknown>) => React.ReactNode;
-    __vcMemberListDecoratorsOriginal?: (props: Record<string, unknown>) => React.ReactNode;
-}
-
-interface ReactElementLike {
-    type?: React.ElementType;
-    props?: {
-        children?: React.ReactNode | React.ReactNode[];
-    } & Record<string, unknown>;
-}
-
-function injectAfterBotTag(originalOutput: React.ReactNode, props: Record<string, unknown>) {
-    const customDecorators = Vencord.Api.MemberListDecorators.__getDecorators(props, "guild");
-
-    if (typeof originalOutput !== "object" || originalOutput === null || !("props" in originalOutput)) {
-        return <>{originalOutput}{customDecorators}</>;
-    }
-
-    const element = originalOutput as ReactElementLike;
-    const elementProps = element.props;
-    const children = elementProps?.children;
-    if (!element.type || !elementProps || !Array.isArray(children)) {
-        return <>{originalOutput}{customDecorators}</>;
-    }
-
-    const [botTag, ...rest] = children;
-    const { children: originalChildren, ...propsWithoutChildren } = elementProps;
-    return React.createElement(element.type, propsWithoutChildren, botTag, customDecorators, ...rest);
-}
 
 export default definePlugin({
     name: "MemberListDecoratorsAPI",
     description: "API to add decorators to member list (both in servers and DMs)",
     authors: [Devs.TheSun, Devs.Ven],
-    required: true,
 
     managedStyle,
 
-    start() {
-        const decorators = find(m => m?.$$typeof && typeof m.type === "function" && String(m.type).includes("lostPermissionTooltipText"), { isIndirect: true }) as DiscordMemberDecorators | undefined;
-        if (!decorators?.type || decorators.__vcMemberListDecoratorsOriginal) return;
-
-        const original = decorators.type;
-        decorators.__vcMemberListDecoratorsOriginal = original;
-        decorators.type = function MemberListDecoratorsWrapper(props) {
-            return injectAfterBotTag(original(props), props);
-        };
-    },
-
-    stop() {
-        const decorators = find(m => m?.$$typeof && typeof m.type === "function" && "__vcMemberListDecoratorsOriginal" in m, { isIndirect: true }) as DiscordMemberDecorators | undefined;
-        if (decorators?.__vcMemberListDecoratorsOriginal) {
-            decorators.type = decorators.__vcMemberListDecoratorsOriginal;
-            delete decorators.__vcMemberListDecoratorsOriginal;
-        }
-    },
-
     patches: [
+        {
+            find: "#{intl::GUILD_OWNER}),children:",
+            replacement: [
+                {
+                    match: /children:\[(?=.{0,300},lostPermissionTooltipText:)/,
+                    replace: "children:[Vencord.Api.MemberListDecorators.__getDecorators(arguments[0],'guild'),"
+                }
+            ]
+        },
         {
             find: "PrivateChannel.renderAvatar",
             replacement: {

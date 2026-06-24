@@ -129,7 +129,7 @@ function useEnsureOwnStatus(user: User) {
 }
 
 interface PlatformIndicatorProps {
-    user?: User;
+    user: User;
     isProfile?: boolean;
     isMessage?: boolean;
     isMemberList?: boolean;
