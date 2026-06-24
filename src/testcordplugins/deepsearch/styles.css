@@ -246,6 +246,10 @@
 .vc-deepsearch-results-header {
     padding: 8px 18px;
     flex-shrink: 0;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
 }
 
 .vc-deepsearch-results-stats {
@@ -253,12 +257,29 @@
     color: #888 !important;
 }
 
+.vc-deepsearch-export {
+    background: #2a2a3e;
+    color: #ddd !important;
+    border: 1px solid #3a3a4e;
+    border-radius: 6px;
+    padding: 4px 10px;
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    flex-shrink: 0;
+}
+
+.vc-deepsearch-export:hover {
+    background: #3a3a4e;
+    color: white !important;
+}
+
 .vc-deepsearch-results {
     flex: 1;
     overflow-y: auto;
     padding: 0 18px 18px;
     scrollbar-width: thin;
-    scrollbar-color: rgba(255, 255, 255, 0.1) transparent;
+    scrollbar-color: rgb(255 255 255 / 10%) transparent;
 }
 
 .vc-deepsearch-results::-webkit-scrollbar {
@@ -270,7 +291,7 @@
 }
 
 .vc-deepsearch-results::-webkit-scrollbar-thumb {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgb(255 255 255 / 10%);
     border-radius: 3px;
 }
 
@@ -359,7 +380,7 @@
     font-size: 11px;
     font-weight: 600;
     color: #faa61a !important;
-    background: rgba(250, 166, 26, 0.15);
+    background: rgb(250 166 26 / 15%);
     padding: 1px 6px;
     border-radius: 4px;
 }
@@ -376,12 +397,11 @@
     font-size: 13px;
     line-height: 1.5;
     color: #ddd !important;
-    word-wrap: break-word;
     overflow-wrap: anywhere;
 }
 
 .vc-deepsearch-highlight {
-    background: rgba(250, 166, 26, 0.35);
+    background: rgb(250 166 26 / 35%);
     color: white !important;
     border-radius: 2px;
     padding: 0 1px;
@@ -405,5 +425,5 @@
 
 .vc-deepsearch-result-badge-link {
     color: #58a6ff !important;
-    background: rgba(88, 166, 255, 0.12);
+    background: rgb(88 166 255 / 12%);
 }

@@ -5,6 +5,7 @@
  */
 
 import { DataStore } from "@api/index";
+import { sleep } from "@utils/misc";
 import type { Channel, Message, User } from "@vencord/discord-types";
 import { Constants, RestAPI, UserStore } from "@webpack/common";
 
@@ -176,7 +177,8 @@ export async function deepSearch(
     guildId: string,
     content: string,
     filters: FilterState,
-    limit: number = 100
+    limit: number = 100,
+    onProgress?: (results: SearchResult[]) => void
 ): Promise<SearchResult[]> {
     const cacheKey = getCacheKey(guildId, content, filters);
     const cached = await getCachedResults(cacheKey);
@@ -201,6 +203,8 @@ export async function deepSearch(
             const { body } = response;
             if (!body?.messages || body.messages.length === 0) break;
 
+            const resultCountBeforePage = results.length;
+
             for (const group of body.messages) {
                 for (const msg of group) {
                     const msgId = msg.id;
@@ -224,13 +228,15 @@ export async function deepSearch(
                 if (results.length >= limit) break;
             }
 
+            if (results.length !== resultCountBeforePage) onProgress?.(results.slice());
+
             const totalResults = body.total_results ?? 0;
             if (offset + pageSize >= totalResults) break;
             if (body.messages.length < pageSize) break;
             offset += pageSize;
         } catch (e: any) {
             if (e?.status === 429) {
-                await new Promise(r => setTimeout(r, 1000));
+                await sleep(1000);
                 continue;
             }
             break;

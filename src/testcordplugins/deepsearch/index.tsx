@@ -11,7 +11,7 @@ import { definePluginSettings } from "@api/Settings";
 import { TestcordDevs } from "@utils/constants";
 import { openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
-import { useRef, useState } from "@webpack/common";
+import { useState } from "@webpack/common";
 
 import { DeepSearchModal } from "./SearchModal";
 
@@ -25,11 +25,9 @@ function SearchIcon(props: React.SVGProps<SVGSVGElement>) {
 
 function DeepSearchButton() {
     const [active, setActive] = useState(false);
-    const buttonRef = useRef<HTMLDivElement>(null);
 
     return (
         <ChannelToolbarButton
-            ref={buttonRef}
             icon={SearchIcon}
             tooltip="Deep Search"
             selected={active}
@@ -72,7 +70,7 @@ export default definePlugin({
     name: "DeepSearch",
     description: "Advanced message search with filters for links, authors, channels, dates, and more",
     authors: [TestcordDevs.x2b],
-    tags: ["search", "messages", "filter"],
+    tags: ["Chat", "Utility"],
     settings,
     dependencies: ["HeaderBarAPI"],
     headerBarButton: {

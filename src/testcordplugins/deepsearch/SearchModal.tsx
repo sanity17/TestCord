@@ -4,8 +4,10 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { showNotification } from "@api/Notifications";
 import { classNameFactory } from "@utils/css";
-import { ModalCloseButton, ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize } from "@utils/modal";
+import { ModalCloseButton, ModalContent, ModalHeader, ModalRoot, ModalSize, RenderModalProps } from "@utils/modal";
+import { saveFile } from "@utils/web";
 import { ChannelStore, GuildStore, NavigationRouter, React, SelectedGuildStore, useCallback, useEffect, useRef, useState } from "@webpack/common";
 
 import { settings } from "./index";
@@ -103,6 +105,42 @@ function formatMessagePreview(message: any): string {
     return "No text content";
 }
 
+function formatSearchResultsForExport(results: SearchResult[], query: string, guildId: string | undefined): string {
+    const lines = [
+        "Deep Search results",
+        `Exported: ${new Date().toLocaleString()}`,
+        `Query: ${query.trim() || "Filters only"}`,
+        `Results: ${results.length}`,
+        ""
+    ];
+
+    for (const [index, result] of results.entries()) {
+        const { message, user, matchedUrls } = result;
+        const channel = ChannelStore.getChannel(message.channel_id);
+        const author = user?.globalName || user?.username || message.author?.username || "Unknown";
+        const channelName = channel?.name || message.channel_id;
+        const messageGuildId = guildId || result.channel.guild_id || "@me";
+
+        lines.push(`${index + 1}. [${formatTimestamp(message.timestamp) || "Unknown time"}] ${author} in #${channelName}`);
+        lines.push(formatMessagePreview(message));
+        lines.push(`Message: https://discord.com/channels/${messageGuildId}/${message.channel_id}/${message.id}`);
+
+        if (message.attachments?.length > 0) {
+            lines.push("Attachments:");
+            for (const attachment of message.attachments) lines.push(`- ${attachment.filename} (${attachment.url})`);
+        }
+
+        if (matchedUrls.length > 0) {
+            lines.push("Links:");
+            for (const url of matchedUrls) lines.push(`- ${url}`);
+        }
+
+        lines.push("");
+    }
+
+    return lines.join("\n");
+}
+
 function SearchResultItem({
     result,
     query,
@@ -177,7 +215,7 @@ function SearchResultItem({
     );
 }
 
-export function DeepSearchModal({ rootProps }: { rootProps: ModalProps; }) {
+export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; }) {
     const [query, setQuery] = useState("");
     const [filters, setFilters] = useState<FilterState>({ ...DEFAULT_FILTERS });
     const [results, setResults] = useState<SearchResult[]>([]);
@@ -187,6 +225,7 @@ export function DeepSearchModal({ rootProps }: { rootProps: ModalProps; }) {
     const [loaded, setLoaded] = useState(false);
     const searchInputRef = useRef<HTMLInputElement>(null);
     const resultsRef = useRef<HTMLDivElement>(null);
+    const searchRunIdRef = useRef(0);
 
     const currentGuildId = SelectedGuildStore.getGuildId() as string | undefined;
 
@@ -208,27 +247,56 @@ export function DeepSearchModal({ rootProps }: { rootProps: ModalProps; }) {
 
     const doSearch = useCallback(async (q: string, f: FilterState) => {
         if (!currentGuildId) return;
+        const searchRunId = ++searchRunIdRef.current;
         const trimmed = q.trim();
         const hasAnyFilter = f.authorId || f.channelId || f.mentions ||
             f.hasAttachments || f.hasEmbeds || f.isPinned ||
             f.linkDomain || f.linkContains || f.dateFrom || f.dateTo;
         if (!trimmed && !hasAnyFilter) {
             setResults([]);
+            setSelectedIndex(-1);
+            setLoading(false);
             return;
         }
 
         setLoading(true);
         setSelectedIndex(-1);
+        setResults([]);
         try {
-            const res = await deepSearch(currentGuildId, trimmed, f, settings.store.maxResults ?? 100);
-            setResults(res);
+            const res = await deepSearch(currentGuildId, trimmed, f, settings.store.maxResults ?? 100, progress => {
+                if (searchRunIdRef.current === searchRunId) setResults(progress);
+            });
+            if (searchRunIdRef.current === searchRunId) setResults(res);
         } catch (e) {
             console.error("[DeepSearch] Search failed:", e);
-            setResults([]);
+            if (searchRunIdRef.current === searchRunId) setResults([]);
         } finally {
-            setLoading(false);
+            if (searchRunIdRef.current === searchRunId) setLoading(false);
         }
     }, [currentGuildId]);
+
+    const exportResults = useCallback(async () => {
+        if (results.length === 0) {
+            showNotification({ title: "Deep Search", body: "No search results to export." });
+            return;
+        }
+
+        const filename = `deepsearch-results-${new Date().toISOString().split("T")[0]}.txt`;
+        const content = formatSearchResultsForExport(results, query, currentGuildId);
+
+        try {
+            if (IS_DISCORD_DESKTOP) {
+                const data = new TextEncoder().encode(content);
+                await DiscordNative.fileManager.saveWithDialog(data, filename);
+            } else {
+                saveFile(new File([content], filename, { type: "text/plain" }));
+            }
+
+            showNotification({ title: "Deep Search", body: `Saved search results as ${filename}.` });
+        } catch {
+            showNotification({ title: "Deep Search", body: "Failed to export search results." });
+        }
+    }, [currentGuildId, query, results]);
 
     // Save query and run search on changes (debounced)
     useEffect(() => {
@@ -315,7 +383,13 @@ export function DeepSearchModal({ rootProps }: { rootProps: ModalProps; }) {
                             {query && (
                                 <button
                                     className={cl("search-clear")}
-                                    onClick={() => { setQuery(""); setResults([]); }}
+                                    onClick={() => {
+                                        searchRunIdRef.current++;
+                                        setQuery("");
+                                        setResults([]);
+                                        setSelectedIndex(-1);
+                                        setLoading(false);
+                                    }}
                                 >
                                     X
                                 </button>
@@ -418,6 +492,11 @@ export function DeepSearchModal({ rootProps }: { rootProps: ModalProps; }) {
                             <span className={cl("results-stats")}>No results found</span>
                         ) : (
                             <span className={cl("results-stats")}>Type a query or select filters to search</span>
+                        )}
+                        {results.length > 0 && (
+                            <button className={cl("export")} onClick={exportResults}>
+                                Export .txt
+                            </button>
                         )}
                     </div>
 
