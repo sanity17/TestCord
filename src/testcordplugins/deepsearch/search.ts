@@ -24,6 +24,8 @@ export interface FilterState {
     includeNSFW: boolean;
     linkDomain: string | null;
     linkContains: string | null;
+    excludeKeywords: string | null;
+    excludeDomains: string | null;
     dateFrom: string | null;
     dateTo: string | null;
 }
@@ -69,6 +71,10 @@ function extractUrls(text: string): string[] {
     return (text.match(LINK_REGEX) || []).map(url => url.replace(/[.,;:!?)\]]+$/, ""));
 }
 
+function parseList(value: string | null): string[] {
+    return value?.split(",").map(item => item.trim().toLowerCase()).filter(Boolean) ?? [];
+}
+
 function messagePassesLinkFilters(message: Message, filters: FilterState): boolean {
     const urls = extractUrls(message.content || "");
     if (urls.length === 0) {
@@ -102,6 +108,24 @@ function messagePassesClientFilters(message: Message, filters: FilterState): boo
     if (filters.isPinned && !message.pinned) return false;
     if (!messagePassesLinkFilters(message, filters)) return false;
 
+    const content = (message.content || "").toLowerCase();
+    if (parseList(filters.excludeKeywords).some(keyword => content.includes(keyword))) return false;
+
+    const excludedDomains = parseList(filters.excludeDomains);
+    if (excludedDomains.length > 0) {
+        const urls = extractUrls(message.content || "");
+        const hasExcludedDomain = urls.some(url => {
+            try {
+                const hostname = new URL(url).hostname.toLowerCase();
+                return excludedDomains.some(domain => hostname.includes(domain));
+            } catch {
+                const normalizedUrl = url.toLowerCase();
+                return excludedDomains.some(domain => normalizedUrl.includes(domain));
+            }
+        });
+        if (hasExcludedDomain) return false;
+    }
+
     if (filters.dateFrom || filters.dateTo) {
         const msgTime = new Date(message.timestamp).getTime();
         if (isNaN(msgTime)) return false;
@@ -129,6 +153,8 @@ function getCacheKey(guildId: string, content: string, filters: FilterState): st
         an: filters.includeNSFW,
         ld: filters.linkDomain,
         lc: filters.linkContains,
+        xk: filters.excludeKeywords,
+        xd: filters.excludeDomains,
         df: filters.dateFrom,
         dt: filters.dateTo
     });
@@ -188,7 +214,7 @@ export async function deepSearch(
     const seen = new Set<string>();
     let offset = 0;
     const pageSize = 25;
-    const hasClientSideFilters = filters.hasAttachments || filters.hasEmbeds || filters.isPinned || filters.linkDomain || filters.linkContains || filters.dateFrom || filters.dateTo;
+    const hasClientSideFilters = filters.hasAttachments || filters.hasEmbeds || filters.isPinned || filters.linkDomain || filters.linkContains || filters.excludeKeywords || filters.excludeDomains || filters.dateFrom || filters.dateTo;
 
     while (results.length < limit && offset < 5000) {
         const query = buildApiQuery(filters, content, offset);

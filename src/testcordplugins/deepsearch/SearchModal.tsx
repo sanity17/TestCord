@@ -25,6 +25,8 @@ const DEFAULT_FILTERS: FilterState = {
     includeNSFW: false,
     linkDomain: null,
     linkContains: null,
+    excludeKeywords: null,
+    excludeDomains: null,
     dateFrom: null,
     dateTo: null
 };
@@ -235,8 +237,9 @@ export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; })
             const saved = await loadLastQuery();
             if (saved) {
                 setQuery(saved.query);
-                setFilters(saved.filters);
-                if (saved.filters.linkDomain || saved.filters.linkContains || saved.filters.dateFrom || saved.filters.dateTo) {
+                const savedFilters = { ...DEFAULT_FILTERS, ...saved.filters };
+                setFilters(savedFilters);
+                if (savedFilters.linkDomain || savedFilters.linkContains || savedFilters.excludeKeywords || savedFilters.excludeDomains || savedFilters.dateFrom || savedFilters.dateTo) {
                     setShowAdvanced(true);
                 }
             }
@@ -251,7 +254,7 @@ export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; })
         const trimmed = q.trim();
         const hasAnyFilter = f.authorId || f.channelId || f.mentions ||
             f.hasAttachments || f.hasEmbeds || f.isPinned ||
-            f.linkDomain || f.linkContains || f.dateFrom || f.dateTo;
+            f.linkDomain || f.linkContains || f.excludeKeywords || f.excludeDomains || f.dateFrom || f.dateTo;
         if (!trimmed && !hasAnyFilter) {
             setResults([]);
             setSelectedIndex(-1);
@@ -461,6 +464,20 @@ export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; })
                                         value={filters.linkContains || ""}
                                         placeholder="e.g. playlist"
                                         onChange={v => updateFilter("linkContains", v || null)}
+                                    />
+                                </div>
+                                <div className={cl("advanced-row")}>
+                                    <FilterInput
+                                        label="Exclude keywords"
+                                        value={filters.excludeKeywords || ""}
+                                        placeholder="spoiler, leak"
+                                        onChange={v => updateFilter("excludeKeywords", v || null)}
+                                    />
+                                    <FilterInput
+                                        label="Exclude domains"
+                                        value={filters.excludeDomains || ""}
+                                        placeholder="twitter.com, tiktok.com"
+                                        onChange={v => updateFilter("excludeDomains", v || null)}
                                     />
                                 </div>
                                 <div className={cl("advanced-row")}>
