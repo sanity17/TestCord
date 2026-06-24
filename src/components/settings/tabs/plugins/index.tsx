@@ -51,6 +51,8 @@ import { UIElementsButton } from "./UIElements";
 export const cl = classNameFactory("vc-plugins-");
 export const logger = new Logger("PluginSettings", "#a6d189");
 
+const PluginSearchPrefixes = ["tcp:", "testcordplugin:"];
+
 function showErrorToast(message: string) {
     Toasts.show({
         message,
@@ -211,6 +213,15 @@ export default function PluginSettings() {
     const [searchValue, setSearchValue] = useState<{ value: string; tags: PluginTag[]; status: number; author: string; }>({ value: "", tags: [] as PluginTag[], status: SearchStatus.ALL, author: "" });
 
     const search = searchValue.value.toLowerCase();
+    const pluginSearch = useMemo(() => {
+        const trimmedSearch = search.trimStart();
+
+        for (const prefix of PluginSearchPrefixes) {
+            if (trimmedSearch.startsWith(prefix)) return trimmedSearch.slice(prefix.length).trim();
+        }
+
+        return null;
+    }, [search]);
     const onSearch = (query: string) => setSearchValue(prev => ({ ...prev, value: query }));
 
     const githubMap = useMemo(() => {
@@ -281,15 +292,17 @@ export default function PluginSettings() {
 
         if (searchValue.author && !plugin.authors?.some(a => a?.name === searchValue.author)) return false;
 
-        if (!search.length) return true;
+        const pluginSearchValue = pluginSearch ?? search;
+
+        if (!pluginSearchValue.length) return true;
 
         return (
-            plugin.name.toLowerCase().includes(search.replace(/\s+/g, "")) ||
-            plugin.name.match(/[A-Z]/g)?.join("").toLowerCase().includes(search) || // acronyms like BF for BetterFolders
-            plugin.description.toLowerCase().includes(search) ||
-            plugin.searchTerms?.some(t => t.toLowerCase().includes(search))
+            plugin.name.toLowerCase().includes(pluginSearchValue.replace(/\s+/g, "")) ||
+            plugin.name.match(/[A-Z]/g)?.join("").toLowerCase().includes(pluginSearchValue) || // acronyms like BF for BetterFolders
+            plugin.description.toLowerCase().includes(pluginSearchValue) ||
+            plugin.searchTerms?.some(t => t.toLowerCase().includes(pluginSearchValue))
         );
-    }, [searchValue, search]);
+    }, [searchValue, search, pluginSearch]);
 
     const [newPluginsSet] = useAwaiter(() => DataStore.get("Vencord_existingPlugins").then((cachedPlugins: Record<string, number> | undefined) => {
         const now = Date.now() / 1000;

@@ -45,7 +45,9 @@ const _m4 = getUserSettingLazy<boolean>("textAndImages", "renderEmbeds")!;
 const _mUsageHistory: number[] = [];
 let _memInterval: ReturnType<typeof setInterval> | null = null;
 
-const PLUGIN_PATTERN = /testcordplugin:(\w+)/gi;
+const PLUGIN_PATTERN = /(?:testcordplugin|tcp):([^\s,;\n]+)/gi;
+const PLUGIN_MATCH_PATTERN = /(?:testcordplugin|tcp):([^\s,;\n]+)/i;
+const PLUGIN_LINK_PATTERN = /\[([^\]]+)]\(<?https:\/\/github\.com\/TestcordDev\/Testcord\/tree\/main\/src\/(?:plugins|equicordplugins|testcordplugins)\/[^>)]+>?\)/gi;
 
 function _startMemLogging() {
     if (_memInterval) return;
@@ -287,6 +289,40 @@ function ChatPluginCard({ pluginName, description }: { pluginName: string; descr
     );
 }
 
+function resolvePluginName(search: string) {
+    const pluginNames = Object.keys(plugins);
+    const words = search.trim().replace(/[.!?)]*$/, "").split(/\s+/);
+
+    for (let i = words.length; i > 0; i--) {
+        const query = words.slice(0, i).join(" ").toLowerCase();
+        const normalizedQuery = query.replace(/\s+/g, "");
+
+        const pluginName = pluginNames.find(name => name.toLowerCase() === normalizedQuery)
+            ?? pluginNames.find(name => name.toLowerCase().startsWith(normalizedQuery))
+            ?? pluginNames.find(name => name.match(/[A-Z]/g)?.join("").toLowerCase().includes(normalizedQuery))
+            ?? pluginNames.find(name => name.toLowerCase().includes(normalizedQuery))
+            ?? pluginNames.find(name => plugins[name].searchTerms?.some(t => t.toLowerCase().includes(query)))
+            ?? pluginNames.find(name => plugins[name].description?.toLowerCase().includes(query));
+
+        if (pluginName) return pluginName;
+    }
+}
+
+function getPluginLink(pluginName: string) {
+    return `https://github.com/TestcordDev/Testcord/tree/main/${PluginMeta[pluginName].folderName}`;
+}
+
+function replacePluginAliases(content: string) {
+    return content.replace(PLUGIN_PATTERN, match => {
+        const [, query] = PLUGIN_MATCH_PATTERN.exec(match) ?? [];
+        const pluginName = query ? resolvePluginName(query) : undefined;
+
+        if (!pluginName) return match;
+
+        return `[${pluginName}](<${getPluginLink(pluginName)}>)${query?.match(/[.!?)]*$/)?.[0] ?? ""}`;
+    });
+}
+
 const PluginCards = ErrorBoundary.wrap(function PluginCards({ message }: { message: Message; }) {
     const seenPlugins = new Set<string>();
     const pluginCards: JSX.Element[] = [];
@@ -295,10 +331,26 @@ const PluginCards = ErrorBoundary.wrap(function PluginCards({ message }: { messa
 
     let match;
     while ((match = PLUGIN_PATTERN.exec(message.content)) !== null) {
-        const pluginNameFromMessage = match[1];
-        const actualPluginName = Object.keys(plugins).find(name =>
-            name.toLowerCase() === pluginNameFromMessage?.toLowerCase()
+        const pluginNameFromMessage = match[1]?.trim();
+        const actualPluginName = pluginNameFromMessage ? resolvePluginName(pluginNameFromMessage) : undefined;
+        const pluginName = actualPluginName || pluginNameFromMessage;
+
+        if (!pluginName || seenPlugins.has(pluginName)) continue;
+        seenPlugins.add(pluginName);
+
+        pluginCards.push(
+            <ChatPluginCard
+                key={pluginName}
+                pluginName={pluginName}
+            />
         );
+    }
+
+    PLUGIN_LINK_PATTERN.lastIndex = 0;
+
+    while ((match = PLUGIN_LINK_PATTERN.exec(message.content)) !== null) {
+        const pluginNameFromMessage = match[1]?.trim();
+        const actualPluginName = pluginNameFromMessage ? resolvePluginName(pluginNameFromMessage) : undefined;
         const pluginName = actualPluginName || pluginNameFromMessage;
 
         if (!pluginName || seenPlugins.has(pluginName)) continue;
@@ -328,7 +380,11 @@ export default definePlugin({
     authors: [{ name: "x2b", id: 996137713432530976n }],
     required: true,
     settings,
-    dependencies: ["MessageAccessoriesAPI"],
+    dependencies: ["MessageAccessoriesAPI", "MessageEventsAPI"],
+
+    onBeforeMessageSend(_, msg) {
+        msg.content = replacePluginAliases(msg.content);
+    },
 
     renderMessageAccessory(props) {
         return <PluginCards message={props.message} />;
