@@ -638,7 +638,7 @@ function patchFactory(moduleId: PropertyKey, originalFactory: AnyModuleFactory):
                     continue;
                 }
 
-                code = newCode;
+                code = newCode.replace(/\breturn(false|true|null|undefined)\b/g, "return $1");
                 const moduleIdStr = String(moduleId);
                 if (IS_DEV) {
                     const pluginsList = [...patchedBy];

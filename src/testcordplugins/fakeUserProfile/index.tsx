@@ -883,13 +883,6 @@ export default definePlugin({
             ]
         },
         {
-            find: "#{intl::GUILD_OWNER}),",
-            replacement: {
-                match: /(?<=user:(\i).{0,150}nameplate:)(\i)/,
-                replace: "$self.nameplateHook($1,$2)"
-            }
-        },
-        {
             find: "\"ProfileEffectStore\"",
             replacement: {
                 match: /getProfileEffectById\((\i)\){return null!=\i\?(\i)\[\i\]:void 0/,
@@ -948,14 +941,6 @@ export default definePlugin({
         const eff = targetProfile?.profileEffect;
         if (eff && (eff.skuId === skuId || (eff as any).id === skuId)) return eff;
         return (effects && effects[skuId]) || null;
-    },
-
-    nameplateHook(user: any, original: any) {
-        if (!isActive() || !settings.store.spoofNameplate) return original;
-        if (!isCurrentUser(user?.id)) return original;
-        const t = getTargetUser() as any;
-        const np = t?.collectibles?.nameplate;
-        return np ?? original;
     },
 
     set DecorationGridItem(e: any) {
