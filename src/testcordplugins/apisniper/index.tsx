@@ -78,7 +78,6 @@ const PATTERNS: Record<string, RegExp> = {
     slackToken: /\bxox[baprs]-[0-9a-zA-Z-]+\b/,
     slackWebhook: /https:\/\/hooks\.slack\.com\/services\/T[A-Z0-9]+\/B[A-Z0-9]+\/[A-Za-z0-9]+/i,
     telegramBotToken: /^\d+:[A-Za-z0-9_-]{35}$/,
-    herokuApiKey: /\b[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}\b/,
     stripeKey: /\b(?:sk|pk|rk)_(?:live|test)_[A-Za-z0-9]{24,}\b/,
     twilioKey: /\bSK[a-f0-9]{32}\b/,
     sendGridKey: /\bSG\.[A-Za-z0-9_-]{22}\.[A-Za-z0-9_-]{43}\b/,
