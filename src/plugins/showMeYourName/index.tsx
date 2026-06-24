@@ -1166,7 +1166,9 @@ export default definePlugin({
                 },
                 {
                     match: /(?<=onContextMenu:\i,\.\.\.\i,children:)/,
-                    replace: "showMeYourNameMention??",
+                    // ponytail: typeof guard — if declaration #1 stops matching (bundle drift),
+                    // this falls through to the original render instead of ReferenceError-crashing.
+                    replace: "(typeof showMeYourNameMention!==\"undefined\"?showMeYourNameMention:void 0)??",
                     predicate: () => !isPluginEnabled(mentionAvatars.name),
                 }
             ]
