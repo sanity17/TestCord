@@ -27,6 +27,8 @@ const settings = definePluginSettings({
             { label: "Groq (free)", value: "groq" },
             { label: "Unlimited AI (free)", value: "unlimited-ai" },
             { label: "Unlimited Surf (free)", value: "unlimited-surf" },
+            { label: "Collins Proxy — Claude Opus 4.8 (free)", value: "collins" },
+            { label: "GPT-5.5 Proxy (free)", value: "gpt55-proxy" },
         ],
         default: "groq",
         restartNeeded: false,
@@ -466,6 +468,28 @@ async function unlimitedAiChat(messages: Message[]): Promise<string> {
     return readProviderResponse(res);
 }
 
+// ponytail: both are plain OpenAI /v1/chat/completions proxies — one helper covers both. apiKey is required by the shape but ignored by these proxies ("unused"/"admin").
+async function openaiChat(baseUrl: string, model: string, apiKey: string, systemPrompt: string, messages: Message[]): Promise<string> {
+    const res = await groqFetch(`${baseUrl}/v1/chat/completions`, "POST", {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+    }, JSON.stringify({
+        model,
+        max_tokens: 1000,
+        messages: [
+            { role: "system", content: systemPrompt },
+            ...messages.map(toApiMsg),
+        ],
+    }));
+
+    if (!res.ok) {
+        const body = await res.text().catch(() => "");
+        throw new Error(`${baseUrl} ${res.status}: ${body.slice(0, 200)}`);
+    }
+
+    return readProviderResponse(res);
+}
+
 async function callAI(messages: Message[]): Promise<string> {
     const provider = settings.store.provider ?? "groq";
     const systemPrompt = settings.store.systemPrompt?.trim() ||
@@ -479,6 +503,14 @@ async function callAI(messages: Message[]): Promise<string> {
 
     if (provider === "unlimited-ai") {
         return unlimitedAiChat(filtered);
+    }
+
+    if (provider === "collins") {
+        return openaiChat("https://collins-proxy.pages.dev", "claude-opus-4-8", "unused", systemPrompt, filtered);
+    }
+
+    if (provider === "gpt55-proxy") {
+        return openaiChat("https://theproxy-production-e112.up.railway.app", "gpt-5.5", "admin", systemPrompt, filtered);
     }
 
     // Groq (default)
@@ -727,7 +759,11 @@ Rules:
         ? (settings.store.model?.trim() || "Llama 3.3 70B")
         : provider === "unlimited-surf"
             ? (settings.store.surfModel || "Claude Opus 4.7").replace(/^gateway-/, "")
-            : (settings.store.unlimitedAiModel || "Claude Opus 4.7").replace(/^gateway-/, "");
+            : provider === "unlimited-ai"
+                ? (settings.store.unlimitedAiModel || "Claude Opus 4.7").replace(/^gateway-/, "")
+                : provider === "collins"
+                    ? "Claude Opus 4.8"
+                    : "GPT-5.5";
     const SUGGESTIONS = ["Explain AI transformers to me", "Write a poem about the night", "Give me 5 productivity tips"];
 
     // Render the message list only when messages change, not on every keystroke
