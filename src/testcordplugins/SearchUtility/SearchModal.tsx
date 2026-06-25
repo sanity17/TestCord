@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { DataStore } from "@api/index";
+import { DataStore, TestcordRequestCoordinator } from "@api/index";
 import { classNameFactory } from "@utils/css";
 import { ModalCloseButton, ModalContent, ModalHeader, ModalProps, ModalRoot, ModalSize } from "@utils/modal";
 import type { Channel, Message, User } from "@vencord/discord-types";
@@ -622,12 +622,16 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                 // Load messages from the API (limit of 100 messages per request)
                 let response: any = null;
                 try {
-                    response = await RestAPI.get({
-                        url: `/channels/${channelId}/messages`,
-                        query: {
-                            limit: 100
-                        },
-                        retries: 1
+                    response = await TestcordRequestCoordinator.request({
+                        key: `discord:messages:${channelId}:before::limit:100`,
+                        ttlMs: 30_000,
+                        run: () => RestAPI.get({
+                            url: `/channels/${channelId}/messages`,
+                            query: {
+                                limit: 100
+                            },
+                            retries: 1
+                        }),
                     });
                 } catch (error: any) {
                     // Handle rate limit (429)
@@ -638,12 +642,16 @@ export function SearchModal({ modalProps }: { modalProps: ModalProps; }) {
                         await new Promise(resolve => setTimeout(resolve, retryAfter * 1000));
                         // Retry once after waiting
                         try {
-                            response = await RestAPI.get({
-                                url: `/channels/${channelId}/messages`,
-                                query: {
-                                    limit: 100
-                                },
-                                retries: 0
+                            response = await TestcordRequestCoordinator.request({
+                                key: `discord:messages:${channelId}:before::limit:100`,
+                                ttlMs: 30_000,
+                                run: () => RestAPI.get({
+                                    url: `/channels/${channelId}/messages`,
+                                    query: {
+                                        limit: 100
+                                    },
+                                    retries: 0
+                                }),
                             });
                         } catch (retryError) {
                             // If still rate limited, skip to next channel

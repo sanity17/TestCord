@@ -7,6 +7,7 @@
 import "./styles.css";
 
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { TestcordRequestCoordinator } from "@api/index";
 import { ModalCloseButton,ModalContent, ModalHeader, ModalRoot, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
 import { findStoreLazy } from "@webpack";
@@ -91,10 +92,18 @@ async function fetchAllMessages(channelId: string, token: string, onProgress: (n
     let count = 0;
 
     while (true) {
-        const url = `https://discord.com/api/v9/channels/${channelId}/messages?limit=100${beforeId ? `&before=${beforeId}` : ""}`;
-        const res = await fetch(url, { headers: { Authorization: token } });
-        if (!res.ok) break;
-        const batch: any[] = await res.json();
+        const batch = await TestcordRequestCoordinator.request<unknown[]>({
+            key: `discord:messages:${channelId}:before:${beforeId ?? ""}:limit:100`,
+            ttlMs: 30_000,
+            run: async () => {
+                const url = `https://discord.com/api/v9/channels/${channelId}/messages?limit=100${beforeId ? `&before=${beforeId}` : ""}`;
+                const res = await fetch(url, { headers: { Authorization: token } });
+                if (!res.ok) return [];
+                const body = await res.json() as unknown;
+                return Array.isArray(body) ? body : [];
+            },
+            cacheable: Array.isArray,
+        });
         if (!batch.length) break;
 
         for (const m of batch) {

@@ -81,6 +81,11 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Enable custom testcord badges from tbadges GitHub repository",
         default: true,
+    },
+    CarefulNetwork: {
+        type: OptionType.BOOLEAN,
+        description: "Dedupe and briefly cache repeated Testcord plugin network requests.",
+        default: false,
     }
 });
 

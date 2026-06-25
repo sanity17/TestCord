@@ -6,6 +6,7 @@
 
 import { ChatBarButton } from "@api/ChatButtons";
 import { addChannelToolbarButton, addHeaderBarButton, ChannelToolbarButton, HeaderBarButton, removeChannelToolbarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { TestcordRequestCoordinator } from "@api/index";
 import { definePluginSettings } from "@api/Settings";
 import { Card } from "@components/Card";
 import { TestcordDevs } from "@utils/constants";
@@ -111,13 +112,21 @@ async function fetchAllMessages(channelId: string, throttleMs = 250, onProgress?
     let before: string | undefined = undefined;
 
     while (true) {
-        const res = await RestAPI.get({
-            url: Constants.Endpoints.MESSAGES(channelId),
-            query: { limit: 100, ...(before ? { before } : {}) },
-            retries: 2
-        }).catch(() => null as any);
+        const batch = await TestcordRequestCoordinator.request<Message[]>({
+            key: `discord:messages:${channelId}:before:${before ?? ""}:limit:100`,
+            ttlMs: 30_000,
+            run: async () => {
+                const res = await RestAPI.get({
+                    url: Constants.Endpoints.MESSAGES(channelId),
+                    query: { limit: 100, ...(before ? { before } : {}) },
+                    retries: 2
+                }).catch(() => null as any);
 
-        const batch = res?.body ?? [];
+                return res?.body ?? [];
+            },
+            cacheable: Array.isArray,
+        });
+
         if (!batch.length) break;
         result.push(...batch);
         before = batch[batch.length - 1].id;
@@ -603,6 +612,7 @@ function WhitelistModal({ modalProps }: { modalProps: ModalProps; }) {
                         await RestAPI.del({
                             url: `${Constants.Endpoints.MESSAGES(ch.id)}/${m.id}`
                         });
+                        TestcordRequestCoordinator.invalidatePrefix(`discord:messages:${ch.id}:`);
                         deletedCount++;
                         processedCount++;
                         progress.incrementDeleted();

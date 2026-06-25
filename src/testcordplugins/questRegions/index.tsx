@@ -2261,21 +2261,14 @@ export default definePlugin({
     settings,
 
     start() {
-        if (settings.store.proxyDiscoveryIntervalMinutes === 60) {
-            settings.store.proxyDiscoveryIntervalMinutes = 15;
-        }
         knownQuestIds.clear();
         countryProxyCache.clear();
         void getQuestRegions()
             .then(cards => {
                 for (const card of cards) for (const quest of card.quests) knownQuestIds.add(quest.id);
                 console.debug(`[QuestRegions] start: seeded ${knownQuestIds.size} known quest IDs`);
-                if (settings.store.discoverQuestsViaProxies) {
-                    void warmProxiesForCountries(getActiveQuestCountries(cards));
-                }
             })
             .catch(err => logger.error("Failed to seed known quest IDs", err));
-        startProxyDiscoveryTimer();
     },
 
     stop() {

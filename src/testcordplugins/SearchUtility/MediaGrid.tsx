@@ -4,7 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
-import { DataStore } from "@api/index";
+import { DataStore, TestcordRequestCoordinator } from "@api/index";
 import { classNameFactory } from "@utils/css";
 import type { Channel, Message, User } from "@vencord/discord-types";
 import { Avatar, ChannelStore, RestAPI, useMemo,UserStore } from "@webpack/common";
@@ -191,9 +191,13 @@ export async function loadAllMediaFromAPI(channelId: string, apiRequestDelay: nu
                 ? `/channels/${channelId}/messages?limit=${limit}&before=${before}`
                 : `/channels/${channelId}/messages?limit=${limit}`;
 
-            const response = await DiscordAPI.get({
-                url,
-                retries: 1
+            const response = await TestcordRequestCoordinator.request({
+                key: `discord:messages:${channelId}:before:${before ?? ""}:limit:${limit}`,
+                ttlMs: 30_000,
+                run: () => DiscordAPI.get({
+                    url,
+                    retries: 1
+                }),
             });
 
             if (!response?.body || !Array.isArray(response.body) || response.body.length === 0) {

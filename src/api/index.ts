@@ -41,6 +41,7 @@ import * as $ProfileSections from "./ProfileSections";
 import * as $ServerList from "./ServerList";
 import * as $Settings from "./Settings";
 import * as $Styles from "./Styles";
+import * as $TestcordRequestCoordinator from "./TestcordRequestCoordinator";
 import * as $Themes from "./Themes";
 import * as $UserSettings from "./UserSettings";
 
@@ -211,3 +212,5 @@ export const PluginWorker = $PluginWorker;
  * without conflicting with each other.
  */
 export const GifPickerContextMenu = $GifPickerContextMenu;
+
+export const TestcordRequestCoordinator = $TestcordRequestCoordinator;
