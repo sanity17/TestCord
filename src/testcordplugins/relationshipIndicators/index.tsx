@@ -20,12 +20,12 @@ import { getBadges, RelationshipIndicator } from "./utils";
 const indicatorLocations = {
     list: {
         description: "In the member list",
-        onEnable: () => addMessageDecoration("friend-indicator", props =>
+        onEnable: () => addMessageDecoration("friend-indicator-list", props =>
             <ErrorBoundary noop>
                 <RelationshipIndicator user={props.user} />
             </ErrorBoundary>
         ),
-        onDisable: () => removeMessageDecoration("friend-indicator")
+        onDisable: () => removeMessageDecoration("friend-indicator-list")
     },
     badges: {
         description: "In user profiles, as badges",
@@ -34,12 +34,12 @@ const indicatorLocations = {
     },
     messages: {
         description: "Inside messages",
-        onEnable: () => addMessageDecoration("friend-indicator", props =>
+        onEnable: () => addMessageDecoration("friend-indicator-messages", props =>
             <ErrorBoundary noop>
                 <RelationshipIndicator user={props.message?.author} wantTopMargin={true} />
             </ErrorBoundary>
         ),
-        onDisable: () => removeMessageDecoration("friend-indicator")
+        onDisable: () => removeMessageDecoration("friend-indicator-messages")
     }
 };
 

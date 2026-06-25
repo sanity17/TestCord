@@ -612,7 +612,7 @@ function ServerConfigManager() {
                 ) : (
                     <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
                         {configs.map((config: any, index: number) => (
-                            <div key={index} style={{
+                            <div key={config.serverId ?? index} style={{
                                 backgroundColor: "var(--background-primary)",
                                 padding: "12px",
                                 borderRadius: "6px",

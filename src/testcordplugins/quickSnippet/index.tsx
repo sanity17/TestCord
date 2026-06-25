@@ -56,8 +56,8 @@ function trimCodeBlocks(str: string) {
 
 function AppendButton(props: { code: CodeBlock; context: Context; }) {
     const { code, context } = props;
-    if (code.lang.toLowerCase() !== "css" || !settings.store.whitelistChannels.includes(context.channelId || "undefined") && !settings.store.whitelistChannels.includes("all")) return null;
     const [appended, setAppended] = useState(false);
+    if (code.lang.toLowerCase() !== "css" || !settings.store.whitelistChannels.includes(context.channelId || "undefined") && !settings.store.whitelistChannels.includes("all")) return null;
 
     return <Button
         look={Button.Looks.FILLED}
@@ -65,7 +65,7 @@ function AppendButton(props: { code: CodeBlock; context: Context; }) {
             let trimedMessage = "";
             if (context.channelId && context.messageId) {
                 const message = MessageStore.getMessage(context.channelId, context.messageId);
-                trimedMessage = trimCodeBlocks(message.content);
+                if (message) trimedMessage = trimCodeBlocks(message.content);
             }
             const description = trimedMessage && settings.store.descriptions ? `/* \n${trimedMessage}\n*/\n\n` : "";
             VencordNative.quickCss.get().then(r => VencordNative.quickCss.set(r + "\n\n" + description + code.content));

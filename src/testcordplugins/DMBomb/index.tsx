@@ -248,7 +248,7 @@ function DMBombModal({ rootProps, guildId }: { rootProps: any; guildId: string; 
                 )}
                 {s.running && (
                     <>
-                        <button className="mdm-btn mdm-btn-secondary" onClick={rootProps.onClose}>Background</button>
+                        <button className="dmb-btn dmb-btn-secondary" onClick={rootProps.onClose}>Background</button>
                         <button className="dmb-btn dmb-btn-danger" onClick={() => { state.aborted = true; }}>⛔ Stop</button>
                     </>
                 )}

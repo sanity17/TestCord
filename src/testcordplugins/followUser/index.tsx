@@ -192,6 +192,7 @@ function triggerFollow(userChannelId: string | null = getChannelId(settings.stor
                 const channel = ChannelStore.getChannel(userChannelId);
                 const voiceStates = VoiceStateStore.getVoiceStatesForChannel(userChannelId);
                 const memberCount = voiceStates ? Object.keys(voiceStates).length : null;
+                if (!channel) return;
                 if (channel.type === 1 || PermissionStore.can(CONNECT, channel)) {
                     if (channel.userLimit !== 0 && memberCount !== null && memberCount >= channel.userLimit && !PermissionStore.can(PermissionsBits.MOVE_MEMBERS, channel)) {
                         Toasts.show({

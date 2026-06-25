@@ -260,7 +260,6 @@ function forceRerender() {
 }
 
 const AutoResponderButton = () => {
-    if (settings.store.location !== "chatbar") return null;
     const [, setTick] = React.useState(0);
     const isEnabled = settings.store.isActive;
 
@@ -269,6 +268,7 @@ const AutoResponderButton = () => {
         return () => { _forceUpdate = () => { }; };
     }, []);
 
+    if (settings.store.location !== "chatbar") return null;
     const toggle = async () => {
         const newState = !settings.store.isActive;
 

@@ -88,8 +88,7 @@ export default definePlugin({
         if (styleElement) {
             styleElement.remove();
         } else {
-            logger.error("Cannot remove style element: Style element is null");
-            throw new Error("Style element is null");
+            logger.warn("Cannot remove style element: Style element is null");
         }
     },
 });

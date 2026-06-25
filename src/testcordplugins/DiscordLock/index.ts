@@ -493,7 +493,7 @@ export default definePlugin({
         if (focusGuard) { document.removeEventListener("focusin", focusGuard, true); focusGuard = null; }
 
         if (overlay) {
-            const input = document.getElementById("vcl-pass-input");
+            const input = document.getElementById("vcl-input");
             if (input && inputKeyHandler) {
                 input.removeEventListener("keydown", inputKeyHandler);
             }

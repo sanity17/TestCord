@@ -31,7 +31,7 @@ const patchUserContext: NavContextMenuPatchCallback = (children, { user }: {
 
     const regularButtonIndex = contextGroup.findIndex(element => element?.props.id === "note");
 
-    if (!regularButtonIndex) return;
+    if (regularButtonIndex === -1) return;
 
     const newUserNotesButton = <Menu.MenuItem
         id="vc-open-user-notes"

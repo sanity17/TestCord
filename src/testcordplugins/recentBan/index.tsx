@@ -40,7 +40,7 @@ function keybind2(e) {
         if (cChannelId) {
             const cChannel = ChannelStore.getChannel(cChannelId);
             if (cChannel) {
-                const mftokick = trackedmfs.pop() ?? "";
+                const mftokick = trackedmfs[trackedmfs.length - 1] ?? "";
                 if (mftokick && friendststore.getFriendIDs().includes(mftokick)) {
                     trackedmfs.splice(trackedmfs.indexOf(mftokick), 1);
                     Toasts.show({

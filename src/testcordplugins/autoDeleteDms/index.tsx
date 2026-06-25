@@ -253,7 +253,7 @@ export default definePlugin({
 
     async safeGetMessage(messageId: string, channelId: string) {
         try {
-            const cachedMessage = MessageStore.getMessage(messageId);
+            const cachedMessage = MessageStore.getMessage(channelId, messageId);
             if (cachedMessage?.author?.id === UserStore.getCurrentUser().id) {
                 return cachedMessage;
             }

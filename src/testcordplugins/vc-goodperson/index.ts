@@ -26,7 +26,7 @@ const badNounsFun = ["kotlin", "avast"];
 const badVerbsReplacements = ["love", "eat", "deconstruct", "marry", "fart", "teach", "display", "plug", "explode", "undress", "finish", "freeze", "beat", "free", "brush", "allocate", "date", "melt", "breed", "educate", "injure", "change"];
 const badNounsReplacements = ["pasta", "kebab", "cake", "potato", "woman", "computer", "java", "hamburger", "monster truck", "osu!", "Ukrainian ball in search of gas game", "Anime", "Anime girl", "good", "keyboard", "NVIDIA RTX 3090 Graphics Card", "storm", "queen", "single", "umbrella", "mosque", "physics", "bath", "virus", "bathroom", "mom", "owner", "airport", "Avast Antivirus Free"];
 
-export default definePlugin({
+const plugin = definePlugin({
     name: "GoodPerson",
     description: "Makes you (or others) a good person",
     tags: ["Utility", "Fun"],
@@ -65,8 +65,7 @@ export default definePlugin({
         }
     }),
     onBeforeMessageSend: (c, msg) => {
-        // @ts-ignore
-        const newContent = this.replaceBadVerbs(this.replaceBadNouns(msg.content));
+        const newContent = plugin.replaceBadVerbs(plugin.replaceBadNouns(msg.content));
         msg.content = newContent;
     },
     getEnabledBadNouns() {
@@ -127,10 +126,9 @@ export default definePlugin({
     flux: {
         async MESSAGE_CREATE
         ({ guildId, message }) {
-            if(Vencord.Plugins.plugins.GoodPerson.settings?.store.incoming) {
+            if(plugin.settings?.store.incoming) {
                 const msg = message;
-                // @ts-ignore
-                let newMessageContent = Vencord.Plugins.plugins.GoodPerson.replaceBadVerbs(Vencord.Plugins.plugins.GoodPerson.replaceBadNouns(msg.content));
+                let newMessageContent = plugin.replaceBadVerbs(plugin.replaceBadNouns(msg.content));
                 if (message.content !== newMessageContent) {
                     newMessageContent += "\n-# <:husk:1280158956341297225> **GoodPerson made this message good. Reload your client to clear changes**";
                     msg.content = newMessageContent;
@@ -144,11 +142,10 @@ export default definePlugin({
         },
         async MESSAGE_UPDATE
         ({ guildId, message }) {
-            if(Vencord.Plugins.plugins.GoodPerson.settings?.store.incoming) {
+            if(plugin.settings?.store.incoming) {
             const msg = message;
             if(msg.content.includes("-# <:husk:1280158956341297225> **GoodPerson made this message good. Reload your client to clear changes**")) return;
-            // @ts-ignore
-            let newMessageContent = Vencord.Plugins.plugins.GoodPerson.replaceBadVerbs(Vencord.Plugins.plugins.GoodPerson.replaceBadNouns(msg.content));
+            let newMessageContent = plugin.replaceBadVerbs(plugin.replaceBadNouns(msg.content));
             if (message.content !== newMessageContent) {
                 newMessageContent += "\n-# <:husk:1280158956341297225> **GoodPerson made this message good. Reload your client to clear changes**";
                 msg.content = newMessageContent;
@@ -162,3 +159,5 @@ export default definePlugin({
         }
     }
 });
+
+export default plugin;

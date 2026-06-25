@@ -461,7 +461,7 @@ function makeEngineLabel(label: string, template: string) {
 }
 
 function openExternalSearch(url: string) {
-    open(url, "_blank");
+    window.open(url, "_blank");
 }
 
 function openSearchModal() {

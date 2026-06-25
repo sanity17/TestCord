@@ -296,7 +296,7 @@ async function restoreServer(
             }
         }
 
-        showToast(Toasts.Type.SUCCESS, "✅ Server restored successfully!");
+        showToast("✅ Server restored successfully!", Toasts.Type.SUCCESS);
     } catch (error) {
         console.error("[ServerBackup] Error during restoration:", error);
         throw error;

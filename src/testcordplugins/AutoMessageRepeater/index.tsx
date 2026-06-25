@@ -384,8 +384,6 @@ export default definePlugin({
     chatBarButton: {
         icon: StartRepeaterIcon as any,
         render: (({ isMainChat }) => {
-            if (!isMainChat || settings.store.location !== "chatbar") return null;
-
         const [isRunning, setIsRunning] = React.useState(isRepeating);
 
         React.useEffect(() => {
@@ -394,6 +392,7 @@ export default definePlugin({
             return () => void repeatListeners.delete(listener);
         }, []);
 
+        if (!isMainChat || settings.store.location !== "chatbar") return null;
         return (
             <ChatBarButton
                 tooltip={isRunning ? "Stop Auto Repeating" : "Start Auto Repeating"}

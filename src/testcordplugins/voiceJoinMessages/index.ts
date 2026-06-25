@@ -119,9 +119,9 @@ export default definePlugin({
                     oldChannelId = clientOldChannelId;
                     clientOldChannelId = channelId;
                 }
-                if (settings.store.ignoreBlockedUsers && RelationshipStore.isBlocked(userId)) return;
+                if (settings.store.ignoreBlockedUsers && RelationshipStore.isBlocked(userId)) continue;
                 // Ignore events from same channel
-                if (oldChannelId === channelId) return;
+                if (oldChannelId === channelId) continue;
 
                 // Friend joined a voice channel
                 if (settings.store.friendDirectMessages && (!oldChannelId && channelId) && userId !== clientUserId && isFriendAllowlisted(userId)) {
@@ -130,9 +130,8 @@ export default definePlugin({
                     if (settings.store.friendDirectMessagesShowMembers || settings.store.friendDirectMessagesShowMemberCount) {
                         const voiceState = SortedVoiceStateStore.getVoiceStatesForChannel(channelId);
                         const sortedVoiceStates: User[] = Object.values(voiceState as { [key: string]: VoiceState; })
-                            .filter((voiceState: VoiceState) => { voiceState.user && voiceState.user.id !== userId; })
+                            .filter((voiceState: VoiceState) => voiceState.user && voiceState.user.id !== userId)
                             .map((voiceState: VoiceState) => voiceState.user);
-                        console.log(sortedVoiceStates);
                         const otherMembers = sortedVoiceStates.filter(s => s.id !== userId);
                         const otherMembersCount = otherMembers.length;
                         if (otherMembersCount <= 0) {

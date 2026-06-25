@@ -682,6 +682,7 @@ export default definePlugin({
     dependencies: ["HeaderBarAPI"],
     settings,
     settingsAboutComponent: TokenImporterAbout,
+    _injectTimer: null as ReturnType<typeof setTimeout> | null,
     async start() {
         addHeaderBarButton("nightcord-token-importer", () => <TokenImporterButton />, 10);
         try {
@@ -713,7 +714,7 @@ export default definePlugin({
                 }
             }
             if (settings.store.injectIntoMultiAccountStore) {
-                setTimeout(() => this._injectAccounts(), 5000);
+                this._injectTimer = setTimeout(() => { this._injectTimer = null; this._injectAccounts(); }, 5000);
             }
         } catch (e) {
             console.error("[TokenImporter] Startup failed:", e);
@@ -747,6 +748,7 @@ export default definePlugin({
         } catch (e) { console.error("[TokenImporter] inject:", e); }
     },
     stop() {
+        if (this._injectTimer) { clearTimeout(this._injectTimer); this._injectTimer = null; }
         removeHeaderBarButton("nightcord-token-importer");
         if (tokenModulePatched) {
             try {

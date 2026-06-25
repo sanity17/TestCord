@@ -646,6 +646,8 @@ async function fakeMessageRequestGuild(guildId: string) {
 }
 
 let MessageRequestStore: any = null;
+
+let reapplyTimer: ReturnType<typeof setTimeout> | null = null;
 let origGetRequests: Function | null = null;
 let origHasRequest: Function | null = null;
 
@@ -893,11 +895,12 @@ export default definePlugin({
         await loadState();
         if (fakeState.size > 0) {
             // Delay to let Discord fully load
-            setTimeout(() => reapplyFakeStates(), 3000);
+            reapplyTimer = setTimeout(() => { reapplyTimer = null; reapplyFakeStates(); }, 3000);
         }
     },
 
     stop() {
+        if (reapplyTimer !== null) { clearTimeout(reapplyTimer); reapplyTimer = null; }
         removeContextMenuPatch("user-context", userContextPatch);
         removeContextMenuPatch("guild-context", guildContextPatch);
         unpatchAcceptFriend();
