@@ -12,9 +12,10 @@ import { TestcordDevs } from "@utils/constants";
 import { openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
 import type { User } from "@vencord/discord-types";
+import { waitFor } from "@webpack";
 import { ApplicationAssetUtils, ChannelStore, FluxDispatcher, GuildMemberStore, IconUtils, Menu, PresenceStore, React, RestAPI, showToast, Toasts, UsernameUtils, UserStore } from "@webpack/common";
 
-import { getActiveTargetForGuild, getCachedTarget, getOriginalMeId, isActive, isCurrentUser, loadCacheFromSettings, loadTarget, logger, preLoadGuildTargets, resolveBadge, setEnabled, setOriginalGetCurrentUser,settings, subscribe } from "./data";
+import { getActiveTargetForGuild, getCachedTarget, getFakeIdFromDate, getOriginalMeId, getSavedUsers, isActive, isCurrentUser, loadCacheFromSettings, loadTarget, logger, preLoadGuildTargets, resolveBadge, setEnabled, setOriginalGetCurrentUser, settings, subscribe, targetsCache } from "./data";
 import { FakeUserProfileModal } from "./legacyModal";
 import { FakeUserSwitcherModal } from "./modal";
 
@@ -318,6 +319,9 @@ function patchStore() {
 
     UserStore.getUser = function (userId: string) {
         if (isActive() && isCurrentUser(userId)) {
+            if (settings.store.patchInternalAccountSwitcher && userId === getOriginalMeId() && isAccountSwitcherCall()) {
+                return originalGetUser!.call(UserStore, userId);
+            }
             const me = originalGetCurrentUser!.call(UserStore);
             if (me) return wrapUser(me);
         }
@@ -339,6 +343,9 @@ function patchStore() {
             if (u && settings.store.fakeNitroMonths && settings.store.fakeNitroMonths > 0) {
                 return wrapUser(u);
             }
+            return u;
+        }
+        if (settings.store.patchInternalAccountSwitcher && isAccountSwitcherCall()) {
             return u;
         }
         return wrapUser(u);
@@ -846,6 +853,256 @@ function unpatchBadges() {
     badgesPatched = false;
 }
 
+// ── Native account switcher integration ────────────────────────────────────
+// AGENTS.md normally forbids document.querySelector / [class*=] selectors, but
+// Discord's native account switcher exposes no stable CSS-module prop names we
+// can resolve via findCssClassesLazy. The base module prefixes below are the
+// least-bad heuristic available; they are scoped strictly to this feature.
+function isSwitcherDropdownOpen(): boolean {
+    try {
+        const selectors = [
+            "[class*='accountProfileCard']",
+            "[class*='accountOption']",
+            "[class*='accountSwitcher']",
+            "[class*='multiAccount']"
+        ];
+        return selectors.some(sel => !!document.querySelector(sel));
+    } catch {
+        return false;
+    }
+}
+
+function isAccountSwitcherCall(): boolean {
+    if (isSwitcherDropdownOpen()) return true;
+    try {
+        const { stack } = new Error();
+        if (!stack) return false;
+        const lower = stack.toLowerCase();
+        return (
+            lower.includes("accountswitcher") ||
+            lower.includes("multiaccount") ||
+            lower.includes("switchtoaccount") ||
+            lower.includes("removeaccount") ||
+            lower.includes("getswitcheraccounts") ||
+            lower.includes("accountoption") ||
+            lower.includes("getusers") ||
+            lower.includes("getvalidusers") ||
+            lower.includes("gethasloggedinaccounts")
+        );
+    } catch {
+        return false;
+    }
+}
+
+function getSwitcherAccounts(): any[] {
+    const saved = getSavedUsers();
+    const accounts: any[] = [];
+    for (const s of saved) {
+        const isManual = !!s.isManual || (typeof s.id === "string" && s.id.startsWith("manual_"));
+        if (isManual) {
+            accounts.push({
+                id: getFakeIdFromDate(s.manualCreatedAt),
+                username: s.manualUsername ?? s.name ?? "FakeUser",
+                globalName: s.manualDisplayName ?? s.manualUsername ?? s.name ?? "FakeUser",
+                global_name: s.manualDisplayName ?? s.manualUsername ?? s.name ?? "FakeUser",
+                discriminator: "0",
+                avatar: s.manualAvatar ?? s.avatar ?? null,
+                tokenStatus: 1,
+                pushSyncToken: null,
+            });
+        } else {
+            const cachedTarget = targetsCache.get(s.id);
+            const user = cachedTarget?.user ?? (originalGetUser ? originalGetUser.call(UserStore, s.id) : UserStore.getUser(s.id));
+            if (!user) continue;
+            accounts.push({
+                id: s.id,
+                username: user.username,
+                globalName: (user as any).globalName ?? user.username,
+                global_name: (user as any).global_name ?? (user as any).globalName ?? user.username,
+                discriminator: user.discriminator ?? "0",
+                avatar: user.avatar ?? null,
+                tokenStatus: 1,
+                pushSyncToken: null,
+            });
+        }
+    }
+    return accounts;
+}
+
+function applyManualSavedIdentity(s: any) {
+    settings.store.manualUsername = s.manualUsername ?? s.name ?? "FakeUser";
+    settings.store.manualDisplayName = s.manualDisplayName ?? "";
+    settings.store.manualClanTag = s.manualClanTag ?? "";
+    settings.store.manualAvatar = s.manualAvatar ?? s.avatar ?? "";
+    settings.store.manualBio = s.manualBio ?? "";
+    settings.store.manualPronouns = s.manualPronouns ?? "";
+    settings.store.manualBanner = s.manualBanner ?? "";
+    settings.store.manualEmail = s.manualEmail ?? "";
+    settings.store.manualPhone = s.manualPhone ?? "";
+    settings.store.manualCreatedAt = s.manualCreatedAt ?? "";
+    settings.store.manualClanGuildId = s.manualClanGuildId ?? "";
+    settings.store.manualClanBadge = s.manualClanBadge ?? "";
+    settings.store.manualClanBadgeCustom = s.manualClanBadgeCustom ?? "";
+    settings.store.manualStatus = s.manualStatus ?? "online";
+    settings.store.manualActivityName = s.manualActivityName ?? "";
+    settings.store.manualActivityType = s.manualActivityType ?? 0;
+    settings.store.manualActivityState = s.manualActivityState ?? "";
+    settings.store.manualActivityDetails = s.manualActivityDetails ?? "";
+    settings.store.manualActivityStartTimer = !!s.manualActivityStartTimer;
+    settings.store.manualActivityLargeImage = s.manualActivityLargeImage ?? "";
+    settings.store.manualActivityLargeText = s.manualActivityLargeText ?? "";
+    settings.store.manualActivitySmallImage = s.manualActivitySmallImage ?? "";
+    settings.store.manualActivitySmallText = s.manualActivitySmallText ?? "";
+    settings.store.customRpcEnabled = !!(s.manualActivityName || s.activity);
+}
+
+async function activateSwitcherIdentity(action: any) {
+    if (!settings.store.patchInternalAccountSwitcher) return;
+    logger.log("[FakeUserSwitcher] activateSwitcherIdentity triggered with action:", JSON.stringify(action));
+    const id = action?.targetUserId ?? action?.userId ?? action?.user_id ?? action?.id ?? action?.account?.id ?? action?.user?.id;
+    if (!id) return;
+    const originalId = getOriginalMeId();
+    if (originalId && id === originalId) {
+        setEnabled(false);
+        settings.store.manualMode = false;
+        return;
+    }
+    const saved = getSavedUsers();
+    const cloner = saved.find(s => !(!!s.isManual || (typeof s.id === "string" && s.id.startsWith("manual_"))) && s.id === id);
+    if (cloner) {
+        try {
+            await loadTarget(cloner.id);
+            settings.store.manualMode = false;
+            setEnabled(true);
+            showToast(`Spoofing as ${cloner.name}`, Toasts.Type.SUCCESS);
+        } catch (e: any) {
+            logger.error("activateSwitcherIdentity: cloner load failed", e);
+            showToast(e?.message || "Failed to activate fake identity.", Toasts.Type.FAILURE);
+        }
+        return;
+    }
+    const manual = saved.find(s => (!!s.isManual || (typeof s.id === "string" && s.id.startsWith("manual_"))) && getFakeIdFromDate(s.manualCreatedAt) === id);
+    if (manual) {
+        applyManualSavedIdentity(manual);
+        settings.store.manualMode = true;
+        setEnabled(true);
+        showToast(`Spoofing as ${manual.manualUsername ?? manual.name}`, Toasts.Type.SUCCESS);
+    }
+}
+
+let multiAccountStore: any = null;
+let originalGetUsers: (() => any[]) | null = null;
+let originalGetValidUsers: (() => any[]) | null = null;
+let originalGetHasLoggedInAccounts: (() => boolean) | null = null;
+let switcherPatched = false;
+let switcherRunning = false;
+let isGettingUsers = false;
+
+function isMultiAccountStore(mod: any): boolean {
+    try {
+        if (typeof mod.getUsers !== "function") return false;
+        if (typeof mod.getValidUsers !== "function" && typeof mod.getHasLoggedInAccounts !== "function") return false;
+        const users = mod.getUsers();
+        if (!Array.isArray(users)) return false;
+        if (users.length > 0) {
+            const first = users[0];
+            if (typeof first !== "object" || first === null) return false;
+            if (typeof first.id !== "string") return false;
+            if (!("tokenStatus" in first) && !("pushSyncToken" in first)) {
+                if ("type" in first || "permissions" in first || "parentId" in first) return false;
+            }
+        }
+        if (typeof mod.getFrequentlyUsedEmojis === "function") return false;
+        return true;
+    } catch {
+        return false;
+    }
+}
+
+const withFakeAccounts = (real: any[]) => {
+    isGettingUsers = true;
+    queueMicrotask(() => {
+        isGettingUsers = false;
+    });
+    if (!settings.store.patchInternalAccountSwitcher) return real;
+    const originalId = getOriginalMeId();
+    const realMe = originalGetUser && originalId ? originalGetUser.call(UserStore, originalId) : originalGetCurrentUser?.call(UserStore);
+    let hasRealAccount = false;
+    const displayReal = real.map(user => {
+        if (realMe && originalId && user?.id === originalId) {
+            hasRealAccount = true;
+            return {
+                ...user,
+                id: originalId,
+                username: realMe.username,
+                globalName: (realMe as any).globalName ?? realMe.username,
+                global_name: (realMe as any).global_name ?? (realMe as any).globalName ?? realMe.username,
+                discriminator: realMe.discriminator ?? "0",
+                avatar: realMe.avatar ?? null,
+            };
+        }
+        return user;
+    });
+    if (realMe && originalId && !hasRealAccount) {
+        displayReal.unshift({
+            id: originalId,
+            username: realMe.username,
+            globalName: (realMe as any).globalName ?? realMe.username,
+            global_name: (realMe as any).global_name ?? (realMe as any).globalName ?? realMe.username,
+            discriminator: realMe.discriminator ?? "0",
+            avatar: realMe.avatar ?? null,
+            tokenStatus: 1,
+            pushSyncToken: null,
+        });
+    }
+    const realIds = new Set(displayReal.map(user => user?.id));
+    const extras = getSwitcherAccounts().filter(user => !realIds.has(user.id));
+    const combined = extras.length ? [...displayReal, ...extras] : displayReal;
+
+    const seenIds = new Set<string>();
+    const deduplicated: any[] = [];
+    for (const u of combined) {
+        if (u && u.id && !seenIds.has(u.id)) {
+            seenIds.add(u.id);
+            deduplicated.push(u);
+        }
+    }
+    return deduplicated;
+};
+
+function patchInternalAccountSwitcher() {
+    if (switcherPatched || !multiAccountStore) return;
+    switcherPatched = true;
+
+    originalGetUsers = multiAccountStore.getUsers.bind(multiAccountStore);
+    originalGetValidUsers = multiAccountStore.getValidUsers?.bind(multiAccountStore) ?? null;
+    originalGetHasLoggedInAccounts = multiAccountStore.getHasLoggedInAccounts?.bind(multiAccountStore) ?? null;
+
+    multiAccountStore.getUsers = () => withFakeAccounts(originalGetUsers?.() ?? []);
+    if (originalGetValidUsers) {
+        const origValid = originalGetValidUsers;
+        multiAccountStore.getValidUsers = () => withFakeAccounts(origValid() ?? []);
+    }
+    if (originalGetHasLoggedInAccounts) {
+        multiAccountStore.getHasLoggedInAccounts = () => true;
+    }
+}
+
+function unpatchInternalAccountSwitcher() {
+    if (!switcherPatched || !multiAccountStore) {
+        switcherPatched = false;
+        return;
+    }
+    if (originalGetUsers) multiAccountStore.getUsers = originalGetUsers;
+    if (originalGetValidUsers) multiAccountStore.getValidUsers = originalGetValidUsers;
+    if (originalGetHasLoggedInAccounts) multiAccountStore.getHasLoggedInAccounts = originalGetHasLoggedInAccounts;
+    originalGetUsers = null;
+    originalGetValidUsers = null;
+    originalGetHasLoggedInAccounts = null;
+    switcherPatched = false;
+    try { multiAccountStore.emitChange?.(); } catch { /* ignore */ }
+}
+
 function notifyUpdate() {
     const me = originalGetCurrentUser ? originalGetCurrentUser.call(UserStore) : UserStore.getCurrentUser();
     if (!me) return;
@@ -1076,6 +1333,7 @@ const plugin = definePlugin({
     userAreaButton: {
         icon: FakeUserSwitcherIcon,
         render: (props: UserAreaRenderProps) => <FakeUserSwitcherButton {...props} />,
+        priority: -5,
     },
 
     async start() {
@@ -1105,6 +1363,20 @@ const plugin = definePlugin({
         if (settings.store.spoofActive) {
             syncSpoofState();
         }
+
+        if (settings.store.patchInternalAccountSwitcher) {
+            switcherRunning = true;
+            waitFor(["getUsers", "getValidUsers", "getHasLoggedInAccounts"], (mod: any) => {
+                if (!switcherRunning) return;
+                if (!isMultiAccountStore(mod)) {
+                    logger.warn("Store ignored — doesn't look like MultiAccountStore:", mod);
+                    return;
+                }
+                multiAccountStore = mod;
+                patchInternalAccountSwitcher();
+                try { mod.emitChange?.(); } catch { /* ignore */ }
+            });
+        }
     },
 
     stop() {
@@ -1112,6 +1384,9 @@ const plugin = definePlugin({
             clearTimeout(syncSpoofStateTimer);
             syncSpoofStateTimer = undefined;
         }
+        switcherRunning = false;
+        unpatchInternalAccountSwitcher();
+        multiAccountStore = null;
         clearWrapCache();
         unpatchPresence();
         unpatchBadges();
@@ -1131,6 +1406,9 @@ const plugin = definePlugin({
             if (settings.store.spoofActive && (settings.store.manualMode || getCachedTarget())) {
                 syncSpoofState();
             }
+        },
+        MULTI_ACCOUNT_SWITCH_ATTEMPT(action: any) {
+            void activateSwitcherIdentity(action);
         },
     },
 

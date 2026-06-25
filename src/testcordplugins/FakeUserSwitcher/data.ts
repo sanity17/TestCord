@@ -455,6 +455,12 @@ export const settings = definePluginSettings({
         description: "Mirror the target's connected accounts and game collection.",
         default: true,
     },
+    patchInternalAccountSwitcher: {
+        type: OptionType.BOOLEAN,
+        description: "Inject fake identities into Discord's native account switcher and let them be activated from there.",
+        default: false,
+        restartNeeded: true,
+    },
     savedUsers: {
         type: OptionType.STRING,
         description: "Saved user IDs (JSON)",
