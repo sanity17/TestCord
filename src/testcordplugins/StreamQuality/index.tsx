@@ -62,7 +62,22 @@ const settings = definePluginSettings({
             { label: "1440p (2560x1440)", value: 1440 },
             { label: "2160p / 4K (3840x2160)", value: 2160 },
             { label: "4320p / 8K (7680x4320)", value: 4320 },
+            { label: "Custom", value: 0 },
         ],
+        onChange: triggerLiveUpdate,
+    },
+    resolutionWidth: {
+        type: OptionType.STRING,
+        description: "Custom resolution width in pixels (e.g. 1920).",
+        default: "1920",
+        hidden: () => settings.store.resolution !== 0,
+        onChange: triggerLiveUpdate,
+    },
+    resolutionHeight: {
+        type: OptionType.STRING,
+        description: "Custom resolution height in pixels (e.g. 1080).",
+        default: "1080",
+        hidden: () => settings.store.resolution !== 0,
         onChange: triggerLiveUpdate,
     },
     bitrateEnabled: {
@@ -120,10 +135,86 @@ const settings = definePluginSettings({
         restartNeeded: false,
         onChange: triggerLiveUpdate,
     },
+    spoofBadgeEnabled: {
+        type: OptionType.BOOLEAN,
+        description: "Spoof the resolution and FPS badge viewers see, independent of what you actually encode.",
+        default: false,
+        restartNeeded: false,
+        onChange: triggerLiveUpdate,
+    },
+    spoofBadgeResolution: {
+        type: OptionType.SELECT,
+        description: "Resolution shown to viewers.",
+        options: [
+            { label: "32p (56x32)", value: 32 },
+            { label: "144p (256x144)", value: 144 },
+            { label: "240p (426x240)", value: 240 },
+            { label: "360p (640x360)", value: 360 },
+            { label: "480p (854x480)", value: 480 },
+            { label: "720p (1280x720)", value: 720 },
+            { label: "1080p (1920x1080)", value: 1080 },
+            { label: "1440p (2560x1440)", value: 1440 },
+            { label: "2160p / 4K (3840x2160)", value: 2160, default: true },
+            { label: "4320p / 8K (7680x4320)", value: 4320 },
+            { label: "Custom", value: 0 },
+        ],
+        onChange: triggerLiveUpdate,
+    },
+    spoofBadgeWidth: {
+        type: OptionType.STRING,
+        description: "Custom resolution width shown to viewers (e.g. 3840).",
+        default: "3840",
+        hidden: () => settings.store.spoofBadgeResolution !== 0,
+        onChange: triggerLiveUpdate,
+    },
+    spoofBadgeHeight: {
+        type: OptionType.STRING,
+        description: "Custom resolution height shown to viewers (e.g. 2160).",
+        default: "2160",
+        hidden: () => settings.store.spoofBadgeResolution !== 0,
+        onChange: triggerLiveUpdate,
+    },
+    spoofBadgeFps: {
+        type: OptionType.SLIDER,
+        description: "Frame rate shown to viewers.",
+        default: 120,
+        markers: [1, 5, 10, 15, 20, 30, 60, 120, 240, 360],
+        stickToMarkers: true,
+        onChange: triggerLiveUpdate,
+    },
 });
 
-function getResolutionData(value: number) {
+function parseDimension(value: string, fallback: number) {
+    const n = parseInt(value, 10);
+    return Number.isFinite(n) && n > 0 ? n : fallback;
+}
+
+function getPreset(value: number) {
     return RESOLUTION_OPTIONS.find(r => r.value === value) ?? RESOLUTION_OPTIONS[6];
+}
+
+function getRealResolution() {
+    const s = settings.store;
+    if (s.resolution === 0) {
+        return {
+            width: parseDimension(s.resolutionWidth, 1920),
+            height: parseDimension(s.resolutionHeight, 1080),
+        };
+    }
+    const res = getPreset(s.resolution);
+    return { width: res.width, height: res.height };
+}
+
+function getSpoofResolution() {
+    const s = settings.store;
+    if (s.spoofBadgeResolution === 0) {
+        return {
+            width: parseDimension(s.spoofBadgeWidth, 3840),
+            height: parseDimension(s.spoofBadgeHeight, 2160),
+        };
+    }
+    const res = getPreset(s.spoofBadgeResolution);
+    return { width: res.width, height: res.height };
 }
 
 function patchTransportOptions(options: Record<string, any>, connection: any) {
@@ -143,7 +234,7 @@ function patchTransportOptions(options: Record<string, any>, connection: any) {
     }
 
     if (s.resolutionEnabled) {
-        const res = getResolutionData(s.resolution);
+        const res = getRealResolution();
         options.encodingVideoHeight = res.height;
         options.encodingVideoWidth = res.width;
         options.remoteSinkWantsPixelCount = res.height * res.width;
@@ -182,11 +273,11 @@ function patchTransportOptions(options: Record<string, any>, connection: any) {
             if (s.bitrateEnabled) {
                 param.maxBitrate = s.bitrate * 1000;
             }
-            if (s.fpsEnabled) {
-                param.maxFrameRate = s.fps;
+            if (s.spoofBadgeEnabled || s.fpsEnabled) {
+                param.maxFrameRate = s.spoofBadgeEnabled ? s.spoofBadgeFps : s.fps;
             }
-            if (s.resolutionEnabled) {
-                const res = getResolutionData(s.resolution);
+            if (s.spoofBadgeEnabled || s.resolutionEnabled) {
+                const res = s.spoofBadgeEnabled ? getSpoofResolution() : getRealResolution();
                 param.maxResolution = {
                     height: res.height,
                     width: res.width,
@@ -210,7 +301,7 @@ function patchDesktopSourceOptions(options: Record<string, any>) {
     }
 
     if (settings.store.resolutionEnabled) {
-        const res = getResolutionData(settings.store.resolution);
+        const res = getRealResolution();
         options.resolution = res.height;
         options.width = res.width;
         options.height = res.height;
@@ -262,34 +353,6 @@ function triggerLiveUpdate() {
     }
 }
 
-let badgeScanQueued = false;
-const badgeObserver = new MutationObserver(() => {
-    if (activeConnections.size === 0 || badgeScanQueued) return;
-    badgeScanQueued = true;
-    requestAnimationFrame(() => {
-        badgeScanQueued = false;
-        updateBadgeLabels();
-    });
-});
-
-function updateBadgeLabels() {
-    const s = settings.store;
-    if (!s.fpsEnabled && !s.resolutionEnabled) return;
-
-    const res = getResolutionData(s.resolution);
-    const resLabel = s.resolutionEnabled ? res.label.split(" ")[0] : "1080p";
-    const fpsLabel = s.fpsEnabled ? `${s.fps}fps` : "60fps";
-    const targetText = `${resLabel} ${fpsLabel}`;
-
-    const elements = document.querySelectorAll("span, strong");
-    elements.forEach(el => {
-        const text = (el.textContent || "").trim();
-        if (/^(\d{3,4}p|Source|[48]K)\s\d{1,3}fps$/i.test(text) && text !== targetText) {
-            el.textContent = targetText;
-        }
-    });
-}
-
 function onConnection(connection: any) {
     if (connection.context !== "stream") return;
 
@@ -305,8 +368,6 @@ function onConnection(connection: any) {
     logger.info("Patching stream connection", connId);
 
     const s = settings.store;
-    const res = getResolutionData(s.resolution);
-    const bitrateValue = s.bitrate * 1000;
 
     const origSetTransportOptions = connection.conn.setTransportOptions;
     const origSetDesktopSourceWithOptions = connection.conn.setDesktopSourceWithOptions;
@@ -344,6 +405,7 @@ function onConnection(connection: any) {
         vqm.getQuality = function (this: any, ...args: any[]) {
             const quality = oldGetQuality.apply(this, args);
             if (s.resolutionEnabled) {
+                const res = getRealResolution();
                 quality.width = res.width;
                 quality.height = res.height;
             }
@@ -357,6 +419,7 @@ function onConnection(connection: any) {
         vqm.getDesktopQuality = function (this: any, ...args: any[]) {
             const quality = oldGetDesktopQuality.apply(this, args);
             if (s.resolutionEnabled) {
+                const res = getRealResolution();
                 quality.width = res.width;
                 quality.height = res.height;
             }
@@ -370,6 +433,7 @@ function onConnection(connection: any) {
         vqm.applyQualityConstraints = function (this: any, ...args: any[]) {
             const resConstraints = oldApplyQualityConstraints.apply(this, args);
             if (s.resolutionEnabled) {
+                const res = getRealResolution();
                 resConstraints.constraints.encodingVideoHeight = res.height;
                 resConstraints.constraints.encodingVideoWidth = res.width;
             }
@@ -388,6 +452,7 @@ function onConnection(connection: any) {
             vqm.setQuality = function (this: any, quality: any, ...rest: any[]) {
                 if (quality && typeof quality === "object") {
                     if (s.resolutionEnabled) {
+                        const res = getRealResolution();
                         quality.width = res.width;
                         quality.height = res.height;
                     }
@@ -402,6 +467,8 @@ function onConnection(connection: any) {
 
     const forceEngineSettings = () => {
         if (connection.conn.overwriteQualityForTesting) {
+            const res = getRealResolution();
+            const bitrateValue = s.bitrate * 1000;
             const settingsObject = {
                 encode: {
                     height: s.resolutionEnabled ? res.height : 1080,
@@ -527,10 +594,6 @@ export default definePlugin({
             };
 
             emitter.on("connection", connectionHandler);
-            badgeObserver.observe(document.body, {
-                childList: true,
-                subtree: true
-            });
             logger.info("CustomStreamQuality started");
         } catch (e) {
             logger.error("Failed to start CustomStreamQuality", e);
@@ -546,7 +609,6 @@ export default definePlugin({
             mediaEngine = null;
             patchedConnections.clear();
             activeConnections.clear();
-            badgeObserver.disconnect();
             logger.info("CustomStreamQuality stopped");
         } catch (e) {
             logger.error("Failed to stop CustomStreamQuality", e);
