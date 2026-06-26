@@ -307,6 +307,7 @@ export default definePlugin({
     description: "Automatically reply to DMs using AI to match your writing style.",
     tags: ["Chat", "Nightcord"],
     authors: [{ name: "Nightcord", id: 0n }],
+    dependencies: ["HeaderBarAPI"],
     settings,
     chatBarButton: {
         icon: KeyboardIcon,

@@ -283,6 +283,7 @@ export default definePlugin({
     description: "Adds an × button near DM UI to close all 1:1 DMs except whitelist.",
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b],
+    dependencies: ["HeaderBarAPI"],
     settings,
     chatBarButton: {
         icon: (() => (

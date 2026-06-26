@@ -42,6 +42,60 @@ async function handleButtonClick(context: string) {
     sendMessage(currentChannel.id, { content: context });
 }
 
+function PlusIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
+        </svg>
+    );
+}
+
+function CustomButtonIcon({ svg }: { svg: string; }) {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24">
+            <g dangerouslySetInnerHTML={{ __html: svg }} />
+        </svg>
+    );
+}
+
+function HeaderChatButtons() {
+    return (
+        <>
+            {buttonEntries.filter(entry => entry.enabled !== false).map(entry => {
+                const Icon = () => <CustomButtonIcon svg={entry.svg} />;
+
+                return (
+                    <HeaderBarButton
+                        key={entry.id}
+                        icon={Icon}
+                        tooltip={entry.label}
+                        onClick={() => handleButtonClick(entry.message)}
+                    />
+                );
+            })}
+        </>
+    );
+}
+
+function ChannelChatButtons() {
+    return (
+        <>
+            {buttonEntries.filter(entry => entry.enabled !== false).map(entry => {
+                const Icon = () => <CustomButtonIcon svg={entry.svg} />;
+
+                return (
+                    <ChannelToolbarButton
+                        key={entry.id}
+                        icon={Icon}
+                        tooltip={entry.label}
+                        onClick={() => handleButtonClick(entry.message)}
+                    />
+                );
+            })}
+        </>
+    );
+}
+
 async function addButtonEntry(forceUpdate: () => void) {
     try {
         buttonEntries.push({
@@ -281,14 +335,11 @@ export default definePlugin({
     description: "Add custom chat buttons with personalized + messages and SVG icons",
     tags: ["Chat", "Customisation"],
     authors: [TestcordDevs.x2b],
+    dependencies: ["HeaderBarAPI"],
     settings,
 
     chatBarButton: {
-        icon: (() => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-            </svg>
-        )) as any,
+        icon: PlusIcon as any,
         render: (({ isMainChat }) => {
             if (!isMainChat || settings.store.location !== "chatbar") return null;
 
@@ -300,9 +351,7 @@ export default definePlugin({
                         tooltip={entry.label}
                         onClick={() => handleButtonClick(entry.message)}
                     >
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20px" height="20px" viewBox="0 0 24 24">
-                            <g dangerouslySetInnerHTML={{ __html: entry.svg }} />
-                        </svg>
+                        <CustomButtonIcon svg={entry.svg} />
                     </ChatBarButton>
                 ))}
             </>
@@ -343,29 +392,9 @@ export default definePlugin({
 
         const { location } = settings.store;
         if (location === "headerbar") {
-            addHeaderBarButton("ChatButtonsPlus", () => (
-                <HeaderBarButton
-                    icon={() => (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    )}
-                    tooltip="Chat Buttons Plus"
-                    onClick={() => {}}
-                />
-            ), 5);
+            addHeaderBarButton("ChatButtonsPlus", HeaderChatButtons, 5);
         } else if (location === "channeltoolbar") {
-            addChannelToolbarButton("ChatButtonsPlus", () => (
-                <ChannelToolbarButton
-                    icon={() => (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z" />
-                        </svg>
-                    )}
-                    tooltip="Chat Buttons Plus"
-                    onClick={() => {}}
-                />
-            ), 5);
+            addChannelToolbarButton("ChatButtonsPlus", ChannelChatButtons, 5);
         }
     },
 

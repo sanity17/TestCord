@@ -545,6 +545,7 @@ export default definePlugin({
     description: "Multi-user permission sharing with interactive UI.",
     tags: ["Roles", "Utility", "Nightcord"],
     authors: [{ name: "Nightcord", id: 0n }],
+    dependencies: ["HeaderBarAPI"],
     settings,
 
     start() {

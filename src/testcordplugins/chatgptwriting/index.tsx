@@ -246,7 +246,7 @@ export default definePlugin({
     description: "Enhance your messages with kaomoji, emoji, and autocorrect",
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b],
-    dependencies: ["MessageEventsAPI"],
+    dependencies: ["MessageEventsAPI", "HeaderBarAPI"],
     settings,
 
     _presendListener: null as MessageSendListener | null,

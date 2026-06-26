@@ -283,7 +283,7 @@ export default definePlugin({
         "Ports GoofCord's privacy & security features: telemetry firewall, CSP unstricter, Chrome UA spoofer, Invidious embeds, anti-tracking headers, WebRTC leak prevention, and StegCloak message encryption.",
     tags: ["Privacy", "Utility"],
     authors: [TestcordDevs.sirphantom89],
-    dependencies: ["MessageEventsAPI", "MessageUpdaterAPI", "ChatInputButtonAPI"],
+    dependencies: ["MessageEventsAPI", "MessageUpdaterAPI", "ChatInputButtonAPI", "HeaderBarAPI"],
     settings,
 
     // exported so native.ts can see toggles, and for debugging

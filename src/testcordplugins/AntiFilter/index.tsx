@@ -361,7 +361,7 @@ export default definePlugin({
     { name: "dot", id: 1400610916285812776n }
     ],
     settings: settings,
-    dependencies: ["ChatInputButtonAPI", "CommandsAPI", "MessageEventsAPI"],
+    dependencies: ["ChatInputButtonAPI", "CommandsAPI", "MessageEventsAPI", "HeaderBarAPI"],
 
     commands: [
         {

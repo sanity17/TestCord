@@ -154,7 +154,7 @@ export default definePlugin({
     authors: [TestcordDevs.x2b],
     description: "Hide that you are typing",
     tags: ["Chat", "Privacy"],
-    dependencies: ["ChatInputButtonAPI"],
+    dependencies: ["ChatInputButtonAPI", "HeaderBarAPI"],
     settings,
 
     patches: [

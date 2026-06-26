@@ -10,7 +10,7 @@ import { definePluginSettings } from "@api/Settings";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Message } from "@vencord/discord-types";
-import { ChannelStore, Constants, ContextMenuApi, Menu, React, RestAPI, Toasts } from "@webpack/common";
+import { ChannelStore, Constants, ContextMenuApi, Menu, React, RestAPI, SelectedChannelStore, Toasts } from "@webpack/common";
 
 const settings = definePluginSettings({
     location: {
@@ -162,18 +162,55 @@ async function exportChannel(channelId: string) {
     }
 }
 
+function exportCurrentChannel() {
+    const channelId = SelectedChannelStore.getChannelId();
+    if (!channelId) {
+        Toasts.show({ id: Toasts.genId(), type: Toasts.Type.FAILURE, message: "No channel selected." });
+        return;
+    }
+
+    exportChannel(channelId);
+}
+
+function ExporterIcon() {
+    return (
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
+            <path fill="currentColor" d="M12 16l-4-4h3V4h2v8h3l-4 4Zm-8 2h16v2H4v-2Z" />
+        </svg>
+    );
+}
+
+function ExporterMenu({ channelId }: { channelId: string; }) {
+    return (
+        <Menu.Menu navId="pc-exporter-menu" onClose={ContextMenuApi.closeContextMenu} aria-label="Exporter">
+            <Menu.MenuCheckboxItem
+                id="pc-exporter-include-images"
+                label="Include images"
+                checked={settings.store.includeImages}
+                action={() => settings.store.includeImages = !settings.store.includeImages}
+            />
+            <Menu.MenuSeparator />
+            <Menu.MenuItem id="pc-exporter-run" label="Export chat" action={() => exportChannel(channelId)} />
+        </Menu.Menu>
+    );
+}
+
+function openCurrentChannelMenu(e: React.MouseEvent) {
+    const channelId = SelectedChannelStore.getChannelId();
+    if (!channelId) return;
+
+    ContextMenuApi.openContextMenu(e, () => <ExporterMenu channelId={channelId} />);
+}
+
 export default definePlugin({
     name: "Exporter",
     description: "Right-click DM/Group -> Export full chat as HTML with unlimited pagination.",
     tags: ["Utility", "Developers"],
     authors: [TestcordDevs.x2b],
+    dependencies: ["HeaderBarAPI"],
     settings,
     chatBarButton: {
-        icon: (() => (
-            <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                <path fill="currentColor" d="M12 16l-4-4h3V4h2v8h3l-4 4Zm-8 2h16v2H4v-2Z" />
-            </svg>
-        )) as any,
+        icon: ExporterIcon as any,
         render: (({ channel, isMainChat }) => {
             if (!isMainChat || !channel?.id || settings.store.location !== "chatbar") return null;
             return (
@@ -181,23 +218,10 @@ export default definePlugin({
                     tooltip="Exporter"
                     onClick={() => exportChannel(channel.id)}
                     onContextMenu={e =>
-                        ContextMenuApi.openContextMenu(e, () => (
-                            <Menu.Menu navId="pc-exporter-menu" onClose={ContextMenuApi.closeContextMenu} aria-label="Exporter">
-                                <Menu.MenuCheckboxItem
-                                    id="pc-exporter-include-images"
-                                    label="Include images"
-                                    checked={settings.store.includeImages}
-                                    action={() => settings.store.includeImages = !settings.store.includeImages}
-                                />
-                                <Menu.MenuSeparator />
-                                <Menu.MenuItem id="pc-exporter-run" label="Export chat" action={() => exportChannel(channel.id)} />
-                            </Menu.Menu>
-                        ))
+                        ContextMenuApi.openContextMenu(e, () => <ExporterMenu channelId={channel.id} />)
                     }
                 >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                        <path fill="currentColor" d="M12 16l-4-4h3V4h2v8h3l-4 4Zm-8 2h16v2H4v-2Z" />
-                    </svg>
+                    <ExporterIcon />
                 </ChatBarButton>
             );
         }) as any,
@@ -208,25 +232,19 @@ export default definePlugin({
         if (location === "headerbar") {
             addHeaderBarButton("Exporter", () => (
                 <HeaderBarButton
-                    icon={() => (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M12 16l-4-4h3V4h2v8h3l-4 4Zm-8 2h16v2H4v-2Z" />
-                        </svg>
-                    )}
+                    icon={ExporterIcon}
                     tooltip="Exporter"
-                    onClick={() => {}}
+                    onClick={exportCurrentChannel}
+                    onContextMenu={openCurrentChannelMenu}
                 />
             ), 5);
         } else if (location === "channeltoolbar") {
             addChannelToolbarButton("Exporter", () => (
                 <ChannelToolbarButton
-                    icon={() => (
-                        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24">
-                            <path fill="currentColor" d="M12 16l-4-4h3V4h2v8h3l-4 4Zm-8 2h16v2H4v-2Z" />
-                        </svg>
-                    )}
+                    icon={ExporterIcon}
                     tooltip="Exporter"
-                    onClick={() => {}}
+                    onClick={exportCurrentChannel}
+                    onContextMenu={openCurrentChannelMenu}
                 />
             ), 5);
         }

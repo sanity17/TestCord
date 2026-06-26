@@ -23,6 +23,7 @@ export default definePlugin({
     description: "BombParty/WordBomb assistant with persistent overlay, integrated AI, and alphabet tracking.",
     tags: ["Fun", "Nightcord"],
     authors: [{ name: "Nightcord", id: 0n }],
+    dependencies: ["HeaderBarAPI"],
 
     start() {
         addHeaderBarButton("wordbomb", () => (

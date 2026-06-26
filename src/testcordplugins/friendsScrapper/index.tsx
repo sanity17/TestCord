@@ -294,6 +294,7 @@ export default definePlugin({
     description: "Adds a Scrap button to Friends > All to unfriend everyone except whitelisted.",
     tags: ["Friends", "Utility"],
     authors: [TestcordDevs.x2b],
+    dependencies: ["HeaderBarAPI"],
     settings,
     chatBarButton: {
         icon: (() => (

@@ -607,7 +607,7 @@ export default definePlugin({
     description: "Injects fake local messages into a DM or group DM. Button in the text bar. Persists across restarts.",
     tags: ["Chat", "Privacy", "Nightcord"],
     authors: [{ name: "Nightcord", id: 0n }],
-    dependencies: ["ChatInputButtonAPI"],
+    dependencies: ["ChatInputButtonAPI", "HeaderBarAPI"],
     settings: fakeDMSettings,
 
     chatBarButton: {

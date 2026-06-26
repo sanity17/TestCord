@@ -234,6 +234,62 @@ const FormatButton: ChatBarButtonFactory = ({ isMainChat }) => {
     );
 };
 
+function HeaderFormatButton() {
+    const [open, setOpen] = React.useState(false);
+    const buttonRef = React.useRef<HTMLDivElement>(null);
+
+    return (
+        <Popout
+            position="bottom"
+            align="center"
+            spacing={8}
+            animation={Popout.Animation.NONE}
+            shouldShow={open}
+            onRequestClose={() => setOpen(false)}
+            targetElementRef={buttonRef}
+            renderPopout={() => <ToolbarPopout closePopout={() => setOpen(false)} />}
+        >
+            {(_, { isShown }) => (
+                <div ref={buttonRef}>
+                    <HeaderBarButton
+                        icon={FormatIcon}
+                        tooltip={isShown ? null : "Text Formatting"}
+                        onClick={() => setOpen(v => !v)}
+                    />
+                </div>
+            )}
+        </Popout>
+    );
+}
+
+function ChannelFormatButton() {
+    const [open, setOpen] = React.useState(false);
+    const buttonRef = React.useRef<HTMLDivElement>(null);
+
+    return (
+        <Popout
+            position="bottom"
+            align="center"
+            spacing={8}
+            animation={Popout.Animation.NONE}
+            shouldShow={open}
+            onRequestClose={() => setOpen(false)}
+            targetElementRef={buttonRef}
+            renderPopout={() => <ToolbarPopout closePopout={() => setOpen(false)} />}
+        >
+            {(_, { isShown }) => (
+                <div ref={buttonRef}>
+                    <ChannelToolbarButton
+                        icon={FormatIcon}
+                        tooltip={isShown ? null : "Text Formatting"}
+                        onClick={() => setOpen(v => !v)}
+                    />
+                </div>
+            )}
+        </Popout>
+    );
+}
+
 const wrapperMap: Record<string, (text: string) => string> = {
     "^^": text => mapChars(superscriptList, text),
     "%%": text => mapChars(smallCapsList, text),
@@ -272,7 +328,7 @@ export default definePlugin({
     description: "Adds a formatting toolbar to the chat bar with text styling options.",
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b, EquicordDevs.omaw],
-    dependencies: ["ChatInputButtonAPI", "MessageEventsAPI"],
+    dependencies: ["ChatInputButtonAPI", "MessageEventsAPI", "HeaderBarAPI"],
     settings,
 
     onBeforeMessageSend(_, message) {
@@ -288,21 +344,9 @@ export default definePlugin({
     start() {
         const { location } = settings.store;
         if (location === "headerbar") {
-            addHeaderBarButton("BetterFormattingRedux", () => (
-                <HeaderBarButton
-                    icon={FormatIcon}
-                    tooltip="Text Formatting"
-                    onClick={() => {}}
-                />
-            ), 5);
+            addHeaderBarButton("BetterFormattingRedux", HeaderFormatButton, 5);
         } else if (location === "channeltoolbar") {
-            addChannelToolbarButton("BetterFormattingRedux", () => (
-                <ChannelToolbarButton
-                    icon={FormatIcon}
-                    tooltip="Text Formatting"
-                    onClick={() => {}}
-                />
-            ), 5);
+            addChannelToolbarButton("BetterFormattingRedux", ChannelFormatButton, 5);
         }
     },
 

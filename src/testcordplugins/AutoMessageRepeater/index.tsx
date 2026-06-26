@@ -379,6 +379,7 @@ export default definePlugin({
     description: "Automatically repeat messages/commands with customizable delays and anti-detection features",
     tags: ["Chat", "Utility"],
     authors: [TestcordDevs.x2b],
+    dependencies: ["HeaderBarAPI"],
     settings,
 
     chatBarButton: {

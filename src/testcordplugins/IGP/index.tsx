@@ -700,6 +700,7 @@ export default definePlugin({
     name: "IGP",
     description: "Illegalcord PGP encryption",
     authors: [{ name: "irritably", id: 928787166916640838n }],
+    dependencies: ["HeaderBarAPI"],
     settings,
 
     chatBarButton: {

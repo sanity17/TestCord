@@ -88,7 +88,7 @@ export default definePlugin({
     authors: [TestcordDevs.x2b],
     description: "Toggle writing multi-line messages by default",
     tags: ["Chat", "Utility"],
-    dependencies: ["CommandsAPI", "ChatInputButtonAPI"],
+    dependencies: ["CommandsAPI", "ChatInputButtonAPI", "HeaderBarAPI"],
     settings,
 
     patches: [
