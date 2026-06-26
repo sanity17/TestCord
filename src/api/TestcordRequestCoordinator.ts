@@ -21,12 +21,54 @@ interface CacheEntry {
     value: unknown;
 }
 
+interface TestcordHelperNetworkSettings {
+    CarefulNetwork?: boolean;
+    performanceMode?: boolean;
+    performanceCarefulNetwork?: boolean;
+    performanceBoundRequestCache?: boolean;
+    performanceRequestCacheEntries?: number;
+}
+
+const DEFAULT_MAX_CACHE_ENTRIES = 250;
+
 const inFlight = new Map<string, Promise<unknown>>();
 const cache = new Map<string, CacheEntry>();
 const scopeChains = new Map<string, Promise<void>>();
 
+function helperSettings() {
+    return Settings.plugins.TestcordHelper as TestcordHelperNetworkSettings | undefined;
+}
+
 function isEnabled(): boolean {
-    return Settings.plugins.TestcordHelper?.CarefulNetwork === true;
+    const settings = helperSettings();
+    return settings?.CarefulNetwork === true || (settings?.performanceMode === true && settings.performanceCarefulNetwork === true);
+}
+
+function isBoundCacheEnabled(): boolean {
+    const settings = helperSettings();
+    return settings?.performanceMode === true && settings.performanceBoundRequestCache === true;
+}
+
+function getMaxCacheEntries(): number {
+    const value = helperSettings()?.performanceRequestCacheEntries;
+    return typeof value === "number" && Number.isFinite(value) && value > 0
+        ? value
+        : DEFAULT_MAX_CACHE_ENTRIES;
+}
+
+function pruneCache(now = Date.now()): void {
+    if (!isBoundCacheEnabled()) return;
+
+    for (const [key, entry] of cache) {
+        if (entry.expiresAt <= now) cache.delete(key);
+    }
+
+    const maxEntries = getMaxCacheEntries();
+    while (cache.size > maxEntries) {
+        const oldest = cache.keys().next().value;
+        if (oldest === undefined) break;
+        cache.delete(oldest);
+    }
 }
 
 async function waitForScope(scope: string, minDelayMs: number): Promise<void> {
@@ -40,8 +82,11 @@ async function waitForScope(scope: string, minDelayMs: number): Promise<void> {
 export async function request<T>({ key, run, ttlMs, scope, minDelayMs, cacheable }: CoordinatedRequestOptions<T>): Promise<T> {
     if (!isEnabled()) return await run();
 
+    const now = Date.now();
+    pruneCache(now);
+
     const cached = cache.get(key);
-    if (cached && cached.expiresAt > Date.now()) return cached.value as T;
+    if (cached && cached.expiresAt > now) return cached.value as T;
 
     const existing = inFlight.get(key);
     if (existing) return existing as Promise<T>;
@@ -51,6 +96,7 @@ export async function request<T>({ key, run, ttlMs, scope, minDelayMs, cacheable
         const value = await run();
         if (ttlMs && (cacheable?.(value) ?? value != null)) {
             cache.set(key, { expiresAt: Date.now() + ttlMs, value });
+            pruneCache();
         }
         return value;
     })();

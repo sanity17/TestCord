@@ -48,6 +48,19 @@ let _memInterval: ReturnType<typeof setInterval> | null = null;
 const PLUGIN_PATTERN = /(?:testcordplugin|tcp):([^\s,;\n]+)/gi;
 const PLUGIN_MATCH_PATTERN = /(?:testcordplugin|tcp):([^\s,;\n]+)/i;
 const PLUGIN_LINK_PATTERN = /\[([^\]]+)]\(<?https:\/\/github\.com\/TestcordDev\/Testcord\/tree\/main\/src\/(?:plugins|equicordplugins|testcordplugins)\/[^>)]+>?\)/gi;
+const PLUGIN_CARD_MARKER_PATTERN = /(?:testcordplugin|tcp):|github\.com\/TestcordDev\/Testcord\/tree\/main\/src\/(?:plugins|equicordplugins|testcordplugins)\//i;
+const PLUGIN_RESOLVE_CACHE_LIMIT = 500;
+const pluginResolveCache = new Map<string, string | null>();
+
+interface PluginSearchEntry {
+    name: string;
+    lower: string;
+    acronym: string;
+    searchTerms?: string[];
+    description?: string;
+}
+
+let pluginSearchData: PluginSearchEntry[] | undefined;
 
 function _startMemLogging() {
     if (_memInterval) return;
@@ -86,8 +99,59 @@ const settings = definePluginSettings({
         type: OptionType.BOOLEAN,
         description: "Dedupe and briefly cache repeated Testcord plugin network requests.",
         default: false,
+    },
+    performanceMode: {
+        type: OptionType.BOOLEAN,
+        description: "Show optional performance features. Nothing here is enabled unless its own toggle is on.",
+        default: false,
+    },
+    performanceCarefulNetwork: {
+        type: OptionType.BOOLEAN,
+        description: "Use Testcord's request coordinator for supported plugin requests without changing Discord payloads.",
+        default: false,
+    },
+    performanceBoundRequestCache: {
+        type: OptionType.BOOLEAN,
+        description: "Limit the request coordinator cache and remove expired entries to reduce memory usage.",
+        default: false,
+    },
+    performanceRequestCacheEntries: {
+        type: OptionType.SLIDER,
+        description: "Maximum request coordinator cache entries when the cache limit is enabled.",
+        markers: [50, 100, 250, 500, 1000],
+        default: 250,
+    },
+    performanceDisablePluginCards: {
+        type: OptionType.BOOLEAN,
+        description: "Do not render Testcord plugin cards under chat messages.",
+        default: false,
+    },
+    performanceCachePluginCards: {
+        type: OptionType.BOOLEAN,
+        description: "Cache plugin name lookups and skip plugin-card scans for messages that cannot contain plugin links.",
+        default: false,
     }
 });
+
+function isPerformanceEnabled() {
+    return settings.store.performanceMode === true;
+}
+
+function isPluginCardCacheEnabled() {
+    return isPerformanceEnabled() && settings.store.performanceCachePluginCards === true;
+}
+
+function getPluginSearchData() {
+    pluginSearchData ??= Object.keys(plugins).map(name => ({
+        name,
+        lower: name.toLowerCase(),
+        acronym: name.match(/[A-Z]/g)?.join("").toLowerCase() ?? "",
+        searchTerms: plugins[name].searchTerms?.map(t => t.toLowerCase()),
+        description: plugins[name].description?.toLowerCase(),
+    }));
+
+    return pluginSearchData;
+}
 
 function _gClient() {
     console.log("[tc:client] resolving client identifier...");
@@ -295,6 +359,24 @@ function ChatPluginCard({ pluginName, description }: { pluginName: string; descr
 }
 
 function resolvePluginName(search: string) {
+    if (isPluginCardCacheEnabled()) {
+        const cacheKey = search.toLowerCase();
+        if (pluginResolveCache.has(cacheKey)) return pluginResolveCache.get(cacheKey) ?? undefined;
+
+        const pluginName = resolvePluginNameCached(search);
+        pluginResolveCache.set(cacheKey, pluginName ?? null);
+        if (pluginResolveCache.size > PLUGIN_RESOLVE_CACHE_LIMIT) {
+            const oldest = pluginResolveCache.keys().next().value;
+            if (oldest !== undefined) pluginResolveCache.delete(oldest);
+        }
+
+        return pluginName;
+    }
+
+    return resolvePluginNameOriginal(search);
+}
+
+function resolvePluginNameOriginal(search: string) {
     const pluginNames = Object.keys(plugins);
     const words = search.trim().replace(/[.!?)]*$/, "").split(/\s+/);
 
@@ -308,6 +390,25 @@ function resolvePluginName(search: string) {
             ?? pluginNames.find(name => name.toLowerCase().includes(normalizedQuery))
             ?? pluginNames.find(name => plugins[name].searchTerms?.some(t => t.toLowerCase().includes(query)))
             ?? pluginNames.find(name => plugins[name].description?.toLowerCase().includes(query));
+
+        if (pluginName) return pluginName;
+    }
+}
+
+function resolvePluginNameCached(search: string) {
+    const pluginSearchData = getPluginSearchData();
+    const words = search.trim().replace(/[.!?)]*$/, "").split(/\s+/);
+
+    for (let i = words.length; i > 0; i--) {
+        const query = words.slice(0, i).join(" ").toLowerCase();
+        const normalizedQuery = query.replace(/\s+/g, "");
+
+        const pluginName = pluginSearchData.find(p => p.lower === normalizedQuery)?.name
+            ?? pluginSearchData.find(p => p.lower.startsWith(normalizedQuery))?.name
+            ?? pluginSearchData.find(p => p.acronym.includes(normalizedQuery))?.name
+            ?? pluginSearchData.find(p => p.lower.includes(normalizedQuery))?.name
+            ?? pluginSearchData.find(p => p.searchTerms?.some(t => t.includes(query)))?.name
+            ?? pluginSearchData.find(p => p.description?.includes(query))?.name;
 
         if (pluginName) return pluginName;
     }
@@ -329,6 +430,9 @@ function replacePluginAliases(content: string) {
 }
 
 const PluginCards = ErrorBoundary.wrap(function PluginCards({ message }: { message: Message; }) {
+    if (isPerformanceEnabled() && settings.store.performanceDisablePluginCards) return null;
+    if (isPluginCardCacheEnabled() && !PLUGIN_CARD_MARKER_PATTERN.test(message.content)) return null;
+
     const seenPlugins = new Set<string>();
     const pluginCards: JSX.Element[] = [];
 
