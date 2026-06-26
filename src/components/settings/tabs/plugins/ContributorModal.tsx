@@ -45,10 +45,10 @@ function ContributorModal({ user, modalProps }: { user: User; modalProps: Render
         const allPlugins = Object.values(Plugins);
         const dev = VencordDevsById[user.id] || EquicordDevsById[user.id] || TestcordDevsById[user.id];
         const pluginsByAuthor = dev
-            ? allPlugins.filter(p => p.authors.includes(dev))
+            ? allPlugins.filter(p => p.authors?.includes(dev))
             : allPlugins.filter(p =>
-                PluginMeta[p.name]?.userPlugin && p.authors.some(a => a.id.toString() === user.id)
-                || p.authors.some(a => a.name === user.username)
+                PluginMeta[p.name]?.userPlugin && p.authors?.some(a => a?.id.toString() === user.id)
+                || p.authors?.some(a => a?.name === user.username)
             );
 
         return pluginsByAuthor
