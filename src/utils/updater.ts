@@ -65,6 +65,20 @@ export async function update() {
     return res;
 }
 
+export async function forceUpdate() {
+    if (!isOutdated) return true;
+
+    const res = await Unwrap(VencordNative.updater.forceUpdate());
+
+    if (res) {
+        isOutdated = false;
+        if (!await Unwrap(VencordNative.updater.rebuild()))
+            throw new Error("The Build failed. Please try manually building the new update");
+    }
+
+    return res;
+}
+
 export const getRepo = () => Unwrap(VencordNative.updater.getRepo());
 
 export async function maybePromptToUpdate(confirmMessage: string, checkForDev = false) {
