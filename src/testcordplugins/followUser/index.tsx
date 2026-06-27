@@ -25,6 +25,8 @@ import {
 } from "@webpack/common";
 import type { PropsWithChildren, SVGProps } from "react";
 
+import { FollowIcon as PanelFollowIcon, FollowPanelButton } from "./panel";
+
 const HeaderBarIcon = LazyComponent(() => {
     const filter = filters.byCode(".HEADER_BAR_BADGE");
     return find(m => m.Icon && filter(m.Icon)).Icon;
@@ -144,6 +146,25 @@ export const settings = definePluginSettings({
         description: "Attempt to move you to the channel when is not full anymore",
         restartNeeded: false,
         default: true,
+    },
+    onlyWhenInVoice: {
+        type: OptionType.BOOLEAN,
+        description: "Only follow while you are in a voice channel yourself",
+        restartNeeded: false,
+        default: false,
+    },
+    showPanelButton: {
+        type: OptionType.BOOLEAN,
+        description: "Show a follow management button in the user area panel",
+        restartNeeded: true,
+        default: false,
+    },
+    followedUsername: {
+        type: OptionType.STRING,
+        description: "Cached username of the followed user",
+        restartNeeded: false,
+        hidden: true,
+        default: "",
     }
 });
 
@@ -168,7 +189,7 @@ interface VoiceStateMember {
     [userId: string]: VoiceState;
 }
 
-function getChannelId(userId: string) {
+export function getChannelId(userId: string) {
     if (!userId) {
         return null;
     }
@@ -183,7 +204,7 @@ function getChannelId(userId: string) {
     return null;
 }
 
-function triggerFollow(userChannelId: string | null = getChannelId(settings.store.followUserId)) {
+export function triggerFollow(userChannelId: string | null = getChannelId(settings.store.followUserId)) {
     if (settings.store.followUserId) {
         const myChanId = SelectedChannelStore.getVoiceChannelId();
         if (userChannelId) {
@@ -248,11 +269,13 @@ function triggerFollow(userChannelId: string | null = getChannelId(settings.stor
     }
 }
 
-function toggleFollow(userId: string) {
+export function toggleFollow(userId: string) {
     if (settings.store.followUserId === userId) {
         settings.store.followUserId = "";
+        settings.store.followedUsername = "";
     } else {
         settings.store.followUserId = userId;
+        settings.store.followedUsername = UserStore.getUser(userId)?.username ?? "";
         if (settings.store.executeOnFollow) {
             triggerFollow();
         }
@@ -301,6 +324,11 @@ export default definePlugin({
         },
     ],
 
+    userAreaButton: {
+        icon: PanelFollowIcon,
+        render: FollowPanelButton
+    },
+
     contextMenus: {
         "user-context": UserContext
     },
@@ -308,6 +336,9 @@ export default definePlugin({
     flux: {
         VOICE_STATE_UPDATES({ voiceStates }: { voiceStates: VoiceState[]; }) {
             if (settings.store.onlyManualTrigger || !settings.store.followUserId) {
+                return;
+            }
+            if (settings.store.onlyWhenInVoice && !SelectedChannelStore.getVoiceChannelId()) {
                 return;
             }
             for (const { userId, channelId, oldChannelId } of voiceStates) {
@@ -362,6 +393,7 @@ export default definePlugin({
                     }}
                     onContextMenu={() => {
                         settings.store.followUserId = "";
+                        settings.store.followedUsername = "";
                     }}
                 />
             );
