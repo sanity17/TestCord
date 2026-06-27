@@ -298,14 +298,16 @@ const HOVER_EFFECTS = [
     { value: "none", label: "None" },
 ];
 
+// Use Discord's theme variables (previous hardcoded values kept as fallbacks) so
+// the modal adapts to custom themes instead of staying locked to the dark default.
 const C = {
-    text: "#dbdee1",
-    textMuted: "#949ba4",
-    header: "#f2f3f5",
-    cardBg: "#2b2d31",
-    brand: "#5865f2",
-    green: "#23a559",
-    border: "rgba(255,255,255,0.06)"
+    text: "var(--text-normal, #dbdee1)",
+    textMuted: "var(--text-muted, #949ba4)",
+    header: "var(--header-primary, #f2f3f5)",
+    cardBg: "var(--background-secondary-alt, var(--background-secondary, #2b2d31))",
+    brand: "var(--brand-experiment, #5865f2)",
+    green: "var(--status-positive, #23a559)",
+    border: "var(--border-subtle, var(--background-modifier-accent, rgba(255,255,255,0.06)))"
 };
 
 function Label({ children }: { children: string; }) {
@@ -400,17 +402,17 @@ function Modal({ modalProps }: { modalProps: ModalProps; }) {
     ];
 
     return (
-        <ModalRoot {...modalProps} size={ModalSize.SMALL}>
+        <ModalRoot {...modalProps} size={ModalSize.MEDIUM}>
             <ModalHeader separator={false} style={{ flexDirection: "column", padding: "24px 24px 0 24px" }}>
                 <div style={{ display: "flex", alignItems: "center", gap: "8px", width: "100%" }}>
                     <Icon className="icon__201d5" style={{ color: C.header }} />
                     <span style={{ fontSize: "20px", fontWeight: 800, color: C.header, lineHeight: 1 }}>Panel Layout</span>
                 </div>
 
-                <div style={{ display: "flex", gap: "24px", marginTop: "24px", borderBottom: `1px solid ${C.border}`, width: "100%" }}>
+                <div style={{ display: "flex", gap: "20px", marginTop: "24px", borderBottom: `1px solid ${C.border}`, width: "100%", flexWrap: "wrap" }}>
                     {tabs.map(t => (
                         <div key={t.id} onClick={() => setTab(t.id)} style={{
-                            paddingBottom: "12px", cursor: "pointer", fontSize: "14px", fontWeight: tab === t.id ? 600 : 500,
+                            paddingBottom: "12px", cursor: "pointer", fontSize: "14px", fontWeight: tab === t.id ? 600 : 500, whiteSpace: "nowrap",
                             color: tab === t.id ? C.header : C.textMuted,
                             borderBottom: tab === t.id ? `2px solid ${C.brand}` : "2px solid transparent",
                             transition: "all 0.15s ease"
