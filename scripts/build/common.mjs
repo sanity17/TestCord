@@ -368,9 +368,6 @@ export const fileUrlPlugin = {
                         content = Buffer.from(content).toString("base64");
                 }
 
-                if (base64 && !content.startsWith("data:"))
-                    content = Buffer.from(content).toString("base64");
-
                 return { contents: content, loader: "text" };
             },
         );
