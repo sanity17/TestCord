@@ -608,26 +608,6 @@ async function runUploadFlow(channelId: string) {
     }
 }
 
-function CatboxImagePreview({ content }: { content: string; }) {
-    const url = useMemo(() => tryGetPreviewableCatboxUrl(content), [content]);
-    if (!url) return null;
-
-    return (
-        <div className={Margins.top8} style={{ maxWidth: 550 }}>
-            <img
-                src={url}
-                style={{
-                    maxWidth: "100%",
-                    borderRadius: 8,
-                    cursor: "pointer",
-                    display: "block",
-                }}
-                onClick={() => openImageModal({ url, width: 1200 })}
-            />
-        </div>
-    );
-}
-
 const ctxMenuPatch: NavContextMenuPatchCallback = (children, props) => {
     if (children.find(c => c?.props?.id === "vc-big-file-upload")) return;
     if (props.channel.guild_id && !PermissionStore.can(PermissionsBits.SEND_MESSAGES, props.channel)) return;
@@ -910,6 +890,22 @@ export default definePlugin({
         if (Array.isArray(message?.embeds) && message.embeds.length) return;
         if (Array.isArray(message?.attachments) && message.attachments.length) return;
 
-        return <CatboxImagePreview content={content} />;
+        const url = tryGetPreviewableCatboxUrl(content);
+        if (!url) return;
+
+        return (
+            <div className={Margins.top8} style={{ maxWidth: 550 }}>
+                <img
+                    src={url}
+                    style={{
+                        maxWidth: "100%",
+                        borderRadius: 8,
+                        cursor: "pointer",
+                        display: "block",
+                    }}
+                    onClick={() => openImageModal({ url, width: 1200 })}
+                />
+            </div>
+        );
     }
 });

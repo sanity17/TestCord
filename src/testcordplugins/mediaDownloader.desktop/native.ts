@@ -38,14 +38,8 @@ const cleanVideoFiles = () => {
         .filter(f => f.startsWith("download.") || f.startsWith("remux."))
         .forEach(f => fs.unlinkSync(p(f)));
 };
-// Collapses carriage-return (\r) overwrites within a line. The /gm regex acts
-// per-line, so once a line is terminated by \n it never changes again; we only
-// re-scan the still-open trailing line, avoiding an O(n^2) rescan of the whole
-// accumulated buffer on every chunk.
-const CR_COLLAPSE = /^.*\r([^\n])/gm;
-const appendOut = (data: string) => {
-    stdout_global = (stdout_global + data).replace(CR_COLLAPSE, "$1");
-};
+const appendOut = (data: string) => ( // Makes carriage return (\r) work
+    (stdout_global += data), (stdout_global = stdout_global.replace(/^.*\r([^\n])/gm, "$1")));
 const log = (...data: string[]) => (console.log(`[Plugin:MediaDownloader] ${data.join(" ")}`), logs_global += `[Plugin:MediaDownloader] ${data.join(" ")}\n`);
 const error = (...data: string[]) => console.error(`[Plugin:MediaDownloader] [ERROR] ${data.join(" ")}`);
 

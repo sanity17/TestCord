@@ -14,7 +14,7 @@ import { Devs, EquicordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Message, User } from "@vencord/discord-types";
 import { findByPropsLazy, findCssClassesLazy } from "@webpack";
-import { Button, Menu, openModal,showToast, Toasts, Tooltip, useEffect, useMemo, UserStore, useState } from "@webpack/common";
+import { Button, Menu, openModal,showToast, Toasts, Tooltip, useEffect, UserStore, useState } from "@webpack/common";
 
 import { deleteTimezone, getTimezone, loadDatabaseTimezones, setUserDatabaseTimezone } from "./database";
 import { SetTimezoneModal } from "./TimezoneModal";
@@ -187,41 +187,33 @@ const TimestampComponent = ErrorBoundary.wrap(({ userId, timestamp, type }: Prop
         };
     }, [type]);
 
-    const formatted = useMemo(() => {
-        if (!timezone) return null;
+    if (!timezone) return null;
 
-        const shortTime = getTime(timezone, currentTime, { hour: "numeric", minute: "numeric" });
-        let displayTime = shortTime;
-        let isLocal = false;
+    const shortTime = getTime(timezone, currentTime, { hour: "numeric", minute: "numeric" });
+    let displayTime = shortTime;
+    let isLocal = false;
 
-        if (settings.store.showTimezoneInfo) {
-            const userTimezone = getSystemTimezone();
-            if (timezone === userTimezone) {
-                displayTime = "local";
-                isLocal = true;
-            } else {
-                const timezoneInfo = getTimezoneAbbreviation(timezone, currentTime);
-                displayTime = `${shortTime} ${timezoneInfo || timezone}`;
-            }
+    if (settings.store.showTimezoneInfo) {
+        const userTimezone = getSystemTimezone();
+        if (timezone === userTimezone) {
+            displayTime = "local";
+            isLocal = true;
+        } else {
+            const timezoneInfo = getTimezoneAbbreviation(timezone, currentTime);
+            displayTime = `${shortTime} ${timezoneInfo || timezone}`;
         }
+    }
 
-        const longTime = getTime(timezone, currentTime, {
-            weekday: "long",
-            year: "numeric",
-            month: "long",
-            day: "numeric",
-            hour: "numeric",
-            minute: "numeric"
-        });
+    const longTime = getTime(timezone, currentTime, {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+        hour: "numeric",
+        minute: "numeric"
+    });
 
-        const tooltipText = isLocal ? `${longTime} (Your local timezone)` : longTime;
-
-        return { displayTime, isLocal, tooltipText };
-    }, [timezone, currentTime, settings.store["24h Time"], settings.store.showTimezoneInfo]);
-
-    if (!formatted) return null;
-
-    const { displayTime, isLocal, tooltipText } = formatted;
+    const tooltipText = isLocal ? `${longTime} (Your local timezone)` : longTime;
 
     return (
         <Tooltip

@@ -19,9 +19,9 @@
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 
-import { onChannelCreate, onChannelDelete, onGuildDelete, onRelationshipRemove, removeFriend, removeGroup, removeGuild } from "./functions";
+import { onChannelDelete, onGuildDelete, onRelationshipRemove, removeFriend, removeGroup, removeGuild } from "./functions";
 import settings from "./settings";
-import { syncAndRunChecks, syncFriends, syncGuilds } from "./utils";
+import { syncAndRunChecks, syncFriends, syncGroups, syncGuilds } from "./utils";
 
 export default definePlugin({
     name: "RelationshipNotifier",
@@ -57,7 +57,7 @@ export default definePlugin({
     flux: {
         GUILD_CREATE: syncGuilds,
         GUILD_DELETE: onGuildDelete,
-        CHANNEL_CREATE: onChannelCreate,
+        CHANNEL_CREATE: syncGroups,
         CHANNEL_DELETE: onChannelDelete,
         RELATIONSHIP_ADD: syncFriends,
         RELATIONSHIP_UPDATE: syncFriends,

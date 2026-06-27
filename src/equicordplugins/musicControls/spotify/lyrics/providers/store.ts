@@ -40,10 +40,9 @@ export const SpotifyLrcStore = proxyLazyWebpack(() => {
 
     const store = new SpotifyLrcStore(FluxDispatcher, {
         async SPOTIFY_PLAYER_STATE(e: { track: Track | null; }) {
-            const trackId = e.track?.id ?? "";
-            if (fetchingsTracks.includes(trackId)) return;
+            if (fetchingsTracks.includes(e.track?.id ?? "")) return;
 
-            fetchingsTracks.push(trackId);
+            fetchingsTracks.push(e.track?.id ?? "");
             lyricsInfo = await getLyrics(e.track);
             const { lyricsConversion } = settings.store;
             if (lyricsConversion !== Provider.None) {
@@ -54,7 +53,7 @@ export const SpotifyLrcStore = proxyLazyWebpack(() => {
                 });
             }
 
-            fetchingsTracks = fetchingsTracks.filter(id => id !== trackId);
+            fetchingsTracks = fetchingsTracks.filter(id => id !== e.track?.id);
             store.emitChange();
         },
 

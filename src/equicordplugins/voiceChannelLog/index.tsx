@@ -13,7 +13,7 @@ import { ApplicationStore, ChannelStore, Menu, RelationshipStore, SelectedChanne
 
 import { LogIcon, OpenLogsButton } from "./components/LogsButton";
 import { openVoiceChannelLog } from "./components/VoiceChannelLogModal";
-import { addLogEntry, clearAllLogs, setCallStartTime } from "./logs";
+import { addLogEntry, setCallStartTime } from "./logs";
 import settings from "./settings";
 import { EmbeddedActivityEvent, PreviousVoiceState, SoundEvent, VoiceChannelLogEntry, VoiceState } from "./types";
 
@@ -268,6 +268,5 @@ export default definePlugin({
         loggedActivities.clear();
         existingUsers.clear();
         setCallStartTime(null);
-        clearAllLogs();
     }
 });

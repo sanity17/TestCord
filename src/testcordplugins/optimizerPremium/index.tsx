@@ -666,7 +666,7 @@ export default definePlugin({
                     replace: (_m, p) => `this.__open=${p},this.setState({shouldShowTooltip:${p}})`
                 },
                 {
-                    match: /if\(this\.state\.shouldShowTooltip!==([A-Za-z_$][\w$]*)\)/,
+                    match: /if\(this\.state\.shouldShowTooltip!==(\i)\)/,
                     replace: "if(this.__open!==$1)"
                 }
             ]
@@ -683,8 +683,7 @@ export default definePlugin({
                         "const usableEmojis=t?.usableEmojis;" +
                         "const emoticons=t?.emoticons;" +
                         `null!=t&&(${a}().each(usableEmojis,${n}),${a}().each(emoticons,${r}))` +
-                        "};",
-                    noWarn: true
+                        "};"
                 }
             ]
         },
@@ -692,8 +691,8 @@ export default definePlugin({
             find: /\i\.\i\.getAppSpinnerSources\(\)/,
             predicate: () => settings.store.killLoadingSpinner,
             replacement: {
-                match: /S=[A-Za-z_$][\w$]*=>\{let\{loop:[\s\S]{0,900}?children:[A-Za-z_$][\w$]*\},[A-Za-z_$][\w$]*\)\}/,
-                replace: "S=()=>null"
+                match: /let \i=\i\.\i\.getAppSpinnerSources\(\).+?;(\i\.\i).+?\)\}/,
+                replace: "$1=()=>null;"
             }
         },
         {
@@ -709,8 +708,7 @@ export default definePlugin({
             predicate: () => settings.store.killGatewayAnalytics,
             replacement: {
                 match: /let \i=Date\.now\(\),(\i=\i\.Z\.flush\(\i,\i\));\i\.\i\.showPerformanceTelemetry\?.+?Telemetry\(.+?,\i\)/,
-                replace: "$1",
-                noWarn: true
+                replace: "$1"
             }
         },
         {
@@ -2486,17 +2484,12 @@ export default definePlugin({
             if (!src.includes("cdn.discord") && !src.includes("media.discord")) return;
             if (!isAvatar(img)) return;
             img.dataset.opAvQuality = "1";
-            // Avoid new URL() allocation per image: detect/rewrite the size param
-            // with a cheap string op. src is already an absolute CDN URL here.
-            const sizeMatch = /([?&])size=(\d+)/.exec(src);
-            let next: string;
-            if (sizeMatch) {
-                if (Number(sizeMatch[2]) <= 64) return;
-                next = src.replace(/([?&])size=\d+/, "$1size=64");
-            } else {
-                next = src + (src.indexOf("?") === -1 ? "?" : "&") + "size=64";
-            }
-            if (next !== src) img.src = next;
+            try {
+                const url = new URL(src, window.location.origin);
+                const size = url.searchParams.get("size");
+                if (!size || Number(size) > 64) url.searchParams.set("size", "64");
+                if (url.toString() !== src) img.src = url.toString();
+            } catch { /* ignore */ }
         };
 
         document.querySelectorAll<HTMLImageElement>("img[class*=\"avatar\"], [class*=\"member\"] img").forEach(rewrite);
@@ -2557,14 +2550,9 @@ export default definePlugin({
             if (el.matches("textarea, input, [contenteditable]")) {
                 el.setAttribute("spellcheck", "false");
             }
-            // Skip the subtree scan for leaf nodes (spans, avatars, text wrappers
-            // that make up the bulk of added nodes) — they can have no editable
-            // descendants, so the querySelectorAll walk would always return empty.
-            if (el.childElementCount > 0) {
-                el.querySelectorAll("textarea, input, [contenteditable]").forEach(child => {
-                    child.setAttribute("spellcheck", "false");
-                });
-            }
+            el.querySelectorAll("textarea, input, [contenteditable]").forEach(child => {
+                child.setAttribute("spellcheck", "false");
+            });
             el.setAttribute("data-op-nospell", "1");
         };
         document.querySelectorAll("textarea, input, [contenteditable]").forEach(el => el.setAttribute("spellcheck", "false"));
@@ -2652,9 +2640,7 @@ export default definePlugin({
         const MIN_INTERVAL = 2000;
         WebSocket.prototype.send = function (data: any) {
             try {
-                // Cheap pre-filter: op:7 frames are tiny and contain "op":7. Avoid
-                // JSON.parse on the >99% of frames that are not reconnect ops.
-                const parsed = typeof data === "string" && data.length < 64 && data.indexOf("\"op\":7") !== -1 ? JSON.parse(data) : null;
+                const parsed = typeof data === "string" && data.startsWith("{") ? JSON.parse(data) : null;
                 if (parsed && parsed.op === 7) {
                     const now = Date.now();
                     if (now - lastReconnect < MIN_INTERVAL) {

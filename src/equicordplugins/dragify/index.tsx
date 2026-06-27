@@ -18,7 +18,7 @@ import { ChannelStore, GuildStore, IconUtils, RelationshipStore, SelectedChannel
 import { beginDrag as beginSessionDrag, clearDragState, getLastDropAt, hasActiveDrag, isGuildDragActive, isInputDragSource, isUserDragActive, markDrop, markInputDragSource, scheduleGuildCleanup, shouldIgnoreDrop, startDragWatchdog, stopDragState, touchDrag } from "./dragState";
 import { type GhostState, hideGhost as hideDragGhost, isGhostVisible, mountGhost as mountDragGhost, scheduleGhostPosition as scheduleDragGhostPosition, showGhost as showDragGhost, unmountGhost as unmountDragGhost } from "./ghost";
 import { clearInviteCache, createInvite, isGroupMessageChannel } from "./invite";
-import { type ChannelTarget, inspectDragEvent, inspectInputTarget, type ResolvedDragTarget } from "./targets";
+import { type ChannelTarget, inspectDragEvent, type ResolvedDragTarget } from "./targets";
 import { collectPayloadStrings, type DropEntity, extractStrings, parseDragifyPayload, parseFromStrings, serializeDragEntity } from "./utils";
 
 const logger = new Logger("Dragify");
@@ -37,15 +37,6 @@ type DragifyRuntime = {
 
 let pluginInstance: DragifyRuntime | null = null;
 let transparentDragImage: HTMLCanvasElement | null = null;
-
-// Caches the foreign-drag parseFromStrings result for the current drag session so
-// globalDragOver does not re-run extractStrings + parseFromStrings on every dragover frame.
-// undefined = not yet computed this session; a DropEntity/null = the cached parse result.
-let foreignDragParseCache: ReturnType<typeof parseFromStrings> | undefined;
-
-function resetForeignDragParseCache() {
-    foreignDragParseCache = undefined;
-}
 
 function getTransparentDragImage(): HTMLCanvasElement | null {
     if (typeof document === "undefined") return null;
@@ -457,13 +448,8 @@ export default definePlugin({
         const { dataTransfer } = event;
         if (!dataTransfer || dataTransfer.files?.length) return;
         if (!hasActiveDrag() && !hasDragifyTransfer(dataTransfer)) {
-            if (foreignDragParseCache === undefined) {
-                const payloads = extractStrings(dataTransfer);
-                const parsed = parseFromStrings(payloads, { ChannelStore, GuildStore, UserStore });
-                if (!parsed) return;
-                foreignDragParseCache = parsed;
-            }
-            if (!foreignDragParseCache) return;
+            const payloads = extractStrings(dataTransfer);
+            if (!parseFromStrings(payloads, { ChannelStore, GuildStore, UserStore })) return;
         }
 
         event.preventDefault();
@@ -472,7 +458,6 @@ export default definePlugin({
     },
 
     globalDrop: async (event: DragEvent) => {
-        resetForeignDragParseCache();
         const inst = pluginInstance;
         if (!inst || !inst.isMessageInputEvent(event)) return;
         if (isInputDragSource()) return;
@@ -508,7 +493,6 @@ export default definePlugin({
     },
 
     globalDragStart: (event: DragEvent) => {
-        resetForeignDragParseCache();
         const inst = pluginInstance;
         if (!inst || !event.dataTransfer) return;
 
@@ -553,7 +537,6 @@ export default definePlugin({
     },
 
     globalDragEnd: (_event: DragEvent) => {
-        resetForeignDragParseCache();
         setTimeout(() => {
             if (Date.now() - getLastDropAt() < 100) return;
             clearDragState();
@@ -574,7 +557,7 @@ export default definePlugin({
     },
 
     isMessageInputEvent(event: DragEvent): boolean {
-        const inspection = inspectInputTarget(event);
+        const inspection = inspectDragTarget(event, this);
         return inspection.hasMessageInput || (settings.store.allowChatBodyDrop && inspection.hasChatBody);
     },
 

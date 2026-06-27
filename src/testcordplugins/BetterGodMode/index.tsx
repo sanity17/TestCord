@@ -8,7 +8,7 @@ import { NavContextMenuPatchCallback } from "@api/ContextMenu";
 import { EquicordDevs, TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { Guild } from "@vencord/discord-types";
-import { Forms, Menu, PermissionStore, React } from "@webpack/common";
+import { Forms, GuildStore, Menu, PermissionStore, React } from "@webpack/common";
 
 // Constants for Permission bitmasks
 const ADMINISTRATOR_PERMISSION = 8n;
@@ -38,10 +38,10 @@ const godModeEnabledGuilds = new Set<string>();
 
 function getGuildIdFromArgs(args: any[]): string | null {
     for (const arg of args) {
-        if (typeof arg === "string" && godModeEnabledGuilds.has(arg)) return arg;
-        if (arg?.guild_id && godModeEnabledGuilds.has(arg.guild_id)) return arg.guild_id;
-        if (arg?.guildId && godModeEnabledGuilds.has(arg.guildId)) return arg.guildId;
-        if (arg?.id && godModeEnabledGuilds.has(arg.id)) return arg.id;
+        if (typeof arg === "string" && GuildStore.getGuild(arg)) return arg;
+        if (arg?.guild_id && GuildStore.getGuild(arg.guild_id)) return arg.guild_id;
+        if (arg?.guildId && GuildStore.getGuild(arg.guildId)) return arg.guildId;
+        if (arg?.id && GuildStore.getGuild(arg.id)) return arg.id;
     }
     return null;
 }
@@ -82,8 +82,6 @@ export default definePlugin({
             OriginalFns[fnName] = PermissionStore[fnName];
 
             PermissionStore[fnName] = function (...args: any[]) {
-                if (godModeEnabledGuilds.size === 0) return OriginalFns[fnName].apply(this, args);
-
                 const guildId = getGuildIdFromArgs(args);
 
                 if (guildId && godModeEnabledGuilds.has(guildId)) {

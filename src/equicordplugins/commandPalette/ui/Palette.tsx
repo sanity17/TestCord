@@ -8,7 +8,7 @@ import { IS_MAC } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import { copyWithToast } from "@utils/discord";
 import { Logger } from "@utils/Logger";
-import { React, useEffect, useMemo, useRef, useState } from "@webpack/common";
+import { React, useEffect, useRef, useState } from "@webpack/common";
 
 import { getVisibleCommands, subscribePalette } from "../api/registry";
 import type { PageEntry, PaletteAction, PaletteCommand, PaletteContext, PaletteListItem } from "../api/types";
@@ -159,7 +159,7 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
     const [actionsIndex, setActionsIndex] = useState(0);
     const [recordingFor, setRecordingFor] = useState<string | null>(null);
     const [listItems, setListItems] = useState<PaletteListItem[]>([]);
-    const [version, setVersion] = useState(0);
+    const [, setVersion] = useState(0);
 
     const inputRef = useRef<HTMLInputElement>(null);
     const formRef = useRef<FormHandle | null>(null);
@@ -207,68 +207,64 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
 
     const expanded = currentPage != null || query.trim() !== "" || forceExpanded;
 
-    const sections = useMemo<ResultSection[]>(() => {
-        const result: ResultSection[] = [];
+    let sections: ResultSection[] = [];
 
-        if (pageType === "root") {
-            const commands = getVisibleCommands();
-            const trimmed = query.trim();
+    if (pageType === "root") {
+        const commands = getVisibleCommands();
+        const trimmed = query.trim();
 
-            if (trimmed) {
-                const calc = calculatorRow(query);
-                if (calc) result.push({ label: "Calculator", items: [calc] });
+        if (trimmed) {
+            const calc = calculatorRow(query);
+            if (calc) sections.push({ label: "Calculator", items: [calc] });
 
-                const ranked = rankCommands(trimmed, commands)
-                    .map(entry => ({ row: commandToRow(entry.command), section: entry.command.section }))
-                    .filter((entry): entry is { row: RowItem; section: string; } => entry.row !== null);
-                result.push(...groupRanked(ranked));
-            } else if (expanded) {
-                const byId = new Map(commands.map(c => [c.id, c]));
-                const shown = new Set<string>();
+            const ranked = rankCommands(trimmed, commands)
+                .map(entry => ({ row: commandToRow(entry.command), section: entry.command.section }))
+                .filter((entry): entry is { row: RowItem; section: string; } => entry.row !== null);
+            sections.push(...groupRanked(ranked));
+        } else if (expanded) {
+            const byId = new Map(commands.map(c => [c.id, c]));
+            const shown = new Set<string>();
 
-                const pinnedRows = getPins()
-                    .map(id => byId.get(id))
-                    .filter((c): c is PaletteCommand => c != null)
-                    .map(c => { shown.add(c.id); return commandToRow(c); })
-                    .filter((row): row is RowItem => row !== null);
-                if (pinnedRows.length) result.push({ label: "Pinned", items: pinnedRows });
+            const pinnedRows = getPins()
+                .map(id => byId.get(id))
+                .filter((c): c is PaletteCommand => c != null)
+                .map(c => { shown.add(c.id); return commandToRow(c); })
+                .filter((row): row is RowItem => row !== null);
+            if (pinnedRows.length) sections.push({ label: "Pinned", items: pinnedRows });
 
-                const suggestionRows = topFrecent(SUGGESTION_LIMIT + shown.size)
-                    .map(id => byId.get(id))
-                    .filter((c): c is PaletteCommand => c != null && !shown.has(c.id))
-                    .slice(0, SUGGESTION_LIMIT)
-                    .map(c => { shown.add(c.id); return commandToRow(c); })
-                    .filter((row): row is RowItem => row !== null);
-                if (suggestionRows.length) result.push({ label: "Suggestions", items: suggestionRows });
+            const suggestionRows = topFrecent(SUGGESTION_LIMIT + shown.size)
+                .map(id => byId.get(id))
+                .filter((c): c is PaletteCommand => c != null && !shown.has(c.id))
+                .slice(0, SUGGESTION_LIMIT)
+                .map(c => { shown.add(c.id); return commandToRow(c); })
+                .filter((row): row is RowItem => row !== null);
+            if (suggestionRows.length) sections.push({ label: "Suggestions", items: suggestionRows });
 
-                const rest = commands
-                    .filter(c => !shown.has(c.id))
-                    .map(c => ({ row: commandToRow(c), section: c.section }))
-                    .filter((entry): entry is { row: RowItem; section: string; } => entry.row !== null);
-                result.push(...groupRanked(rest));
-            }
-        } else if (pageType === "list") {
-            const trimmed = query.trim();
-            const filtered = trimmed
-                ? listItems
-                    .map(item => ({
-                        item,
-                        score: Math.max(
-                            fuzzyScore(trimmed, item.label),
-                            ...(item.keywords ?? []).map(k => fuzzyScore(trimmed, k) * 0.7),
-                            item.sublabel ? fuzzyScore(trimmed, item.sublabel) * 0.5 : 0
-                        )
-                    }))
-                    .filter(entry => entry.score > 0)
-                    .sort((a, b) => b.score - a.score)
-                    .map(entry => entry.item)
-                : listItems;
-
-            if (filtered.length > 0) return [{ label: null, items: filtered.map(listItemToRow) }];
+            const rest = commands
+                .filter(c => !shown.has(c.id))
+                .map(c => ({ row: commandToRow(c), section: c.section }))
+                .filter((entry): entry is { row: RowItem; section: string; } => entry.row !== null);
+            sections.push(...groupRanked(rest));
         }
+    } else if (pageType === "list") {
+        const trimmed = query.trim();
+        const filtered = trimmed
+            ? listItems
+                .map(item => ({
+                    item,
+                    score: Math.max(
+                        fuzzyScore(trimmed, item.label),
+                        ...(item.keywords ?? []).map(k => fuzzyScore(trimmed, k) * 0.7),
+                        item.sublabel ? fuzzyScore(trimmed, item.sublabel) * 0.5 : 0
+                    )
+                }))
+                .filter(entry => entry.score > 0)
+                .sort((a, b) => b.score - a.score)
+                .map(entry => entry.item)
+            : listItems;
 
-        return result;
-    }, [pageType, query, expanded, listItems, version]);
+        if (filtered.length > 0) sections = [{ label: null, items: filtered.map(listItemToRow) }];
+    }
 
     const flatRows = flattenSections(sections);
     const selectedRow = flatRows[Math.min(selectedIndex, flatRows.length - 1)] ?? null;
@@ -307,10 +303,7 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
                 label: isPinned(commandId) ? "Unpin Command" : "Pin Command",
                 icon: PinIcon,
                 keepOpen: true,
-                run: () => {
-                    togglePin(commandId);
-                    setVersion(v => v + 1);
-                }
+                run: () => togglePin(commandId)
             },
             {
                 id: "builtin.alias",
@@ -332,7 +325,6 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
                         }],
                         submit(values, context) {
                             setAlias(commandId, values.alias);
-                            setVersion(v => v + 1);
                             context.pop();
                         }
                     }
@@ -361,14 +353,12 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
             }
             if (key === "backspace") {
                 setHotkey(recordingFor, null);
-                setVersion(v => v + 1);
                 setRecordingFor(null);
                 return true;
             }
             const combo = comboFromEvent(e);
             if (combo && combo.length >= 2) {
                 setHotkey(recordingFor, combo);
-                setVersion(v => v + 1);
                 setRecordingFor(null);
             }
             return true;

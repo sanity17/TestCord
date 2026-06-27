@@ -191,14 +191,15 @@ export default definePlugin({
             // find all users that have the same guildId and if that user is not in the voiceStates, remove them from the map
             const { guildId } = passiveUpdate;
 
-            // build a Set of present userIds once so the membership check below is O(1)
-            const presentUserIds = new Set(voiceStates.map(state => state.userId));
-
             // check the guildId in the userJoinTimes map
             for (const [userId, data] of userJoinTimes) {
-                if (data.guildId === guildId && !presentUserIds.has(userId)) {
-                    // user is no longer in the voiceStates, remove them from the map
-                    removeUserJoinTime(userId);
+                if (data.guildId === guildId) {
+                    // check if the user is in the voiceStates
+                    const userInVoiceStates = voiceStates.find(state => state.userId === userId);
+                    if (!userInVoiceStates) {
+                        // remove the user from the map
+                        removeUserJoinTime(userId);
+                    }
                 }
             }
 

@@ -38,10 +38,8 @@ export const cl = classNameFactory("vc-msg-logger-enhanced-");
 
 let didClearLogsOnStartup = false;
 const processedPayloads = new WeakSet<any>();
-// Bounded so they don't grow unbounded for the whole session (one entry per
-// ML-cached message ever looked up via the getMessage override).
-const mergedMessageCache = new LimitedMap<string, LoggedMessageJSON>();
-const mergedEditTimestamps = new LimitedMap<string, number>();
+const mergedMessageCache = new Map<string, LoggedMessageJSON>();
+const mergedEditTimestamps = new Map<string, number>();
 
 const cacheThing = findByPropsLazy("commit", "getOrCreate");
 
@@ -183,13 +181,7 @@ async function messageUpdateHandler(payload: MessageUpdatePayload) {
     await addMessage(message, idb.DBMessageStatus.EDITED, currentChannelId);
 }
 
-const EPHEMERAL_FLAG = 64;
-
 function messageCreateHandler(payload: MessageCreatePayload) {
-    // Ephemeral messages are unconditionally ignored by shouldIgnore and never logged,
-    // so skip the expensive clean/clone for them entirely.
-    if ((((payload.message as any)?.flags ?? 0) & EPHEMERAL_FLAG) === EPHEMERAL_FLAG) return;
-
     // we do this here because cache is limited and to save memory
     if (!settings.store.cacheMessagesFromServers && payload.guildId != null) {
         const ids = [payload.channelId, payload.message?.author?.id, payload.guildId];

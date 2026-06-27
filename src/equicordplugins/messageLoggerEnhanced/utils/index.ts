@@ -109,35 +109,6 @@ const EPHEMERAL = 64;
 
 const UserGuildSettingsStore = findStoreLazy("UserGuildSettingsStore");
 
-// Memoize parsed whitelist/blacklist Sets keyed by the raw settings strings so the
-// per-message shouldIgnore path doesn't re-split + re-allocate identical arrays each call.
-let cachedWhitelistKey: string | undefined;
-let cachedWhitelistSet = new Set<string>();
-let cachedBlacklistKey: string | undefined;
-let cachedBlacklistSet = new Set<string>();
-
-function getWhitelistSet(whitelistedIds: string): Set<string> {
-    if (whitelistedIds !== cachedWhitelistKey) {
-        cachedWhitelistKey = whitelistedIds;
-        cachedWhitelistSet = new Set(whitelistedIds.split(","));
-    }
-    return cachedWhitelistSet;
-}
-
-function getBlacklistSet(blacklistedIds: string, ignoreUsers: string, ignoreChannels: string, ignoreGuilds: string): Set<string> {
-    const key = JSON.stringify([blacklistedIds, ignoreUsers, ignoreChannels, ignoreGuilds]);
-    if (key !== cachedBlacklistKey) {
-        cachedBlacklistKey = key;
-        cachedBlacklistSet = new Set([
-            ...blacklistedIds.split(","),
-            ...ignoreUsers.split(","),
-            ...ignoreChannels.split(","),
-            ...ignoreGuilds.split(",")
-        ]);
-    }
-    return cachedBlacklistSet;
-}
-
 /**
   * the function `shouldIgnore` evaluates whether a message should be ignored or kept, following a priority hierarchy: User > Channel > Server.
   * In this hierarchy, whitelisting takes priority; if any element (User, Channel, or Server) is whitelisted, the message is kept.
@@ -155,8 +126,13 @@ export function shouldIgnore({ channelId, authorId, guildId, flags, bot, ghostPi
     const myId = UserStore.getCurrentUser().id;
     const { ignoreUsers, ignoreChannels, ignoreGuilds } = Settings.plugins.MessageLogger;
     const { ignoreBots, ignoreSelf, ignoreWebhooks, whitelistedIds, blacklistedIds } = settings.store;
-    const whitelistSet = getWhitelistSet(whitelistedIds);
-    const blacklistSet = getBlacklistSet(blacklistedIds, ignoreUsers ?? "", ignoreChannels ?? "", ignoreGuilds ?? "");
+    const whitelistArr = whitelistedIds.split(",");
+    const blacklistArr = [
+        ...blacklistedIds.split(","),
+        ...(ignoreUsers ?? []).split(","),
+        ...(ignoreChannels ?? []).split(","),
+        ...(ignoreGuilds ?? []).split(",")
+    ];
 
     if (ignoreSelf && authorId === myId)
         return true;
@@ -165,14 +141,14 @@ export function shouldIgnore({ channelId, authorId, guildId, flags, bot, ghostPi
 
     const shouldLogCurrentChannel = settings.store.alwaysLogCurrentChannel && SelectedChannelStore.getChannelId() === channelId;
 
-    const isAuthorWhitelisted = whitelistSet.has(authorId!);
-    const isChannelWhitelisted = whitelistSet.has(channelId!);
-    const isGuildWhitelisted = whitelistSet.has(guildId!);
+    const isAuthorWhitelisted = whitelistArr.includes(authorId!);
+    const isChannelWhitelisted = whitelistArr.includes(channelId!);
+    const isGuildWhitelisted = whitelistArr.includes(guildId!);
     const ids = [authorId, channelId, guildId];
-    const isWhitelisted = ids.some(id => id != null && whitelistSet.has(id));
-    const isAuthorBlacklisted = authorId != null && blacklistSet.has(authorId);
-    const isChannelBlacklisted = channelId != null && blacklistSet.has(channelId);
-    const isBlacklisted = ids.some(id => id != null && blacklistSet.has(id));
+    const isWhitelisted = whitelistArr.some(e => ids.includes(e));
+    const isAuthorBlacklisted = blacklistArr.includes(authorId);
+    const isChannelBlacklisted = blacklistArr.includes(channelId);
+    const isBlacklisted = blacklistArr.some(e => ids.includes(e));
 
     if ((ignoreBots && bot) && !isAuthorWhitelisted) return true;
     if ((ignoreWebhooks && webhookId) && !isAuthorWhitelisted) return true;

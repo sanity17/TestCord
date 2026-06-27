@@ -59,7 +59,6 @@ export const loadLanguages = async () => {
         })
     );
     Object.assign(languages, loadedLanguages);
-    aliasCache.clear();
 };
 
 export const getGrammar = (lang: Language): Promise<NonNullable<ILanguageRegistration["grammar"]>> => {
@@ -67,14 +66,13 @@ export const getGrammar = (lang: Language): Promise<NonNullable<ILanguageRegistr
     return fetch(lang.grammarUrl).then(res => res.json());
 };
 
-const aliasCache = new Map<string, Language | null>();
+const aliasCache = new Map<string, Language>();
 export function resolveLang(idOrAlias: string) {
     if (Object.prototype.hasOwnProperty.call(languages, idOrAlias)) return languages[idOrAlias];
 
-    const cached = aliasCache.get(idOrAlias);
-    if (cached !== undefined) return cached;
+    const lang = Object.values(languages).find(lang => lang.aliases?.includes(idOrAlias));
 
-    const lang = Object.values(languages).find(lang => lang.aliases?.includes(idOrAlias)) ?? null;
+    if (!lang) return null;
 
     aliasCache.set(idOrAlias, lang);
     return lang;

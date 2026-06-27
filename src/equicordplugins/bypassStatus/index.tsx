@@ -164,12 +164,9 @@ export default definePlugin({
         async MESSAGE_CREATE({ message, guildId, channelId }: IMessageCreate): Promise<void> {
             try {
                 const currentUser = UserStore.getCurrentUser();
-                const currentChannelId = getCurrentChannel()?.id ?? "0";
-                if (message.state === "SENDING" || message.content === "" || message.author.id === currentUser.id || (channelId === currentChannelId && WindowStore.isFocused())) {
-                    return;
-                }
                 const userStatus = await PresenceStore.getStatus(currentUser.id);
-                if (userStatus !== settings.store.statusToUse) {
+                const currentChannelId = getCurrentChannel()?.id ?? "0";
+                if (message.state === "SENDING" || message.content === "" || message.author.id === currentUser.id || (channelId === currentChannelId && WindowStore.isFocused()) || userStatus !== settings.store.statusToUse) {
                     return;
                 }
                 if (settings.store.respectSilentPings && (message.flags & SILENT_PING_FLAG)) { return; }

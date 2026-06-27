@@ -114,8 +114,9 @@ function resolveColor(
     inGuild: boolean,
     ircColorsEnabled: boolean,
     isHovering: boolean,
-    defaultColor: string | null,
 ): Record<string, any> | null {
+    const defaultColor = getComputedStyle(document.documentElement).getPropertyValue("--text-strong").trim() || null;
+
     if (!defaultColor) { return null; }
 
     savedColor = savedColor.trim() || defaultColor;
@@ -439,9 +440,6 @@ function computeEffectCSSVars(styles: any): Record<string, string> {
 }
 
 const SMYN_SETTINGS_KEYS = ["messages", "replies", "mentions", "typingIndicator", "memberList", "profilePopout", "reactions", "friendNameOnlyInDirectMessages", "customNameOnlyInDirectMessages", "discriminators", "hideDefaultAtSign", "truncateAllNamesWithStreamerMode", "removeDuplicates", "ignoreGradients", "ignoreFonts", "animateGradients", "includedNames", "customNameColor", "friendNameColor", "nicknameColor", "displayNameColor", "usernameColor", "nameSeparator", "triggerNameRerender"] as const;
-// Stable, pre-spread copy so each renderUsername call passes the same array reference
-// to settings.use instead of allocating a fresh array via [...SMYN_SETTINGS_KEYS].
-const SMYN_SETTINGS_KEYS_LIST = [...SMYN_SETTINGS_KEYS];
 
 function renderUsername(
     author: User | GuildMember | null,
@@ -465,7 +463,7 @@ function renderUsername(
     const isReaction = isReactionsTooltip || isReactionsPopout;
     const isVoice = type === "voiceChannel";
 
-    const config = hookless ? settings.store : settings.use(SMYN_SETTINGS_KEYS_LIST);
+    const config = hookless ? settings.store : settings.use([...SMYN_SETTINGS_KEYS]);
     const { messages, replies, mentions, typingIndicator, memberList, profilePopout, reactions, friendNameOnlyInDirectMessages, customNameOnlyInDirectMessages, discriminators, truncateAllNamesWithStreamerMode, removeDuplicates, ignoreGradients, ignoreFonts, animateGradients, includedNames, customNameColor, friendNameColor, nicknameColor, displayNameColor, usernameColor, nameSeparator, triggerNameRerender } = config;
 
     const channel = channelId ? ChannelStore.getChannel(channelId) || null : null;
@@ -493,46 +491,27 @@ function renderUsername(
     const authorColorStrings = colorStrings || (author as any)?.colorStrings || null;
     const authorDisplayNameStyles = (!inGuild && !ircColorsEnabled && (author as any)?.displayNameStyles) || null;
     const effectType = authorDisplayNameStyles ? getEffectType(authorDisplayNameStyles.effectId) : null;
+    const effectCSSVars = authorDisplayNameStyles ? computeEffectCSSVars(authorDisplayNameStyles) : {};
     const hasEffect = !!effectType;
     const needsEffectDataAttr = effectType === "neon" || effectType === "toon" || effectType === "pop";
     const reducedMotion = hookless ? false : AccessibilityStore.useReducedMotion;
     const shouldShowEffect = hasEffect && isHovering;
-    // Effect CSS vars are only consumed by the smyn-effect-* classes, which are
-    // applied only when shouldShowEffect (hover). Skip the adjustColor work on the
-    // common non-hovered render.
-    const effectCSSVars = shouldShowEffect ? computeEffectCSSVars(authorDisplayNameStyles) : {};
     const shouldAnimateEffect = shouldShowEffect && !reducedMotion;
 
     const canUseGradient = ((author as GuildMember)?.guildId ? (GuildStore.getGuild((author as GuildMember).guildId) ?? {}).premiumFeatures?.features.includes("ENHANCED_ROLE_COLORS") : !inGuild);
     const useTopRoleStyle = isMention || isReactionsPopout || channel?.isDM() || channel?.isGroupDM();
-
-    // Read --text-strong once per render instead of inside every resolveColor call
-    // (getComputedStyle forces a synchronous style flush), and memoize resolved-color
-    // objects by savedColor since every other resolveColor argument is constant within
-    // this render — the common case has all 5 name colors defaulting to "Role-25".
-    const defaultColor = getComputedStyle(document.documentElement).getPropertyValue("--text-strong").trim() || null;
-    const resolvedColorCache = new Map<string, Record<string, any> | null>();
-    const resolveColorCached = (savedColor: string): Record<string, any> | null => {
-        if (!author) return null;
-        const cached = resolvedColorCache.get(savedColor);
-        if (cached !== undefined) return cached;
-        const result = resolveColor(authorColorStrings, authorDisplayNameStyles, savedColor, canUseGradient, inGuild, ircColorsEnabled, isHovering, defaultColor);
-        resolvedColorCache.set(savedColor, result);
-        return result;
-    };
-
-    const topRoleStyle = resolveColorCached("Role");
+    const topRoleStyle = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, "Role", canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
     const hasGradient = !!topRoleStyle?.gradient && Object.keys(topRoleStyle.gradient).length > 0;
 
     const textMutedValue = hookless
         ? getComputedStyle(document.documentElement)?.getPropertyValue("--text-muted")?.trim() || "#72767d"
         : useMemo(() => getComputedStyle(document.documentElement)?.getPropertyValue("--text-muted")?.trim() || "#72767d", [triggerNameRerender]);
     const options = splitTemplate(includedNames);
-    const resolvedUsernameColor = resolveColorCached(usernameColor.trim());
-    const resolvedDisplayNameColor = resolveColorCached(displayNameColor.trim());
-    const resolvedNicknameColor = resolveColorCached(nicknameColor.trim());
-    const resolvedFriendNameColor = resolveColorCached(friendNameColor.trim());
-    const resolvedCustomNameColor = resolveColorCached(customNameColor.trim());
+    const resolvedUsernameColor = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, usernameColor.trim(), canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
+    const resolvedDisplayNameColor = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, displayNameColor.trim(), canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
+    const resolvedNicknameColor = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, nicknameColor.trim(), canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
+    const resolvedFriendNameColor = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, friendNameColor.trim(), canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
+    const resolvedCustomNameColor = author ? resolveColor(authorColorStrings, authorDisplayNameStyles, customNameColor.trim(), canUseGradient, inGuild, ircColorsEnabled, isHovering) : null;
     const affixColor = { color: textMutedValue, "-webkit-text-fill-color": textMutedValue, isolation: "isolate", "white-space": "pre", "font-family": "var(--font-primary)", "letter-spacing": "normal" };
     const { username, display, nick, friend, custom } = getProcessedNames(author, truncateAllNamesWithStreamerMode, discriminators, inGuild, friendNameOnlyInDirectMessages, customNameOnlyInDirectMessages);
 
@@ -703,7 +682,7 @@ function renderUsername(
         ...(isReactionsPopout
             ? { display: "flex", flexWrap: "wrap", lineHeight: "1.1em", fontSize: "0.9em" }
             : {}),
-        ...(shouldShowEffect ? effectCSSVars : {}),
+        ...(hasEffect ? effectCSSVars : {}),
         "--smyn-gradient-duration": `${animationDuration}s`
     } as React.CSSProperties;
 

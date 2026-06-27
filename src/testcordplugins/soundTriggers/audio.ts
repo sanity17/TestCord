@@ -13,14 +13,13 @@ type SoundTriggerMatch = SoundTrigger & {
 };
 
 let cachedTriggers: { regex: RegExp; trigger: SoundTrigger; }[] = [];
-let lastTriggersKey = "";
+let lastTriggersStr = "";
 
 export const findAndPlayTriggers = async (message: string) => {
-    const soundTriggers = settings.store.soundTriggers as SoundTrigger[];
-    const triggersKey = JSON.stringify((soundTriggers ?? []).map(trigger => [trigger.patterns, trigger.caseSensitive, trigger.sound, trigger.volume]));
-    if (triggersKey !== lastTriggersKey) {
-        lastTriggersKey = triggersKey;
-        cachedTriggers = (soundTriggers ?? []).map(trigger => ({
+    const triggersStr = JSON.stringify(settings.store.soundTriggers);
+    if (triggersStr !== lastTriggersStr) {
+        lastTriggersStr = triggersStr;
+        cachedTriggers = (settings.store.soundTriggers as SoundTrigger[]).map(trigger => ({
             regex: new RegExp(trigger.patterns.join("|"), trigger.caseSensitive ? "g" : "gi"),
             trigger
         }));

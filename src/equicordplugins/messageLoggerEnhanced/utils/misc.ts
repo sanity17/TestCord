@@ -92,17 +92,6 @@ export const mapTimestamp = (m: any) => {
 };
 
 const messageClassCache = new Map<string, any>();
-// Bound the cache so it can't hold full constructed MessageClass instances for every
-// message looked up during the whole session.
-const MESSAGE_CLASS_CACHE_LIMIT = 1000;
-
-function setMessageClassCache(id: string, message: any) {
-    if (messageClassCache.size >= MESSAGE_CLASS_CACHE_LIMIT) {
-        const firstKey = messageClassCache.keys().next().value;
-        if (firstKey !== undefined) messageClassCache.delete(firstKey);
-    }
-    messageClassCache.set(id, message);
-}
 
 export function clearMessageClassCache() {
     messageClassCache.clear();
@@ -139,7 +128,7 @@ export function messageJsonToMessageClass(log: { message: LoggedMessageJSON; }) 
     if (message.messageSnapshots)
         message.messageSnapshots.map(m => mapTimestamp(m.message));
 
-    setMessageClassCache(id, message);
+    messageClassCache.set(id, message);
     return message;
 }
 

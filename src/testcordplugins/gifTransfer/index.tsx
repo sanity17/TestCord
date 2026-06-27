@@ -470,11 +470,7 @@ function startObserver(): void {
             tryInject();
         }, 300);
     });
-    // The GIF picker popout always renders inside the app mount, so observing it
-    // instead of document.body still catches every relevant mutation while
-    // skipping mutation batches outside the app (e.g. injected overlays).
-    const observeRoot = document.getElementById("app-mount") ?? document.body;
-    observer.observe(observeRoot, { childList: true, subtree: true });
+    observer.observe(document.body, { childList: true, subtree: true });
     tryInject();
 }
 
@@ -494,6 +490,13 @@ export default definePlugin({
     settings,
 
     patches: [
+        {
+            find: "toBinary(t).length>762880",
+            replacement: {
+                match: /\.toBinary\(t\)\.length>762880/,
+                replace: ".toBinary(t).length>Number.MAX_SAFE_INTEGER",
+            }
+        },
         {
             find: "toBinary(t).length>",
             replacement: {

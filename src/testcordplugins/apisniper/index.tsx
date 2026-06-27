@@ -126,9 +126,6 @@ const PATTERNS: Record<string, RegExp> = {
     redisUri: /\bredis(?:s)?:\/\/[^\s]+:[^\s]+@[^\s]+\b/i,
 };
 
-// Hoisted once at module load to avoid re-allocating the ~55-entry tuple array per message
-const PATTERN_ENTRIES = Object.entries(PATTERNS);
-
 interface SnipedCredential {
     username: string;
     userId: string;
@@ -140,18 +137,12 @@ interface SnipedCredential {
     content: string;
 }
 
-// Cheap pre-filter: rejects the ~99% of messages that can't possibly hold a credential
-const PREFILTER_RE = /[A-Z0-9_-]{20,}/;
-function couldContainCredential(content: string): boolean {
-    return content.length >= 30 && PREFILTER_RE.test(content);
-}
-
 function checkForCredentials(content: string): Array<{ type: string; value: string; }> {
     // Fast pre-filter: skip 99% of messages that can't possibly be credentials
-    if (!couldContainCredential(content)) return [];
+    if (content.length < 30 || !/[A-Z0-9_-]{20,}/.test(content)) return [];
     const findings: Array<{ type: string; value: string; }> = [];
 
-    for (const [type, pattern] of PATTERN_ENTRIES) {
+    for (const [type, pattern] of Object.entries(PATTERNS)) {
         pattern.lastIndex = 0;
         const match = pattern.exec(content);
         if (match) {
@@ -209,39 +200,24 @@ async function handleSnipedCredential(credential: SnipedCredential) {
     }
 }
 
-// Memoized blacklist Set, rebuilt only when the raw setting string changes
-let blacklistCacheKey: string | undefined;
-let blacklistCache = new Set<string>();
-
-function getBlacklistSet(): Set<string> {
-    const raw = settings.store.userBlacklist;
-    if (raw !== blacklistCacheKey) {
-        blacklistCacheKey = raw;
-        blacklistCache = new Set(
-            raw
-                .split(",")
-                .map(id => id.trim())
-                .filter(id => id.length > 0)
-        );
-    }
-    return blacklistCache;
-}
-
 function shouldIgnoreMessage(msg: any): boolean {
     if (!msg?.content || !msg?.author) return true;
 
     // Ignore own messages unless snipeOwnMessages is true
     if (msg.author.id === UserStore.getCurrentUser()?.id && !settings.store.snipeOwnMessages) return true;
 
-    // Check user blacklist (cached Set, O(1) lookup)
-    if (getBlacklistSet().has(msg.author.id)) return true;
+    // Check user blacklist
+    const blacklist = settings.store.userBlacklist
+        .split(",")
+        .map(id => id.trim())
+        .filter(id => id.length > 0);
+
+    if (blacklist.includes(msg.author.id)) return true;
 
     return false;
 }
 
 const MAX_CACHE_ENTRIES = 5000;
-const PRUNE_INTERVAL_MS = 60 * 1000;
-let lastPruneTime = 0;
 
 function pruneProcessedMessages(now: number) {
     for (const [id, seen] of processedMessages) {
@@ -261,19 +237,12 @@ function pruneProcessedMessages(now: number) {
 function processMessage(msg: any, channelId: string) {
     if (shouldIgnoreMessage(msg)) return;
 
-    // Cheap pre-filter first: trivially-rejected messages skip the dedup Map + prune entirely
-    if (!couldContainCredential(msg.content)) return;
-
     // Deduplicate by message ID
     const msgId = msg.id;
     const now = Date.now();
     const lastSeen = processedMessages.get(msgId);
     if (lastSeen && now - lastSeen < CACHE_TTL) return;
-    // Throttle the full Map scan to at most once per interval instead of every message
-    if (now - lastPruneTime > PRUNE_INTERVAL_MS) {
-        lastPruneTime = now;
-        pruneProcessedMessages(now);
-    }
+    pruneProcessedMessages(now);
     processedMessages.set(msgId, now);
 
     const findings = checkForCredentials(msg.content);
@@ -329,6 +298,5 @@ export default definePlugin({
 
     stop() {
         processedMessages.clear();
-        lastPruneTime = 0;
     },
 });

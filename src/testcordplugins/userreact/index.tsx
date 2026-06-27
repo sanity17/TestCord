@@ -92,12 +92,10 @@ function saveRules(rules: UserReactRule[]) {
     settings.store.rules = JSON.stringify(rules);
 }
 
-const CUSTOM_EMOJI_RE = /<(a)?:(\w+):(\d+)>/;
-
 function parseSingleEmoji(emojiStr: string): Emoji | null {
     const trimmed = emojiStr.trim();
     if (!trimmed) return null;
-    const customMatch = trimmed.match(CUSTOM_EMOJI_RE);
+    const customMatch = trimmed.match(/<(a)?:(\w+):(\d+)>/);
     if (customMatch) {
         return { name: customMatch[2], id: customMatch[3], animated: customMatch[1] === "a" };
     }
@@ -189,47 +187,6 @@ async function addReactionsSequentially(
     }
 }
 
-// --- Per-message hot-path caches ---------------------------------------------
-// handleMessageCreate runs on every MESSAGE_CREATE. The settings strings only
-// change when the user edits a rule, so we parse them once and reuse the result
-// until the raw string changes. Keys are the raw setting strings themselves, so
-// any edit (which produces a new string) transparently invalidates the cache.
-
-let userRulesCacheKey: string | undefined;
-let userRulesCache: Map<string, UserReactRule> = new Map();
-function getUserRulesMap(): Map<string, UserReactRule> {
-    const raw = settings.store.rules;
-    if (raw !== userRulesCacheKey) {
-        userRulesCacheKey = raw;
-        userRulesCache = new Map();
-        for (const rule of parseRules(raw)) userRulesCache.set(rule.userId, rule);
-    }
-    return userRulesCache;
-}
-
-let contentRulesCacheKey: string | undefined;
-let contentRulesCache: ContentRule[] = [];
-function getContentRulesCached(): ContentRule[] {
-    const raw = settings.store.contentRules;
-    if (raw !== contentRulesCacheKey) {
-        contentRulesCacheKey = raw;
-        contentRulesCache = parseContentRules(raw);
-    }
-    return contentRulesCache;
-}
-
-let channelRulesCacheKey: string | undefined;
-let channelRulesCache: Map<string, ChannelRule> = new Map();
-function getChannelRulesMap(): Map<string, ChannelRule> {
-    const raw = settings.store.channelRules;
-    if (raw !== channelRulesCacheKey) {
-        channelRulesCacheKey = raw;
-        channelRulesCache = new Map();
-        for (const rule of parseChannelRules(raw)) channelRulesCache.set(rule.channelId, rule);
-    }
-    return channelRulesCache;
-}
-
 function handleMessageCreate(data: any) {
     const { message } = data;
     if (!message) return;
@@ -251,19 +208,18 @@ function handleMessageCreate(data: any) {
     }
 
     // User rules: react to every message from a configured user.
-    const userRule = message.author?.id ? getUserRulesMap().get(message.author.id) : undefined;
+    const userRule = parseRules(settings.store.rules).find(r => r.userId === message.author?.id);
     if (userRule && userRule.reactions.length > 0) {
         addReactionsSequentially(channelId, messageId, userRule.reactions);
     }
 
     // Content rules: react when the message content matches a configured word.
     const content: string = message.content || "";
-    const contentRules = content ? getContentRulesCached() : [];
-    if (content && contentRules.length > 0) {
+    if (content) {
         const caseSensitive = settings.store.contentCaseSensitive;
         const haystack = caseSensitive ? content : content.toLowerCase();
         const matched: Emoji[] = [];
-        for (const rule of contentRules) {
+        for (const rule of parseContentRules(settings.store.contentRules)) {
             const needle = caseSensitive ? rule.word : rule.word.toLowerCase();
             if (haystack.includes(needle)) matched.push(...rule.reactions);
         }
@@ -271,7 +227,7 @@ function handleMessageCreate(data: any) {
     }
 
     // Channel rules: react to every message in a configured channel.
-    const channelRule = getChannelRulesMap().get(channelId);
+    const channelRule = parseChannelRules(settings.store.channelRules).find(r => r.channelId === channelId);
     if (channelRule && channelRule.reactions.length > 0) {
         addReactionsSequentially(channelId, messageId, channelRule.reactions);
     }

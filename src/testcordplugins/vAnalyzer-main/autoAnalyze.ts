@@ -24,14 +24,10 @@ import { analyzerLimiter, extractCdnFileUrls, pruneMap } from "./utils";
 
 const URL_REGEX = /\b(?:https?:\/\/|www\.)[^\s<>"')\]]+|\b[a-z0-9][a-z0-9-]*\.[a-z]{2,}(?:\/[^\s<>"')\]]*)?\b/gi;
 const MARKDOWN_LINK_REGEX = /\[[^\]]+\]\((?:<)?([^\s)<>]+)(?:>)?\)/gi;
-const CDN_KEY_REGEX = /^(image|thumbnail|cdn|media)/;
-const URL_KEY_REGEX = /url|href|link/i;
 const EPHEMERAL_MESSAGE_FLAG = 1 << 6;
 const ANALYZED_MESSAGE_TTL_MS = 6 * 60 * 60 * 1000;
 const MAX_ANALYZED_MESSAGES = 1000;
-const PRUNE_INTERVAL_MS = 60 * 1000;
 const AUTO_ANALYZED_MESSAGE_IDS = new Map<string, number>();
-let lastPruneTime = 0;
 const NON_SCANNABLE_ATTACHMENT_EXTENSIONS = new Set([
     "png", "jpg", "jpeg", "gif", "webp", "bmp", "svg", "ico", "tif", "tiff",
     "mp4", "webm", "mov", "m4v", "avi", "mkv", "wmv",
@@ -39,8 +35,6 @@ const NON_SCANNABLE_ATTACHMENT_EXTENSIONS = new Set([
 ]);
 
 function pruneAnalyzedMessages(now: number) {
-    if (now - lastPruneTime < PRUNE_INTERVAL_MS && AUTO_ANALYZED_MESSAGE_IDS.size <= MAX_ANALYZED_MESSAGES) return;
-    lastPruneTime = now;
     pruneMap(AUTO_ANALYZED_MESSAGE_IDS, expiresAt => expiresAt <= now, MAX_ANALYZED_MESSAGES);
 }
 
@@ -145,13 +139,11 @@ function walkMessageValue(value: unknown, urls: Set<string>, seen: WeakSet<objec
         return;
     }
 
-    for (const key in value) {
-        if (!Object.prototype.hasOwnProperty.call(value, key)) continue;
-        const nestedValue = (value as Record<string, unknown>)[key];
+    for (const [key, nestedValue] of Object.entries(value)) {
         // skip CDN URLs
-        if (CDN_KEY_REGEX.test(key)) continue;
+        if (/^(image|thumbnail|cdn|media)/.test(key)) continue;
 
-        if (typeof nestedValue === "string" && URL_KEY_REGEX.test(key)) {
+        if (typeof nestedValue === "string" && /url|href|link/i.test(key)) {
             urls.add(normalizeUrl(nestedValue));
             continue;
         }

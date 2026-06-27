@@ -18,7 +18,6 @@
 
 import { cl, hljs } from "@plugins/shikiCodeblocks.desktop/utils/misc";
 import type { IThemedToken } from "@vap/shiki";
-import { useMemo } from "@webpack/common";
 import { JSX } from "react";
 
 import { ThemeBase } from "./Highlighter";
@@ -38,7 +37,6 @@ export const Code = ({
     content,
     tokens,
 }: CodeProps) => {
-    const codeTableRows = useMemo(() => {
     let lines!: JSX.Element[];
 
     if (useHljs) {
@@ -84,13 +82,12 @@ export const Code = ({
         });
     }
 
-    return lines.map((line, i) => (
+    const codeTableRows = lines.map((line, i) => (
         <tr className={cl("table-row")} key={i}>
             <td className={cl("table-cell")} style={{ color: theme.plainColor }}>{i + 1}</td>
             <td className={cl("table-cell")}>{line}</td>
         </tr>
     ));
-    }, [tokens, content, useHljs, lang, theme.plainColor]);
 
     return <table className={cl("table")}>{...codeTableRows}</table>;
 };
