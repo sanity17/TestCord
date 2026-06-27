@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./manualFields.css";
+
 import { Flex } from "@components/Flex";
 import { FormSwitch } from "@components/FormSwitch";
 import { Span } from "@components/Span";
@@ -12,7 +14,6 @@ import { ModalContent, ModalFooter, ModalHeader, ModalProps, ModalRoot, ModalSiz
 import { Button, GuildStore, React, Select, SelectedGuildStore, showToast, Toasts, UserProfileStore, UserStore, UserUtils } from "@webpack/common";
 
 import { clearTarget, getCachedTarget, getSavedUsers, isActive, loadTarget, logger, notify, resolveTargetUserId, setEnabled, setSavedUsers, settings, subscribe } from "./data";
-import "./manualFields.css";
 
 const ID_RE = /^\d{17,20}$/;
 
@@ -291,11 +292,17 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
     const [decorations, setDecorations] = React.useState<DecorationPreset[]>([]);
     const [effects, setEffects] = React.useState<ProfileEffectPreset[]>([]);
     const [nameplates, setNameplates] = React.useState<NameplatePreset[]>([]);
+    const mountedRef = React.useRef(true);
+
+    React.useEffect(() => {
+        return () => { mountedRef.current = false; };
+    }, []);
 
     React.useEffect(() => {
         fetch(DECORATIONS_API)
             .then(r => r.json())
             .then((data: any) => {
+                if (!mountedRef.current) return;
                 const items = Array.isArray(data) ? data : (data && typeof data === "object" ? Object.values(data) : []);
                 setDecorations(items as DecorationPreset[]);
             })
@@ -303,6 +310,7 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
         fetch(EFFECTS_API)
             .then(r => r.json())
             .then((data: any) => {
+                if (!mountedRef.current) return;
                 const items = Array.isArray(data) ? data : (data && typeof data === "object" ? Object.values(data) : []);
                 setEffects(items as ProfileEffectPreset[]);
             })
@@ -310,6 +318,7 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
         fetch(NAMEPLATES_API)
             .then(r => r.json())
             .then((data: any) => {
+                if (!mountedRef.current) return;
                 const raw = Array.isArray(data) ? data : (data && typeof data === "object" ? Object.values(data) : []);
                 const items = (raw as any[])
                     .filter(n => n && typeof n.src === "string")
@@ -483,12 +492,15 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
         setLoading(true);
         try {
             const u = await UserUtils.getUser(id);
+            if (!mountedRef.current) return;
             if (u) {
                 setPreviewUser(u);
                 try {
                     const prof = await fetchUserProfile(id, {}, false);
+                    if (!mountedRef.current) return;
                     setPreviewProfile(prof);
                 } catch {
+                    if (!mountedRef.current) return;
                     const prof = UserProfileStore.getUserProfile(id);
                     setPreviewProfile(prof);
                 }
@@ -496,8 +508,10 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
                 showToast("User not found.", Toasts.Type.FAILURE);
             }
         } catch {
+            if (!mountedRef.current) return;
             showToast("Failed to fetch user.", Toasts.Type.FAILURE);
         }
+        if (!mountedRef.current) return;
         setLoading(false);
     }
 
@@ -535,13 +549,16 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
         setLoading(true);
         try {
             const next = await loadTarget(id);
+            if (!mountedRef.current) return;
             setEnabled(true);
             settings.store.manualMode = false;
             setPreviewUser(next.user);
             showToast(`Spoofing as ${next.user.globalName || next.user.username}`, Toasts.Type.SUCCESS);
         } catch (e: any) {
+            if (!mountedRef.current) return;
             showToast(e?.message || "Failed to load that user.", Toasts.Type.FAILURE);
         }
+        if (!mountedRef.current) return;
         setLoading(false);
     }
 
@@ -564,6 +581,7 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
             if (!file) return;
             readImageAsDataUrl(file)
                 .then(dataUrl => {
+                    if (!mountedRef.current) return;
                     settings.store[target] = dataUrl;
                     notify();
                     forceUpdate();
@@ -2110,6 +2128,7 @@ export function FakeUserSwitcherModal({ modalProps }: { modalProps: ModalProps; 
                                                                 if (savedItem && !(savedItem as any).isManual) {
                                                                     loadTarget(savedItem.id, false)
                                                                         .then(() => {
+                                                                            if (!mountedRef.current) return;
                                                                             notify();
                                                                             forceUpdate();
                                                                         })

@@ -28,6 +28,7 @@ interface AlertButton extends HTMLElement {
 
 // Alert system variables
 let alertAudio: { stop: () => void; } | null = null;
+let alertBeepTimeout: NodeJS.Timeout | null = null;
 let alertButton: AlertButton | null = null;
 let isAlertActive = false;
 let isPaused = false;
@@ -305,7 +306,7 @@ function playAlertSound() {
 
         // Schedule next beep - will continue indefinitely until manually stopped
         if (isAlertActive) {
-            setTimeout(playBeep, 400); // 200ms beep + 200ms pause = 400ms total
+            alertBeepTimeout = setTimeout(playBeep, 400); // 200ms beep + 200ms pause = 400ms total
         }
     };
 
@@ -316,6 +317,10 @@ function playAlertSound() {
     return {
         stop: () => {
             isAlertActive = false;
+            if (alertBeepTimeout) {
+                clearTimeout(alertBeepTimeout);
+                alertBeepTimeout = null;
+            }
             if (currentOscillator) {
                 try {
                     currentOscillator.stop();
@@ -323,6 +328,7 @@ function playAlertSound() {
                     // Already stopped
                 }
             }
+            void audioContext.close();
         }
     };
 }

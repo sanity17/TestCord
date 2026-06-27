@@ -1259,8 +1259,10 @@ function notifyUpdate() {
 }
 
 function syncSpoofState() {
+    const generation = switcherGeneration;
     clearWrapCache();
     resolveManualAssets().then(() => {
+        if (generation !== switcherGeneration) return;
         notifyUpdate();
     });
 }
@@ -1534,6 +1536,7 @@ const userContextMenuPatch: NavContextMenuPatchCallback = (children, { user }) =
 
 let multiAccountStore: any = null;
 let switcherRunning = false;
+let switcherGeneration = 0;
 let originalMultiGetUsers: any = null;
 let originalMultiGetValidUsers: any = null;
 let originalMultiGetHasLoggedInAccounts: any = null;
@@ -1910,6 +1913,7 @@ const plugin = definePlugin({
     },
 
     async start() {
+        const generation = ++switcherGeneration;
         logger.info("[FUS-BUILD-CHECK] build loaded — badge+overlay+message fixes v3 active");
         loadCacheFromSettings();
         addProfileBadge(dynamicBadge);
@@ -1957,10 +1961,12 @@ const plugin = definePlugin({
         if (targetId && !settings.store.manualMode) {
             try {
                 await loadTarget(targetId);
+                if (generation !== switcherGeneration) return;
             } catch (e) {
                 logger.warn("Failed to restore cached target", e);
             }
         }
+        if (generation !== switcherGeneration) return;
 
         preLoadGuildTargets();
 
@@ -1984,6 +1990,7 @@ const plugin = definePlugin({
     },
 
     stop() {
+        switcherGeneration++;
         if (originalSet) {
             buttons.set = originalSet;
             originalSet = null;
