@@ -1252,7 +1252,13 @@ function notifyUpdate() {
     setTimeout(() => {
         try {
             FluxDispatcher.dispatch({ type: "USER_UPDATE", user: me });
-            FluxDispatcher.dispatch({ type: "CURRENT_USER_UPDATE", user: { ...me } });
+            // Do NOT dispatch CURRENT_USER_UPDATE with a spread (`{...me}`): `me` is a
+            // User class instance whose email/username/verified live on the prototype,
+            // so a shallow spread drops them. Discord's CURRENT_USER_UPDATE reducer then
+            // writes that stripped object into your REAL account state — blanking your
+            // username/email and triggering the "claim your account" banner. Under heavy
+            // message sending notifyUpdate runs often enough that the blank state sticks.
+            // USER_UPDATE above already drives the re-renders we need.
             FluxDispatcher.dispatch({ type: "USER_SETTINGS_PROTO_UPDATE", settings: { type: 1, proto: {} } });
             FluxDispatcher.dispatch({ type: "IDLE" });
         } catch (e) {
