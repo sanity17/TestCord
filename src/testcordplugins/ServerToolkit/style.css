@@ -21,7 +21,7 @@
     --gt-accent: var(--brand-experiment, #5865f2);
     --gt-good: var(--status-positive, #23a559);
     --gt-bad: var(--status-danger, #f23f43);
-    --gt-mono: ui-monospace, sfmono-regular, "SF Mono", menlo, consolas, "Liberation Mono", monospace;
+    --gt-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
     --gt-text-normal: var(--text-default, var(--text-normal, #dbdee1));
     --gt-text-muted: var(--text-muted, #949ba4);
 }
@@ -63,7 +63,7 @@
     height: 48px;
     border-radius: 50%;
     object-fit: cover;
-    box-shadow: 0 2px 8px rgb(0 0 0 / 25%);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.25);
     flex-shrink: 0;
 }
 
@@ -240,7 +240,7 @@
     height: 12px;
     border-radius: 50%;
     flex-shrink: 0;
-    box-shadow: 0 0 0 1px rgb(0 0 0 / 15%) inset;
+    box-shadow: 0 0 0 1px rgba(0, 0, 0, 0.15) inset;
 }
 
 .gt-role-name {
@@ -310,7 +310,7 @@
 }
 
 .guild-toolkit-modal .gt-channel-cat-header:hover {
-    background-color: rgb(88 101 242 / 15%) !important;
+    background-color: rgba(88, 101, 242, 0.15) !important;
 }
 
 .guild-toolkit-modal .gt-channel-cat-header:hover span,
@@ -384,7 +384,7 @@
 
 .gt-member-row {
     display: grid;
-    grid-template-columns: 1.2fr 1fr 1.8fr auto;
+    grid-template-columns: 1.2fr 1fr auto;
     align-items: center;
     gap: 10px;
     padding: 8px 10px;
@@ -659,7 +659,7 @@
 
 .gt-target-toggle .gt-mode-btn.gt-selected {
     background-color: var(--gt-accent) !important;
-    color: #fff !important;
+    color: #ffffff !important;
     opacity: 1 !important;
     border: 1px solid transparent !important;
 }
@@ -686,12 +686,12 @@
 
 .gt-target-toggle .gt-mode-btn:not(.gt-selected):hover:not(:disabled) {
     background-color: var(--background-secondary-alt) !important;
-    color: #fff !important;
+    color: #ffffff !important;
     opacity: 1 !important;
 }
 
 .gt-target-toggle .gt-mode-btn:not(.gt-selected):hover:not(:disabled) * {
-    color: #fff !important;
+    color: #ffffff !important;
 }
 
 .gt-target-toggle .gt-mode-btn:disabled {
@@ -768,7 +768,7 @@
 .guild-toolkit-modal .gt-channel-row:hover,
 .guild-toolkit-modal .gt-member-row:hover,
 .guild-toolkit-modal .gt-webhook-row:hover {
-    background-color: rgb(88 101 242 / 15%) !important;
+    background-color: rgba(88, 101, 242, 0.15) !important;
 }
 
 /* Scoped hovered text color highlight ONLY for Channels and Members */
@@ -792,7 +792,6 @@
 /* ============================================================
    Redesigned, Unified Custom Input Boxes
    ============================================================ */
-
 /* Neutralize the mana wrapper so it draws no box and lets the input
    fill its full width. */
 .guild-toolkit-modal *:has(> input.gt-input) {
@@ -819,8 +818,8 @@
     height: 36px !important;
     min-height: 36px !important;
     padding: 0 14px !important;
-    background-color: var(--input-background) !important;
-    border: 1px solid var(--input-border-default, var(--input-border, var(--gt-border))) !important;
+    background-color: #000 !important;
+    border: 1px solid var(--gt-border) !important;
     border-radius: 8px !important;
     outline: none !important;
     box-shadow: none !important;
@@ -836,13 +835,13 @@
 }
 
 .guild-toolkit-modal input.gt-input:hover {
-    border-color: var(--input-border-hover, var(--input-border, var(--gt-border))) !important;
-    background-color: var(--input-background) !important;
+    border-color: color-mix(in srgb, var(--gt-accent) 45%, var(--gt-border)) !important;
+    background-color: #000 !important;
 }
 
 .guild-toolkit-modal input.gt-input:focus {
-    border-color: var(--input-border-active, var(--brand-experiment)) !important;
-    background-color: var(--input-background) !important;
+    border-color: var(--gt-accent) !important;
+    background-color: #000 !important;
     box-shadow: none !important;
 }
 
@@ -865,7 +864,7 @@
     border-radius: 8px !important;
     padding: 12px !important;
     max-height: 400px !important;
-    box-shadow: inset 0 2px 4px rgb(0 0 0 / 15%) !important;
+    box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.15) !important;
     box-sizing: border-box !important;
 }
 
@@ -959,180 +958,3 @@
     color: var(--text-muted);
     font-style: italic;
 }
-
-/* ============================================================
-   Mutual members & guilds styles
-   ============================================================ */
-.gt-member-mutuals {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    overflow: hidden;
-}
-
-.gt-mutual-guilds {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.gt-guild-icon {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: var(--background-secondary-alt);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--gt-border);
-    flex-shrink: 0;
-}
-
-.gt-guild-icon img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.gt-guild-acronym {
-    font-size: 8px;
-    font-weight: 700;
-    color: var(--gt-text-normal);
-    text-transform: uppercase;
-}
-
-.gt-guild-count {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--gt-text-muted);
-    background: var(--background-secondary-alt);
-    padding: 2px 5px;
-    border-radius: 999px;
-    border: 1px solid var(--gt-border);
-    flex-shrink: 0;
-}
-
-.gt-member-mutual-friends {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-    font-size: 11px;
-    color: var(--gt-text-muted);
-    white-space: nowrap;
-}
-
-.gt-mutual-friends-list {
-    display: flex;
-    align-items: center;
-    gap: 4px;
-}
-
-.gt-friend-avatar {
-    width: 20px;
-    height: 20px;
-    border-radius: 50%;
-    overflow: hidden;
-    background: var(--background-secondary-alt);
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    border: 1px solid var(--gt-border);
-    flex-shrink: 0;
-}
-
-.gt-friend-avatar img {
-    width: 100%;
-    height: 100%;
-    object-fit: cover;
-}
-
-.gt-friend-count {
-    font-size: 11px;
-    font-weight: 600;
-    color: var(--gt-text-muted);
-    background: var(--background-secondary-alt);
-    padding: 2px 5px;
-    border-radius: 999px;
-    border: 1px solid var(--gt-border);
-    flex-shrink: 0;
-}
-
-.gt-controls-row {
-    position: relative;
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
-    margin-bottom: 4px;
-}
-
-.gt-controls-row > .gt-search {
-    width: 100%;
-    margin-bottom: 0 !important;
-}
-
-.gt-search-hint {
-    font-size: 11px;
-    color: var(--text-muted);
-    margin-bottom: var(--gt-gap);
-    user-select: none;
-}
-
-.gt-search-hint .gt-code {
-    font-family: var(--font-code);
-    background: var(--background-secondary);
-    padding: 1px 4px;
-    border-radius: 4px;
-    color: var(--text-normal);
-}
-
-.gt-autocomplete-menu {
-    position: absolute;
-    top: 100%;
-    left: 0;
-    right: 0;
-    background: var(--background-secondary-alt);
-    border: 1px solid var(--gt-border);
-    border-radius: 4px;
-    z-index: 1000;
-    max-height: 180px;
-    overflow-y: auto;
-    box-shadow: var(--elevation-high);
-    padding: 4px 0;
-}
-
-.gt-autocomplete-item {
-    display: flex;
-    align-items: center;
-    gap: 8px;
-    padding: 6px 10px;
-    cursor: pointer;
-    transition: background 0.15s ease;
-}
-
-.gt-autocomplete-item:hover,
-.gt-autocomplete-item.active {
-    background: var(--background-modifier-selected);
-}
-
-.gt-autocomplete-key {
-    font-family: var(--font-code);
-    font-weight: 600;
-    color: var(--text-link);
-    font-size: 12px;
-}
-
-.gt-autocomplete-label {
-    font-weight: 500;
-    color: var(--text-normal);
-    font-size: 12px;
-}
-
-.gt-autocomplete-desc {
-    color: var(--text-muted);
-    font-size: 10px;
-    margin-left: auto;
-}
-
-
-

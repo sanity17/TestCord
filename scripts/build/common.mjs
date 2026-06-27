@@ -367,10 +367,9 @@ export const fileUrlPlugin = {
                     if (base64)
                         content = Buffer.from(content).toString("base64");
                 }
-                // Note: the non-minify branch already reads as base64 when
-                // requested (encoding === "base64"), and the minify branch
-                // encodes once above, so content is base64-encoded exactly
-                // once in every path. No further encoding here.
+
+                if (base64 && !content.startsWith("data:"))
+                    content = Buffer.from(content).toString("base64");
 
                 return { contents: content, loader: "text" };
             },

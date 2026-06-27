@@ -8,11 +8,6 @@
 (function() {
     "use strict";
 
-    if (window.__testcordYoutubeAdblockInjected) return;
-    window.__testcordYoutubeAdblockInjected = true;
-
-    let scheduled = false;
-
     // Block ad-related elements
     const blockAds = () => {
         // Hide ad containers
@@ -20,42 +15,27 @@
             ".video-ads",
             ".ytp-ad-module",
             ".ytp-ad-overlay-container",
-            ".ytp-ad-player-overlay",
-            ".ytp-ad-text",
-            ".ytp-ad-preview-container",
-            "ytd-player-legacy-desktop-watch-ads-renderer"
+            '[class*="ad-"]',
+            '[id*="ad-"]'
         ];
 
-        document.querySelectorAll(adSelectors.join(",")).forEach(el => {
-            el.style.display = "none";
+        adSelectors.forEach(selector => {
+            const elements = document.querySelectorAll(selector);
+            elements.forEach(el => el.style.display = "none");
         });
 
         // Skip ads if possible
-        document.querySelector(".ytp-ad-skip-button, .ytp-skip-ad-button")?.click();
+        const video = document.querySelector("video");
+        if (video) {
+            // Try to skip ad
+            const skipButton = document.querySelector(".ytp-ad-skip-button");
+            if (skipButton) {
+                skipButton.click();
+            }
+        }
     };
 
-    const scheduleBlockAds = () => {
-        if (scheduled) return;
-
-        scheduled = true;
-        requestAnimationFrame(() => {
-            scheduled = false;
-            blockAds();
-        });
-    };
-
-    const observer = new MutationObserver(scheduleBlockAds);
-
-    if (document.body) {
-        observer.observe(document.body, { childList: true, subtree: true });
-    } else {
-        document.addEventListener("DOMContentLoaded", () => {
-            observer.observe(document.body, { childList: true, subtree: true });
-            scheduleBlockAds();
-        }, { once: true });
-    }
-
-    // Run immediately and keep a low-frequency fallback for YouTube player state changes.
+    // Run on load and periodically
     blockAds();
-    setInterval(scheduleBlockAds, 5000);
+    setInterval(blockAds, 1000);
 })();

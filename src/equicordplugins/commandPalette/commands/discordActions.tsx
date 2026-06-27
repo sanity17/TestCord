@@ -95,12 +95,6 @@ export const discordCommands: PaletteCommand[] = [
             id: "run",
             label: "Toggle Theme",
             run() {
-                // ThemeStore may not be resolved yet (it can be null until the store loads),
-                // and the lazy theme updater may not have bound on every Discord build.
-                if (ThemeStore == null || typeof updateDiscordTheme !== "function") {
-                    showToast("Theme store is not available yet. Try again in a moment.", Toasts.Type.FAILURE);
-                    return;
-                }
                 const currentIdx = THEMES.findIndex(theme => theme.value === ThemeStore.theme);
                 const next = THEMES[(currentIdx + 1) % THEMES.length];
                 updateDiscordTheme({ theme: next.value });

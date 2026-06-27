@@ -8,7 +8,7 @@ import { IS_MAC } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
 import { copyWithToast } from "@utils/discord";
 import { Logger } from "@utils/Logger";
-import { React, useEffect, useRef, useState } from "@webpack/common";
+import { useEffect, useRef, useState } from "@webpack/common";
 
 import { getVisibleCommands, subscribePalette } from "../api/registry";
 import type { PageEntry, PaletteAction, PaletteCommand, PaletteContext, PaletteListItem } from "../api/types";
@@ -484,12 +484,9 @@ export function Palette({ onClose, initialPage }: PaletteProps) {
         ? "Press a key combo, Backspace to clear, Esc to cancel"
         : currentPage?.title ?? "Equicord";
 
-    const blur = Math.max(0, settings.store.backdropBlur ?? 6);
-
     return (
         <div
             className={cl("shell")}
-            style={{ "--cmdpal-blur": `${blur}px` } as React.CSSProperties}
             onMouseDown={e => e.stopPropagation()}
             onClick={e => e.stopPropagation()}
         >

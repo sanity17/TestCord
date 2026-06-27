@@ -79,12 +79,5 @@ export const settings = definePluginSettings({
         description: "Close the palette after running a command.",
         type: OptionType.BOOLEAN,
         default: true
-    },
-    backdropBlur: {
-        description: "Background blur behind the palette, in pixels. Set to 0 to disable.",
-        type: OptionType.SLIDER,
-        markers: [0, 2, 4, 6, 8, 12, 16, 20],
-        default: 6,
-        stickToMarkers: false
     }
 });

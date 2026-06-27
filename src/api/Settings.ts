@@ -74,7 +74,6 @@ export interface Settings {
     windowsMaterial: "none" | "mica" | "tabbed" | "acrylic";
     disableMinSize: boolean;
     winNativeTitleBar: boolean;
-    disableTestcordBadges: boolean;
     plugins: {
         [plugin: string]: {
             enabled: boolean;
@@ -133,7 +132,6 @@ const DefaultSettings: Settings = {
     windowsMaterial: "none",
     disableMinSize: false,
     winNativeTitleBar: false,
-    disableTestcordBadges: false,
     plugins: {},
 
     uiElements: {
