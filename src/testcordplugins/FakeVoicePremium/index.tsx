@@ -11,7 +11,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { EquicordDevs, TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import type { Channel, VoiceState } from "@vencord/discord-types";
-import { findByCode, findByProps, findStore } from "@webpack";
+import { findByCode, findByProps, findByPropsLazy, findStore } from "@webpack";
 import { ChannelStore, ContextMenuApi, MediaEngineStore, Menu, PermissionsBits, PermissionStore, React, SelectedChannelStore, UserStore, VoiceActions } from "@webpack/common";
 
 import { settings } from "./settings";
@@ -33,10 +33,18 @@ function notifyFakedChanged() {
     for (const listener of fakedListeners) listener();
 }
 
+// Direct gateway socket access — fakeMuteDeafen's mechanism. The voiceStateSender
+// lookup syncFakeVoiceState used to rely on is fragile across Discord builds; when
+// its module shape shifts the lookup silently fails and fake mute/deafen never
+// broadcast. Patching the raw socket.send + re-broadcasting op-4 here does not
+// depend on that lookup.
+const wsModule = findByPropsLazy("getSocket");
+
 const STREAM = 1n << 9n;
 const DEFAULT_VOICE_CONTEXT = "default";
 const WATCH_TOGETHER_APPLICATION_ID = "880218394199220334";
 
+let originalSocketSend: any;
 let micCutoffApplied = false;
 let selfMuteBeforeMicCutoff = false;
 let micCutoffTimeout: ReturnType<typeof setTimeout> | null = null;
@@ -50,12 +58,27 @@ function getSelectedVoiceChannel() {
 }
 
 function syncFakeVoiceState() {
-    const voiceStateSender = findByProps("computeVoiceFlags", "getNextState", "getInitialState");
-    const state = voiceStateSender?.getState();
+    // Broadcast op-4 (voice state update) directly through the gateway socket so a
+    // setting flip actually re-sends state. The socket.send patch below stamps the
+    // faked self_mute/self_deaf/self_video onto it; here we keep the REAL mic/deaf
+    // from MediaEngineStore as the base so you still speak/hear while spoofed.
+    const socket = wsModule?.getSocket?.();
+    const channelId = SelectedChannelStore.getVoiceChannelId?.();
+    if (!socket || !channelId) return;
 
-    if (!state?.channelId) return;
-
-    voiceStateSender.socket.voiceStateUpdate(state);
+    const channel = ChannelStore.getChannel(channelId);
+    try {
+        socket.send(4, {
+            guild_id: channel?.guild_id ?? null,
+            channel_id: channelId,
+            self_mute: MediaEngineStore.isSelfMute?.() ?? false,
+            self_deaf: MediaEngineStore.isSelfDeaf?.() ?? false,
+            self_video: MediaEngineStore.isVideoEnabled?.() ?? false,
+            flags: 0
+        });
+    } catch (e) {
+        console.error("[FakeVoicePremium] Failed to broadcast voice state update:", e);
+    }
 }
 
 function setFakeCameraEnabled(enabled: boolean) {
@@ -662,9 +685,30 @@ export default definePlugin({
     ],
     FakeVoiceOptionToggleButton: ErrorBoundary.wrap(FakeVoiceOptionToggleButton, { noop: true }),
     start() {
+        // Patch the raw gateway socket.send so every op-4 (voice state update) gets
+        // the faked fields stamped on while `faked` is active — same mechanism as
+        // fakeMuteDeafen. This is the reliable path: it does not depend on the
+        // voiceStateSender module lookup that the old syncFakeVoiceState used.
+        const socket = wsModule?.getSocket?.();
+        if (socket && !originalSocketSend) {
+            originalSocketSend = socket.send;
+            socket.send = function (op: number, data: any, ...args: any[]) {
+                if (op === 4 && data && faked) {
+                    if (settings.store.fakeMute) data.self_mute = true;
+                    if (settings.store.fakeDeafen) data.self_deaf = true;
+                    if (settings.store.fakeCam) data.self_video = true;
+                }
+                return originalSocketSend.apply(this, [op, data, ...args]);
+            };
+        }
         document.addEventListener("keydown", handleKeydown);
     },
     stop() {
+        const socket = wsModule?.getSocket?.();
+        if (socket && originalSocketSend) {
+            socket.send = originalSocketSend;
+            originalSocketSend = undefined;
+        }
         document.removeEventListener("keydown", handleKeydown);
         setFakeVoiceEnabled(false);
     },

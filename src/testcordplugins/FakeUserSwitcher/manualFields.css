@@ -106,10 +106,12 @@
 
 .fus-mf-nameplate-item--disabled {
     opacity: 0.45;
+    background: rgba(237, 66, 69, 0.2);
+    border-color: var(--status-danger, #ed4245);
 }
 
 .fus-mf-nameplate-item--disabled:hover {
-    border-color: rgba(255, 255, 255, 0.15);
+    border-color: var(--status-danger, #ed4245);
 }
 
 .fus-mf-nameplate-preview {
