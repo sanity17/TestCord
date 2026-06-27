@@ -82,17 +82,19 @@ export function AddonCard({ disabled, isNew, sourceBadge, tooltip, name, infoBut
                     )}
                 </div>
 
-                <Tooltip text={tooltip}>
-                    {({ onMouseEnter, onMouseLeave }) => (
-                        <div
-                            className={cl("source")}
-                            onMouseEnter={onMouseEnter}
-                            onMouseLeave={onMouseLeave}
-                        >
-                            {sourceBadge}
-                        </div>
-                    )}
-                </Tooltip>
+                {!!sourceBadge && (
+                    <Tooltip text={tooltip}>
+                        {({ onMouseEnter, onMouseLeave }) => (
+                            <div
+                                className={cl("source")}
+                                onMouseEnter={onMouseEnter}
+                                onMouseLeave={onMouseLeave}
+                            >
+                                {sourceBadge}
+                            </div>
+                        )}
+                    </Tooltip>
+                )}
 
                 {infoButton}
 

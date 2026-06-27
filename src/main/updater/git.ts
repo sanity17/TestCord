@@ -75,6 +75,15 @@ async function pull() {
     return res.stdout.includes("Fast-forward");
 }
 
+async function forcePull() {
+    const branch = RendererSettings.store.updaterBranch ?? "main";
+    await git("fetch", "origin", branch);
+    await git("checkout", branch);
+    await git("reset", "--hard", `origin/${branch}`);
+    await git("clean", "-fd");
+    return true;
+}
+
 async function build() {
     const opts = { cwd: EQUICORD_DIR };
 
@@ -91,4 +100,5 @@ async function build() {
 ipcMain.handle(IpcEvents.GET_REPO, serializeErrors(getRepo));
 ipcMain.handle(IpcEvents.GET_UPDATES, serializeErrors(calculateGitChanges));
 ipcMain.handle(IpcEvents.UPDATE, serializeErrors(pull));
+ipcMain.handle(IpcEvents.FORCE_UPDATE, serializeErrors(forcePull));
 ipcMain.handle(IpcEvents.BUILD, serializeErrors(build));
