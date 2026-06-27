@@ -34,7 +34,7 @@ import { classes, isObjectEmpty } from "@utils/misc";
 import { OptionType, Plugin, PluginTag } from "@utils/types";
 import { RenderModalProps, User } from "@vencord/discord-types";
 import { findComponentByCodeLazy, findCssClassesLazy } from "@webpack";
-import { Clickable, FluxDispatcher, Modal, openModal, React, Text, Toasts, Tooltip, useEffect, useMemo, UserStore, UserSummaryItem, UserUtils, useState } from "@webpack/common";
+import { Clickable, FluxDispatcher, Modal, openModal, React, Text, Toasts, Tooltip, useEffect, useMemo, UserStore, UserUtils, useState } from "@webpack/common";
 import { Constructor } from "type-fest";
 
 import { PluginMeta } from "~plugins";
@@ -201,40 +201,35 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
                 </div>
             )}
             <div className={"vc-settings-modal-content"}>
-                <section>
-                    <Text variant="heading-lg/semibold" className={classes(Margins.top8, Margins.bottom8)}>Authors</Text>
-                    <div style={{ width: "fit-content" }}>
+                <section className={cl("section")}>
+                    <Text variant="heading-lg/semibold" className={Margins.bottom8}>Authors</Text>
+                    <div className={cl("authors")}>
                         <ErrorBoundary noop>
-                            <UserSummaryItem
-                                users={authors.length ? authors : fallbackAuthors}
-                                guildId={undefined}
-                                renderIcon={false}
-                                showDefaultAvatarsForNullUsers
-                                renderMoreUsers={renderMoreUsers}
-                                renderUser={(user: User) => (
-                                    <Clickable
-                                        className={AvatarStyles.clickableAvatar}
-                                        onClick={() => isEquicordPlugin ? openContributorModal(user) : openContributorModal(user)}
-                                    >
-                                        <img
-                                            className={AvatarStyles.avatar}
-                                            src={user.getAvatarURL(void 0, 80, true)}
-                                            alt={user.username}
-                                            title={user.username}
-                                        />
-                                    </Clickable>
-                                )}
-                            />
+                            {(authors.length ? authors : fallbackAuthors).map((user, index) => (
+                                <Clickable
+                                    key={user.id ?? index}
+                                    className={cl("author")}
+                                    onClick={() => openContributorModal(user)}
+                                >
+                                    <img
+                                        className={cl("author-avatar")}
+                                        src={user.getAvatarURL?.(void 0, 80, true)}
+                                        alt={user.username}
+                                    />
+                                    <BaseText size="sm" weight="semibold">{user.username}</BaseText>
+                                </Clickable>
+                            ))}
+                            {plugin.authors.length > 6 && renderMoreUsers("more authors")}
                         </ErrorBoundary>
                     </div>
                 </section>
 
-                <section>
-                    <BaseText size="lg" weight="semibold" color="text-strong" className={classes(Margins.top16, Margins.bottom8)}>Settings</BaseText>
+                <section className={cl("section")}>
+                    <BaseText size="lg" weight="semibold" color="text-strong" className={Margins.bottom8}>Settings</BaseText>
                     {renderSettings()}
                 </section>
             </div>
-            <div>
+            <div className={cl("footer")}>
                 <Flex flexDirection="column" style={{ width: "100%" }}>
                     <Flex style={{ justifyContent: "space-between", alignItems: "center" }}>
                         {hasSettings ? (

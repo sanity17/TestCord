@@ -13,7 +13,7 @@ import { Paragraph } from "@components/Paragraph";
 import { Span } from "@components/Span";
 import { Margins } from "@utils/margins";
 import { relaunch } from "@utils/native";
-import { changes, checkForUpdates, update, updateError } from "@utils/updater";
+import { changes, checkForUpdates, forceUpdate, update, updateError } from "@utils/updater";
 import { ConfirmModal, openModal, React, Toasts, useState } from "@webpack/common";
 
 import { runWithDispatch } from "./runWithDispatch";
@@ -74,8 +74,32 @@ export function Updatable(props: CommonProps) {
     const [updates, setUpdates] = useState(changes);
     const [isChecking, setIsChecking] = useState(false);
     const [isUpdating, setIsUpdating] = useState(false);
+    const [showDiscardLocalChanges, setShowDiscardLocalChanges] = useState(false);
 
     const isOutdated = (updates?.length ?? 0) > 0;
+
+    function showDiscardForError(error: any) {
+        if (!IS_DEV) return;
+        if (typeof error?.cmd === "string" && error.cmd.includes("git"))
+            setShowDiscardLocalChanges(true);
+    }
+
+    function confirmDiscardLocalChanges() {
+        return new Promise<boolean>(resolve => {
+            openModal(props => (
+                <ConfirmModal
+                    {...props}
+                    title="Discard local changes?"
+                    subtitle="This resets your local Testcord files to the selected remote branch and removes untracked files before updating."
+                    confirmText="Discard and Update"
+                    cancelText="Cancel"
+                    variant="primary"
+                    onConfirm={() => resolve(true)}
+                    onCancel={() => resolve(false)}
+                />
+            ));
+        });
+    }
 
     return (
         <>
@@ -86,8 +110,10 @@ export function Updatable(props: CommonProps) {
                         const outdated = await checkForUpdates();
 
                         if (outdated) {
+                            setShowDiscardLocalChanges(false);
                             setUpdates(changes);
                         } else {
+                            setShowDiscardLocalChanges(false);
                             setUpdates([]);
 
                             Toasts.show({
@@ -110,6 +136,42 @@ export function Updatable(props: CommonProps) {
                         disabled={isUpdating || isChecking}
                         onClick={runWithDispatch(setIsUpdating, async () => {
                             if (await update()) {
+                                setShowDiscardLocalChanges(false);
+                                setUpdates([]);
+
+                                await new Promise<void>(r => {
+                                    openModal(props => (
+                                        <ConfirmModal
+                                            {...props}
+                                            title="Update Success!"
+                                            subtitle="Successfully updated. Restart now to apply the changes?"
+                                            confirmText="Restart"
+                                            cancelText="Not now!"
+                                            variant="primary"
+                                            onConfirm={() => {
+                                                relaunch();
+                                                r();
+                                            }}
+                                            onCancel={r}
+                                        />
+                                    ));
+                                });
+                            }
+                        }, showDiscardForError)}
+                    >
+                        Update Now
+                    </Button>
+                )}
+                {IS_DEV && isOutdated && showDiscardLocalChanges && (
+                    <Button
+                        size="small"
+                        variant="secondary"
+                        disabled={isUpdating || isChecking}
+                        onClick={runWithDispatch(setIsUpdating, async () => {
+                            if (!await confirmDiscardLocalChanges()) return;
+
+                            if (await forceUpdate()) {
+                                setShowDiscardLocalChanges(false);
                                 setUpdates([]);
 
                                 await new Promise<void>(r => {
@@ -132,7 +194,7 @@ export function Updatable(props: CommonProps) {
                             }
                         })}
                     >
-                        Update Now
+                        Discard Local Changes
                     </Button>
                 )}
             </Flex>

@@ -144,20 +144,33 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
 
     const pluginDetails = pluginInfo.find(p => p.condition);
 
-    const sourceBadge = pluginDetails ? (
-        <img
-            src={pluginDetails.src}
-            alt={pluginDetails.alt}
-            className={cl("source")}
-        />
-    ) : null;
-
     const tooltip = pluginDetails?.title || "Unknown Plugin";
+    const footer = (
+        <div className={cl("card-meta")}>
+            <span className={cl("card-source")}>
+                {pluginDetails && (
+                    <img
+                        src={pluginDetails.src}
+                        alt={pluginDetails.alt}
+                        className={cl("source")}
+                    />
+                )}
+                {tooltip}
+            </span>
+            {!!plugin.tags?.length && (
+                <div className={cl("card-tags")}>
+                    {plugin.tags.slice(0, 2).map(tag => (
+                        <span key={tag} className={cl("card-tag")}>{tag}</span>
+                    ))}
+                    {plugin.tags.length > 2 && <span className={cl("card-tag")}>+{plugin.tags.length - 2}</span>}
+                </div>
+            )}
+        </div>
+    );
 
     return (
         <AddonCard
             name={plugin.name}
-            sourceBadge={sourceBadge}
             tooltip={tooltip}
             description={plugin.description}
             isNew={isNew}
@@ -177,6 +190,8 @@ export function PluginCard({ plugin, disabled, onRestartNeeded, onMouseEnter, on
                         : <InfoIcon className={cl("info-icon")} />
                     }
                 </button>
-            } />
+            }
+            footer={footer}
+        />
     );
 }

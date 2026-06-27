@@ -81,4 +81,5 @@ async function applyUpdates() {
 ipcMain.handle(IpcEvents.GET_REPO, serializeErrors(() => `https://github.com/${gitRemote}`));
 ipcMain.handle(IpcEvents.GET_UPDATES, serializeErrors(calculateGitChanges));
 ipcMain.handle(IpcEvents.UPDATE, serializeErrors(fetchUpdates));
+ipcMain.handle(IpcEvents.FORCE_UPDATE, serializeErrors(fetchUpdates));
 ipcMain.handle(IpcEvents.BUILD, serializeErrors(applyUpdates));

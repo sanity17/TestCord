@@ -17,23 +17,29 @@
 */
 
 .vc-plugins-grid {
-    margin-top: 16px;
+    margin-top: 12px;
     display: grid;
-    gap: 16px;
-    grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
+    gap: 12px;
+    grid-template-columns: repeat(auto-fill, minmax(330px, 1fr));
 }
 
 .vc-plugins-info-button {
-    height: 24px;
-    width: 24px;
+    height: 30px;
+    width: 30px;
     padding: 0;
     background: transparent;
-    margin-right: 8px;
+    border: 1px solid transparent;
+    border-radius: 8px;
     color: var(--icon-muted);
-    transition: background-color .2s ease;
+    display: grid;
+    place-items: center;
+    transition: 0.12s ease-out;
+    transition-property: background-color, border-color, color;
 
     &:hover {
-        color: var(--interactive-icon-hover)
+        background-color: var(--background-modifier-hover);
+        border-color: var(--border-subtle);
+        color: var(--interactive-icon-hover);
     }
 }
 
@@ -43,9 +49,9 @@
 
 .vc-plugins-filter-controls {
     display: grid;
-    height: 40px;
+    min-height: 40px;
     gap: 10px;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
     align-items: center;
 }
 
@@ -58,14 +64,31 @@
 }
 
 .vc-plugins-info-card {
-    padding: 1em;
+    padding: 18px;
     height: fit-content;
     display: flex;
-    flex-direction: column;
-    background-color: var(--background-base-lower-alt) !important;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--background-surface-high) !important;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
     transition: 0.1s ease-out;
     transition-property: box-shadow, transform, background, opacity;
-    gap: 0.25em;
+    gap: 16px;
+}
+
+.vc-plugins-info-card-content {
+    min-width: 0;
+}
+
+.vc-plugins-info-card-content p {
+    max-width: 520px;
+    margin-top: 5px;
+    color: var(--text-muted);
+}
+
+.vc-plugins-info-card-actions {
+    flex: 0 0 auto;
 }
 
 .vc-plugins-restart-card {
@@ -82,7 +105,6 @@
 .vc-plugins-restart-button {
     background-color: var(--background-base-low) !important;
     border: 1px solid var(--text-status-idle) !important;
-    margin-top: 0.5em;
 }
 
 .vc-plugins-restart-button:hover {
@@ -90,9 +112,10 @@
 }
 
 .vc-plugin-stats {
-    background-color: var(--background-base-lower-alt);
+    background-color: var(--background-surface-high);
+    border: 1px solid var(--border-subtle);
     border-radius: 8px;
-    padding: 12px;
+    padding: 14px;
     box-sizing: border-box;
     width: 100%;
     display: flex;
@@ -104,9 +127,9 @@
 
 .vc-plugins-info-card:hover,
 .vc-plugin-stats:hover {
-    background-color: var(--background-base-low) !important;
+    background-color: var(--background-surface-high) !important;
     transform: translateY(-1px);
-    box-shadow: var(--elevation-high);
+    box-shadow: var(--elevation-low);
 }
 
 .vc-plugin-stats-card-container {
@@ -121,12 +144,10 @@
 }
 
 .vc-plugin-stats-card-divider {
-    border-left: 1px solid #ccc;
+    border-left: 1px solid var(--border-subtle);
     height: 100%;
     margin: 0 10px;
 }
-
-/* Shared styles for warning modal and disable all modal */
 
 .vc-text-selectable {
     user-select: none;
@@ -197,7 +218,7 @@
 }
 
 .vc-modal-align-reset {
-    align-self: end;
+    align-self: center;
 }
 
 .vc-modal-footer {
@@ -212,8 +233,6 @@
     align-items: center;
     justify-content: space-between !important;
 }
-
-/* Specific to disable all modal */
 
 .warning-text {
     color: var(--text-feedback-critical) !important;
@@ -241,24 +260,6 @@
     color: var(--status-danger-text) !important;
 }
 
-.visual-refresh .vc-plugins-info-card {
-    background-color: var(--background-surface-high) !important;
-    border: 1px solid var(--border-subtle) !important;
-
-    &:hover {
-        background-color: var(--background-surface-high) !important;
-    }
-}
-
-.visual-refresh .vc-plugin-stats {
-    background-color: var(--background-surface-high) !important;
-    border: 1px solid var(--border-subtle) !important;
-
-    &:hover {
-        background-color: var(--background-surface-high) !important;
-    }
-}
-
 .vc-plugins-settings {
     display: flex;
     flex-direction: column;
@@ -274,10 +275,121 @@
 }
 
 .vc-plugins-source {
-    width: 22px;
-    height: 22px;
-    margin-top: 2px;
-    margin-right: 8px;
+    width: 18px;
+    height: 18px;
+    display: block;
+    border-radius: 4px;
+}
+
+.vc-plugins-section-heading {
+    margin-top: 28px !important;
+}
+
+.vc-plugins-grid .vc-addon-card {
+    min-height: 148px;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    background: var(--background-base-low);
+    border-color: var(--border-subtle);
+    box-shadow: none;
+}
+
+.vc-plugins-grid .vc-addon-card:hover {
+    background: var(--background-surface-high);
+    transform: none;
+    box-shadow: var(--elevation-low);
+}
+
+.vc-plugins-grid .vc-addon-header {
+    padding: 14px 14px 8px;
+    margin: 0;
+    align-items: center;
+    gap: 8px;
+}
+
+.vc-plugins-grid .vc-addon-name-author {
+    min-width: 0;
+    flex: 1 1 auto;
+}
+
+.vc-plugins-grid .vc-addon-name {
+    min-height: 28px;
+}
+
+.vc-plugins-grid .vc-addon-title-container {
+    height: 1.4em;
+}
+
+.vc-plugins-grid .vc-addon-note {
+    height: auto;
+    min-height: 39px;
+    margin: 0 14px 12px;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    color: var(--text-muted);
+    line-height: 1.4;
+}
+
+.vc-plugins-grid .vc-addon-card:hover .vc-addon-note {
+    color: var(--text-default);
+}
+
+.vc-plugins-grid .vc-addon-footer {
+    margin-top: auto;
+    padding: 10px 14px;
+    border-top: 1px solid var(--border-subtle);
+    background-color: color-mix(in srgb, var(--background-base-low) 72%, transparent);
+}
+
+.vc-plugins-card-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+}
+
+.vc-plugins-card-source {
+    min-width: 0;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-muted);
+    font-size: 12px;
+    font-weight: 600;
+    line-height: 18px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-plugins-card-tags {
+    flex: 0 1 auto;
+    display: flex;
+    flex-wrap: wrap;
+    justify-content: flex-end;
+    gap: 4px;
+    min-height: 20px;
+}
+
+.vc-plugins-card-tag {
+    max-width: 90px;
+    padding: 2px 6px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 6px;
+    background-color: var(--background-surface-high);
+    color: var(--text-muted);
+    font-size: 10px;
+    font-weight: 600;
+    line-height: 14px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-plugins-grid .vc-addon-card-disabled {
+    opacity: 0.68;
 }
 
 .vc-plugins-stats-container {
@@ -290,4 +402,15 @@
 
 .vc-plugins-ui-elements {
     margin-top: 16px;
+}
+
+@media (max-width: 720px) {
+    .vc-plugins-grid {
+        grid-template-columns: 1fr;
+    }
+
+    .vc-plugins-info-card {
+        align-items: flex-start;
+        flex-direction: column;
+    }
 }

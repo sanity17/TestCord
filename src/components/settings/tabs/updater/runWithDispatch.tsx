@@ -22,7 +22,7 @@ function getErrorMessage(e: any) {
     return `An error occurred while running \`${cmd}\`:\n${extra}`;
 }
 
-export function runWithDispatch(dispatch: React.Dispatch<React.SetStateAction<boolean>>, action: () => any) {
+export function runWithDispatch(dispatch: React.Dispatch<React.SetStateAction<boolean>>, action: () => any, onError?: (e: any) => void) {
     return async () => {
         dispatch(true);
 
@@ -30,6 +30,7 @@ export function runWithDispatch(dispatch: React.Dispatch<React.SetStateAction<bo
             await action();
         } catch (e: any) {
             UpdateLogger.error(e);
+            onError?.(e);
 
             const err = getErrorMessage(e);
 

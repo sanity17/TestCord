@@ -1,13 +1,17 @@
 .vc-plugins-setting-section {
     display: flex;
     flex-direction: column;
-    gap: 0.5em;
+    gap: 8px;
+    padding: 12px;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    background-color: var(--background-surface-high);
 }
 
 .vc-plugins-setting-content {
     display: flex;
     flex-direction: column;
-    gap: 0.5em;
+    gap: 8px;
 }
 
 .vc-plugins-setting-inline {
@@ -19,7 +23,8 @@
 .vc-plugins-setting-label {
     display: flex;
     flex-direction: column;
-    gap: 0.25em;
+    gap: 4px;
+    min-width: 0;
 }
 
 .vc-plugins-setting-title {
@@ -28,6 +33,11 @@
 
 .vc-plugins-setting-inline .vc-plugins-setting-description {
     color: var(--text-subtle);
+}
+
+.vc-plugins-setting-description {
+    color: var(--text-muted);
+    line-height: 1.35;
 }
 
 .vc-plugins-setting-error {

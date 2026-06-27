@@ -28,7 +28,6 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { HeadingTertiary } from "@components/Heading";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab } from "@components/settings";
-import { debounce } from "@shared/debounce";
 import { ChangeList } from "@utils/ChangeList";
 import { Devs, EquicordDevs, TestcordDevs } from "@utils/constants";
 import { classNameFactory } from "@utils/css";
@@ -52,6 +51,7 @@ export const cl = classNameFactory("vc-plugins-");
 export const logger = new Logger("PluginSettings", "#a6d189");
 
 const PluginSearchPrefixes = ["tcp:", "testcordplugin:"];
+const PluginLoadBatchSize = 144;
 
 function showErrorToast(message: string) {
     Toasts.show({
@@ -67,35 +67,38 @@ function showErrorToast(message: string) {
 function ReloadRequiredCard({ required, enabledPlugins, openWarningModal, resetCheckAndDo }) {
     return (
         <Card className={classes(cl("info-card"), required && "vc-warning-card")}>
-            {required ? (
-                <>
-                    <HeadingTertiary>Restart required!</HeadingTertiary>
-                    <Paragraph className={cl("dep-text")}>
-                        Restart now to apply new plugins and their settings
-                    </Paragraph>
+            <div className={cl("info-card-content")}>
+                {required ? (
+                    <>
+                        <HeadingTertiary>Restart required</HeadingTertiary>
+                        <Paragraph className={cl("dep-text")}>
+                            Restart now to apply plugin and setting changes.
+                        </Paragraph>
+                    </>
+                ) : (
+                    <>
+                        <HeadingTertiary>Plugin Management</HeadingTertiary>
+                        <Paragraph>Search, filter, enable, and configure plugins from one place.</Paragraph>
+                        <Paragraph>Use the info button to view details, or the cog button to edit settings.</Paragraph>
+                    </>
+                )}
+            </div>
+            <div className={cl("info-card-actions")}>
+                {required ? (
                     <Button variant="primary" className={cl("restart-button")} onClick={() => location.reload()}>
                         Restart
                     </Button>
-                </>
-            ) : (
-                <>
-                    <HeadingTertiary>Plugin Management</HeadingTertiary>
-                    <Paragraph>Press the cog wheel or info icon to get more info on a plugin</Paragraph>
-                    <Paragraph>Plugins with a cog wheel have settings you can modify!</Paragraph>
-                </>
-            )}
-            {enabledPlugins.length > 0 && !required && (
-                <Button
-                    variant="secondary"
-                    size="small"
-                    className={"vc-plugins-disable-warning vc-modal-align-reset"}
-                    onClick={() => {
-                        return openWarningModal(null, undefined, false, enabledPlugins.length, resetCheckAndDo);
-                    }}
-                >
-                    Disable All Plugins
-                </Button>
-            )}
+                ) : enabledPlugins.length > 0 && (
+                    <Button
+                        variant="secondary"
+                        size="small"
+                        className={"vc-plugins-disable-warning vc-modal-align-reset"}
+                        onClick={() => openWarningModal(null, undefined, false, enabledPlugins.length, resetCheckAndDo)}
+                    >
+                        Disable All Plugins
+                    </Button>
+                )}
+            </div>
         </Card>
     );
 }
@@ -422,20 +425,18 @@ export default function PluginSettings() {
         const enabledUserPlugins = enabledPlugins.filter(p => PluginMeta[p].userPlugin).length;
         return { totalStockPlugins, totalUserPlugins, enabledStockPlugins, enabledUserPlugins, enabledPlugins };
     }, [settings.plugins]);
-    const pluginsToLoad = Math.min(36, plugins.length);
+    const pluginsToLoad = Math.min(PluginLoadBatchSize, plugins.length);
     const [visibleCount, setVisibleCount] = React.useState(pluginsToLoad);
     const loadMore = React.useCallback(() => {
         setVisibleCount(v => Math.min(v + pluginsToLoad, plugins.length));
     }, [plugins.length]);
 
-    const dLoadMore = useMemo(() => debounce(loadMore, 100), [loadMore]);
-
     const [sentinelRef, isSentinelVisible] = useIntersection();
     React.useEffect(() => {
         if (isSentinelVisible && visibleCount < plugins.length) {
-            dLoadMore();
+            loadMore();
         }
-    }, [isSentinelVisible, visibleCount, plugins.length, dLoadMore]);
+    }, [isSentinelVisible, visibleCount, plugins.length, loadMore]);
 
     const visiblePlugins = plugins.slice(0, visibleCount);
     const authorGithub = searchValue.author ? ("https://github.com/" + (authorOptions.find(a => a.value === searchValue.author)?.github || searchValue.author)) : "";
@@ -523,7 +524,7 @@ export default function PluginSettings() {
                 </div>
             </ErrorBoundary>
 
-            <HeadingTertiary className={classes(Margins.top20, Margins.bottom8)} style={{ marginTop: "3.5rem" }}>Plugins</HeadingTertiary>
+            <HeadingTertiary className={classes(Margins.top20, Margins.bottom8, cl("section-heading"))}>Plugins</HeadingTertiary>
 
             {plugins.length || requiredPlugins.length
                 ? (
