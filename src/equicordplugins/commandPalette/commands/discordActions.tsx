@@ -95,6 +95,11 @@ export const discordCommands: PaletteCommand[] = [
             id: "run",
             label: "Toggle Theme",
             run() {
+                if (ThemeStore == null || typeof updateDiscordTheme !== "function") {
+                    showToast("Theme store is not available yet. Try again in a moment.", Toasts.Type.FAILURE);
+                    return;
+                }
+
                 const currentIdx = THEMES.findIndex(theme => theme.value === ThemeStore.theme);
                 const next = THEMES[(currentIdx + 1) % THEMES.length];
                 updateDiscordTheme({ theme: next.value });

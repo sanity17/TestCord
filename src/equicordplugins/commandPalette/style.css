@@ -15,7 +15,7 @@
     position: absolute;
     inset: 0;
     background: rgb(0 0 0 / 45%);
-    backdrop-filter: blur(6px);
+    backdrop-filter: blur(var(--cmdpal-blur, 6px));
     pointer-events: auto;
     animation: vc-cmdpal-backdrop-in 150ms ease-out;
 }

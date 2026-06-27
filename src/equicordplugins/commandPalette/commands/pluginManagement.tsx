@@ -17,6 +17,14 @@ function togglePlugin(plugin: Plugin) {
     const wasEnabled = isPluginEnabled(plugin.name);
     const pluginSettings = Settings.plugins[plugin.name];
 
+    if (!pluginSettings) {
+        Settings.plugins[plugin.name] = { enabled: !wasEnabled };
+        if (wasEnabled) stopPlugin(plugin);
+        else startPlugin(plugin);
+        showToast(`${plugin.name} ${wasEnabled ? "disabled" : "enabled"}.`, Toasts.Type.SUCCESS);
+        return;
+    }
+
     if (!wasEnabled) {
         const { restartNeeded, failures } = startDependenciesRecursive(plugin);
         if (failures.length) {
@@ -55,7 +63,7 @@ function togglePlugin(plugin: Plugin) {
 
 function pluginItems(): PaletteListItem[] {
     return Object.values(plugins)
-        .filter(plugin => !plugin.required && !plugin.hidden)
+        .filter(plugin => plugin?.name && !plugin.required && !plugin.hidden)
         .sort((a, b) => a.name.localeCompare(b.name))
         .map(plugin => {
             const enabled = isPluginEnabled(plugin.name);
