@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./PluginIconColor.css";
+
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Logger } from "@utils/Logger";
 import { classes } from "@utils/misc";
@@ -101,7 +103,7 @@ export function HeaderBarButton(props: HeaderBarButtonProps & { ref?: React.RefO
             {({ onMouseEnter, onMouseLeave }) => (
                 <Clickable
                     {...{ innerRef: ref } as any}
-                    className={classes(HeaderBarClasses.clickable, className)}
+                    className={classes(HeaderBarClasses.clickable, "vc-plugin-icon-button", className)}
                     style={{ width: Math.max(iconSize, 24), height: Math.max(iconSize, 24), boxSizing: "content-box", justifyContent: "center" }}
                     onClick={onClick}
                     onContextMenu={onContextMenu}
@@ -132,7 +134,13 @@ export function HeaderBarButton(props: HeaderBarButtonProps & { ref?: React.RefO
  * />
  */
 export function ChannelToolbarButton(props: ChannelToolbarButtonProps) {
-    return <HeaderBarIcon {...props} />;
+    return (
+        <HeaderBarIcon
+            {...props}
+            className={classes("vc-plugin-icon-button", props.className)}
+            iconClassName={classes("vc-plugin-icon-button", props.iconClassName)}
+        />
+    );
 }
 
 const headerBarButtons = new Map<string, ButtonEntry>();

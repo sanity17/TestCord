@@ -4,8 +4,11 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import "./PluginIconColor.css";
+
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Logger } from "@utils/Logger";
+import { classes } from "@utils/misc";
 import { findComponentByCodeLazy } from "@webpack";
 import { useEffect, useState } from "@webpack/common";
 import type { ComponentType, MouseEventHandler, ReactNode } from "react";
@@ -46,7 +49,9 @@ interface ButtonEntry {
     priority: number;
 }
 
-export const UserAreaButton = PanelButton;
+export function UserAreaButton(props: UserAreaButtonProps) {
+    return <PanelButton {...props} className={classes("vc-plugin-icon-button", props.className)} />;
+}
 
 const logger = new Logger("UserArea");
 
