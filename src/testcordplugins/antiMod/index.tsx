@@ -53,22 +53,17 @@ const cb = async (e: any) => {
             type: 0,
             ...role
         }));
-    for (const role of roles) {
-        for (const permission of avoidPermission) {
-            if ((role.permissions & permission) === permission) {
-                Toasts.show({
-                    message: `MOD ALERT  ${state.userId} detected`,
-                    id: "Vc-permissions",
-                    type: Toasts.Type.FAILURE,
-                    options: {
-                        position: Toasts.Position.BOTTOM,
-                    }
-                });
-                audio();
-
-                break;
+    const isMod = roles.some(role => avoidPermission.some(permission => (role.permissions & permission) === permission));
+    if (isMod) {
+        Toasts.show({
+            message: `MOD ALERT  ${state.userId} detected`,
+            id: "Vc-permissions",
+            type: Toasts.Type.FAILURE,
+            options: {
+                position: Toasts.Position.BOTTOM,
             }
-        }
+        });
+        audio();
     }
 
 };
@@ -82,9 +77,10 @@ function getSortedRoles({ id }: Guild, member: GuildMember) {
         .sort((a, b) => b.position - a.position);
 }
 
+const alarmAudio = new Audio(alarm);
+alarmAudio.volume = 1;
+
 function audio() {
-    const audioElement = document.createElement("audio");
-    audioElement.src = alarm;
-    audioElement.volume = 1;
-    audioElement.play();
+    alarmAudio.currentTime = 0;
+    alarmAudio.play();
 }

@@ -24,7 +24,7 @@ import { classes } from "@utils/misc";
 import definePlugin, { OptionType } from "@utils/types";
 import { DiscordPlatform, User } from "@vencord/discord-types";
 import { filters, findStoreLazy, mapMangledModuleLazy } from "@webpack";
-import { AuthenticationStore, PresenceStore, Tooltip, UserStore, useStateFromStores } from "@webpack/common";
+import { AuthenticationStore, PresenceStore, React, Tooltip, UserStore, useStateFromStores } from "@webpack/common";
 
 export interface Session {
     sessionId: string;
@@ -103,12 +103,11 @@ const PlatformIcon = ({ platform, status, small }) => {
 };
 
 function useEnsureOwnStatus(user: User) {
-    if (user.id !== AuthenticationStore.getId()) {
-        return;
-    }
-
+    const isOwnUser = user.id === AuthenticationStore.getId();
     const sessions = useStateFromStores([SessionsStore], () => SessionsStore.getSessions());
-    if (typeof sessions !== "object") return null;
+
+    if (!isOwnUser || typeof sessions !== "object") return null;
+
     const sortedSessions = Object.values(sessions).sort(({ status: a }, { status: b }) => {
         if (a === b) return 0;
         if (a === "online") return 1;
@@ -118,14 +117,24 @@ function useEnsureOwnStatus(user: User) {
         return 0;
     });
 
-    const ownStatus = Object.values(sortedSessions).reduce((acc, curr) => {
+    return Object.values(sortedSessions).reduce((acc, curr) => {
         if (curr.clientInfo.client !== "unknown")
             acc[curr.clientInfo.client] = curr.status;
         return acc;
     }, {});
+}
 
-    const { clientStatuses } = PresenceStore.getState();
-    clientStatuses[UserStore.getCurrentUser().id] = ownStatus;
+function usePatchOwnPresenceStore(user: User) {
+    const ownStatus = useEnsureOwnStatus(user);
+
+    React.useEffect(() => {
+        if (!ownStatus) return;
+
+        const { clientStatuses } = PresenceStore.getState();
+        clientStatuses[UserStore.getCurrentUser().id] = ownStatus;
+    }, [ownStatus]);
+
+    return ownStatus;
 }
 
 interface PlatformIndicatorProps {
@@ -137,9 +146,10 @@ interface PlatformIndicatorProps {
 
 const PlatformIndicator = ({ user, isProfile, isMessage, isMemberList }: PlatformIndicatorProps) => {
     if (user == null || (user.bot && !settings.store.showBots)) return null;
-    useEnsureOwnStatus(user);
+    const ownStatus = usePatchOwnPresenceStore(user);
 
-    const status = useStateFromStores([PresenceStore], () => PresenceStore.getClientStatus(user.id));
+    const presenceStatus = useStateFromStores([PresenceStore], () => PresenceStore.getClientStatus(user.id));
+    const status = ownStatus ?? presenceStatus;
     if (!status) return null;
 
     const icons = Array.from(Object.entries(status), ([platform, status]) => (

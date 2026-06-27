@@ -54,10 +54,21 @@ function FilterInput({ label, value, placeholder, onChange }: { label: string; v
     );
 }
 
+let cachedHighlight: string | null = null;
+let cachedHighlightRe: RegExp | null = null;
+
+function getHighlightRegex(highlight: string): RegExp {
+    if (highlight !== cachedHighlight || cachedHighlightRe === null) {
+        const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        cachedHighlightRe = new RegExp(`(${escaped})`, "gi");
+        cachedHighlight = highlight;
+    }
+    return cachedHighlightRe;
+}
+
 function highlightText(text: string, highlight: string): React.ReactNode {
     if (!highlight || !text) return text;
-    const escaped = highlight.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const parts = text.split(new RegExp(`(${escaped})`, "gi"));
+    const parts = text.split(getHighlightRegex(highlight));
     return parts.map((part, i) =>
         part.toLowerCase() === highlight.toLowerCase() ? (
             <mark key={i} className={cl("highlight")}>{part}</mark>
@@ -145,16 +156,18 @@ function formatSearchResultsForExport(results: SearchResult[], query: string, gu
 
 function SearchResultItem({
     result,
+    index,
     query,
     selected,
     onSelect,
     onNavigate
 }: {
     result: SearchResult;
+    index: number;
     query: string;
     selected: boolean;
-    onSelect: () => void;
-    onNavigate: () => void;
+    onSelect: (index: number) => void;
+    onNavigate: (result: SearchResult) => void;
 }) {
     const { message, user, channel, matchedUrls } = result;
     const channelObj = ChannelStore.getChannel(message.channel_id);
@@ -163,8 +176,8 @@ function SearchResultItem({
     return (
         <div
             className={cl("result-item", { selected })}
-            onClick={onNavigate}
-            onMouseEnter={onSelect}
+            onClick={() => onNavigate(result)}
+            onMouseEnter={() => onSelect(index)}
         >
             <div className={cl("result-avatar")}>
                 {user?.avatar ? (
@@ -308,6 +321,10 @@ export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; })
         const timeout = setTimeout(() => doSearch(query, filters), settings.store.searchTimeout ?? 300);
         return () => clearTimeout(timeout);
     }, [query, filters, loaded, doSearch]);
+
+    const selectIndex = useCallback((index: number) => {
+        setSelectedIndex(index);
+    }, []);
 
     const navigateToMessage = useCallback((result: SearchResult) => {
         const msg = result.message;
@@ -522,10 +539,11 @@ export function DeepSearchModal({ rootProps }: { rootProps: RenderModalProps; })
                             <SearchResultItem
                                 key={`${result.message.id}-${i}`}
                                 result={result}
+                                index={i}
                                 query={query}
                                 selected={i === selectedIndex}
-                                onSelect={() => setSelectedIndex(i)}
-                                onNavigate={() => navigateToMessage(result)}
+                                onSelect={selectIndex}
+                                onNavigate={navigateToMessage}
                             />
                         ))}
                     </div>

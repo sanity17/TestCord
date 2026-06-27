@@ -48,9 +48,20 @@ const settings = definePluginSettings({
   },
 });
 
-// Regex to detect Discord IDs (usually 17-19 digit numbers)
+// Regex to detect Discord IDs (usually 17-19 digit numbers).
+// Cache the compiled RegExp keyed by min-max so it is rebuilt only when the
+// length settings actually change, instead of recompiling on every render.
+let cachedIdRegex: RegExp | null = null;
+let cachedIdRegexKey = "";
 function createIdRegex(minLength: number, maxLength: number): RegExp {
-  return new RegExp(`\\b\\d{${minLength},${maxLength}}\\b`, "g");
+  const key = `${minLength}-${maxLength}`;
+  if (cachedIdRegex === null || cachedIdRegexKey !== key) {
+    cachedIdRegex = new RegExp(`\\b\\d{${minLength},${maxLength}}\\b`, "g");
+    cachedIdRegexKey = key;
+  }
+  // /g regex is reused across calls, so reset lastIndex before scanning.
+  cachedIdRegex.lastIndex = 0;
+  return cachedIdRegex;
 }
 
 // Check if an ID corresponds to a user
@@ -197,18 +208,48 @@ function translateIds(content: string, channelId?: string): string {
     }
   }
 
-  // Replace IDs from end to beginning to preserve indices
-  idMatches.reverse().forEach(({ id, index }) => {
-    const replacement = processedIds.get(id);
-    if (replacement) {
-      translatedContent =
-        translatedContent.substring(0, index) +
-        replacement +
-        translatedContent.substring(index + id.length);
-    }
-  });
+  if (idMatches.length === 0) return translatedContent;
 
-  return translatedContent;
+  // Build the output in a single forward pass: copy the gap before each match,
+  // then the replacement, then the trailing remainder. This is O(contentLength)
+  // total instead of O(N * contentLength) substring+concat per match.
+  const parts: string[] = [];
+  let lastEnd = 0;
+  for (const { id, index } of idMatches) {
+    const replacement = processedIds.get(id);
+    if (!replacement) continue;
+    parts.push(content.substring(lastEnd, index), replacement);
+    lastEnd = index + id.length;
+  }
+  parts.push(content.substring(lastEnd));
+
+  return parts.join("");
+}
+
+// Bounded LRU cache of translated content. This runs in the message content
+// render path (the patched toAST), so the same unchanged message is processed
+// on every re-render (scroll, hover, reactions, focus). Caching by message
+// identity + content turns repeat renders into a single Map lookup.
+const MAX_TRANSLATION_CACHE = 500;
+const translationCache = new Map<string, string>();
+
+function getCachedTranslation(key: string, content: string, channelId?: string): string {
+  const cached = translationCache.get(key);
+  if (cached !== undefined) {
+    // Refresh recency for LRU ordering.
+    translationCache.delete(key);
+    translationCache.set(key, cached);
+    return cached;
+  }
+
+  const result = translateIds(content, channelId);
+  translationCache.set(key, result);
+  if (translationCache.size > MAX_TRANSLATION_CACHE) {
+    // Evict the least-recently-used entry (oldest insertion).
+    const oldest = translationCache.keys().next().value;
+    if (oldest !== undefined) translationCache.delete(oldest);
+  }
+  return result;
 }
 
 // Function to modify incoming messages
@@ -232,7 +273,19 @@ function modifyIncomingMessage(message: Message): string {
     return message.content;
   }
 
-  return translateIds(message.content, message.channel_id);
+  const cacheKey = [
+    message.id,
+    message.editedTimestamp ?? "",
+    message.channel_id ?? "",
+    settings.store.translateUserIds,
+    settings.store.translateChannelIds,
+    settings.store.translateRoleIds,
+    settings.store.translateMessageIds,
+    settings.store.minIdLength,
+    settings.store.maxIdLength,
+    message.content
+  ].join(":");
+  return getCachedTranslation(cacheKey, message.content, message.channel_id);
 }
 
 export default definePlugin({

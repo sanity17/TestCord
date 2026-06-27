@@ -52,7 +52,9 @@ export function addChannelToCategory(channelId: string, categoryId: string) {
 
     if (category.channels.includes(channelId)) return;
 
-    category.channels.push(channelId);
+    // Reassign to a new array (rather than in-place push) so the channels reference
+    // changes on mutation, keeping the getCategoryChannels sorted-array cache valid.
+    category.channels = [...category.channels, channelId];
 }
 
 export function removeChannelFromCategory(channelId: string) {
@@ -103,15 +105,30 @@ function getSortOrder(ids: string[]) {
     return lastSortOrder;
 }
 
+// Memoizes the sorted channel list per category so repeated per-row calls within a
+// render pass reuse one sorted array instead of recomputing the copy + sort each time.
+// Keyed by the category's channels array reference and the private-channel id list
+// identity (getSortOrder rebuilds its shared order Map in place, so the Map reference is
+// not a safe key — the source ids array identity is). Either changing invalidates.
+const sortedChannelsCache = new WeakMap<Category, { channels: string[]; ids: string[]; sorted: string[]; }>();
+
 export function getCategoryChannels(category: Category): string[] {
     if (category.channels.length === 0) return [];
 
     if (settings.store.pinOrder === PinOrder.LastMessage) {
         const sortedChannels = PrivateChannelSortStore.getPrivateChannelIds();
         const order = getSortOrder(sortedChannels);
-        return [...category.channels].sort((a, b) => {
+
+        const cached = sortedChannelsCache.get(category);
+        if (cached != null && cached.channels === category.channels && cached.ids === sortedChannels) {
+            return cached.sorted;
+        }
+
+        const sorted = [...category.channels].sort((a, b) => {
             return (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity);
         });
+        sortedChannelsCache.set(category, { channels: category.channels, ids: sortedChannels, sorted });
+        return sorted;
     }
 
     return category.channels;
@@ -165,5 +182,9 @@ export function moveChannel(channelId: string, direction: -1 | 1) {
     const a = category.channels.indexOf(channelId);
     const b = a + direction;
 
-    swapElementsInArray(category.channels, a, b);
+    // Reassign to a new array so the channels reference changes on reorder, keeping
+    // the getCategoryChannels sorted-array cache valid.
+    const next = [...category.channels];
+    swapElementsInArray(next, a, b);
+    category.channels = next;
 }

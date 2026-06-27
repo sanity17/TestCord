@@ -607,6 +607,26 @@ export default definePlugin({
             return children;
         };
 
+        // Cheap pre-scan over the (uncloned) tree: the transform only ever replaces/removes
+        // link children whose href matches one of the fakeNitro regexes. If none exist, the
+        // recursive walk would return identical content, so skip the cloneDeep + walk entirely.
+        const hasTransformableLink = (child: any): boolean => {
+            if (child == null) return false;
+            if (child.props?.trusted != null) {
+                const href = child.props.href;
+                if (typeof href !== "string") return false;
+                if (settings.store.transformEmojis && fakeNitroEmojiRegex.test(href)) return true;
+                if (settings.store.transformStickers && (fakeNitroStickerRegex.test(href) || fakeNitroGifStickerRegex.test(href))) return true;
+                return false;
+            }
+            const grandChildren = child.props?.children;
+            if (grandChildren == null) return false;
+            if (Array.isArray(grandChildren)) return grandChildren.some(hasTransformableLink);
+            return hasTransformableLink(grandChildren);
+        };
+
+        if (!content.some(hasTransformableLink)) return content;
+
         try {
             const newContent = modifyChildren(lodash.cloneDeep(content));
             this.trimContent(newContent);

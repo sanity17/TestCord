@@ -15,7 +15,7 @@ import type { User } from "@vencord/discord-types";
 import { findByProps, waitFor } from "@webpack";
 import { ApplicationAssetUtils, ChannelStore, FluxDispatcher, GuildMemberStore, IconUtils, Menu, PresenceStore, React, RestAPI, showToast, SnowflakeUtils, Toasts, Tooltip, UsernameUtils, UserStore } from "@webpack/common";
 
-import { _setOriginalGetCurrentUser, clearTarget, getActiveTargetForGuild, getCachedTarget, getOriginalMeId, getSavedIdentityForSwitcherId, getSavedUsers, getSwitcherAccounts, isActive, isCurrentUser, isManualSavedIdentity, loadCacheFromSettings, loadTarget, logger, makeDateInRange, preLoadGuildTargets, resolveBadge, setEnabled, setSavedUsers, setTarget, settings, subscribe, targetsCache } from "./data";
+import { _setOriginalGetCurrentUser, clearTarget, getActiveTargetForGuild, getCachedTarget, getOriginalMeId, getRealCurrentUser, getSavedIdentityForSwitcherId, getSavedUsers, getSwitcherAccounts, isActive, isCurrentUser, isManualSavedIdentity, loadCacheFromSettings, loadTarget, logger, makeDateInRange, preLoadGuildTargets, resolveBadge, setEnabled, setSavedUsers, setTarget, settings, subscribe, targetsCache } from "./data";
 import { FakeUserProfileModal } from "./legacyModal";
 import { FakeUserSwitcherModal } from "./modal";
 
@@ -145,20 +145,17 @@ function NitroBadgeTooltip({ icon, tierName, dateStr, premiumType }: { icon: str
  * manual mode, or carried from a cloned target).
  */
 function useUserAvatarDecoration(user: User): { asset: string; skuId: string; animated: boolean; } | undefined {
-    if (!isActive()) { logger.info("[deco] useUserAvatarDecoration: not active -> undefined"); return undefined; }
-    if (!isCurrentUser(user?.id)) { logger.info("[deco] useUserAvatarDecoration: not current user", user?.id, "-> undefined"); return undefined; }
+    if (!isActive()) return undefined;
+    if (!isCurrentUser(user?.id)) return undefined;
     const t = getTargetUser() as any;
     const deco = t?.avatarDecorationData;
     const asset = deco?.asset;
-    logger.info("[deco] useUserAvatarDecoration: targetUser.id=", t?.id, "avatarDecorationData=", deco, "asset=", asset);
-    if (!asset) { logger.info("[deco] useUserAvatarDecoration: no asset -> undefined (no ring rendered)"); return undefined; }
-    const out = {
+    if (!asset) return undefined;
+    return {
         asset,
         skuId: deco?.skuId || asset,
         animated: deco?.animated ?? asset.startsWith("a_"),
     };
-    logger.info("[deco] useUserAvatarDecoration: returning", out);
-    return out;
 }
 
 const SNOWFLAKE_EPOCH = 1420070400000n;
@@ -482,7 +479,15 @@ function startSwitcherDropdownObserver() {
 
     switcherDropdownOpen = readSwitcherDropdownOpen();
     switcherDropdownObserver = new MutationObserver(() => {
-        switcherDropdownOpen = readSwitcherDropdownOpen();
+        // Coalesce: class mutations fire continuously across the whole body
+        // (hover, typing, animations). Schedule at most one querySelector scan
+        // per frame instead of running it on every mutation record.
+        if (switcherDropdownCheckQueued) return;
+        switcherDropdownCheckQueued = true;
+        requestAnimationFrame(() => {
+            switcherDropdownCheckQueued = false;
+            switcherDropdownOpen = readSwitcherDropdownOpen();
+        });
     });
     switcherDropdownObserver.observe(body, {
         childList: true,
@@ -2023,14 +2028,14 @@ const plugin = definePlugin({
         {
             find: ",getUserTag:",
             replacement: {
-                match: /if\(\i\((\i)(?:\.global_name\)|\)\.global_name)\)return(?=.{0,100}return"\?\?\?")/,
-                replace: "const vcFupName=$self.getUsername($1);if(vcFupName)return vcFupName;$&"
+                match: /getName:([A-Za-z_$][\w$]*),/,
+                replace: "getName:e=>$self.getUsername(e)??$1(e),"
             }
         },
         {
             find: "getUserAvatarURL:",
             replacement: {
-                match: /(getUserAvatarURL:)(\i),/,
+                match: /(getUserAvatarURL:)([^,]+),/,
                 replace: "$1$self.wrapAvatar($2),"
             }
         },
@@ -2123,12 +2128,14 @@ const plugin = definePlugin({
             find: "memberSinceWrapper",
             replacement: [
                 {
-                    match: /(\i)\.extractTimestamp\((\i)\)/g,
-                    replace: "($self.spoofMemberSinceTimestamp($2)??$1.extractTimestamp($2))"
+                    match: /([A-Za-z_$][\w$]*(?:\.default)?)\.extractTimestamp\(([A-Za-z_$][\w$]*)\)/g,
+                    replace: "($self.spoofMemberSinceTimestamp($2)??$1.extractTimestamp($2))",
+                    noWarn: true
                 },
                 {
-                    match: /\(0,(\i)\.extractTimestamp\)\((\i)\)/g,
-                    replace: "($self.spoofMemberSinceTimestamp($2)??(0,$1.extractTimestamp)($2))"
+                    match: /\(0,([A-Za-z_$][\w$]*(?:\.default)?)\.extractTimestamp\)\(([A-Za-z_$][\w$]*)\)/g,
+                    replace: "($self.spoofMemberSinceTimestamp($2)??(0,$1.extractTimestamp)($2))",
+                    noWarn: true
                 }
             ]
         },
@@ -2137,23 +2144,26 @@ const plugin = definePlugin({
             replacement: [
                 // `extractTimestamp: function(x){...}`
                 {
-                    match: /(extractTimestamp\s*:\s*function\s*\(\s*(\i)\s*\)\s*\{)/,
+                    match: /(extractTimestamp\s*:\s*function\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\{)/,
                     replace: "$1const __vcFupSpoof=$self.spoofMemberSinceTimestamp($2);if(__vcFupSpoof!=null)return __vcFupSpoof;"
                 },
                 // `extractTimestamp: (x) => expr` (arrow, expression body)
                 {
-                    match: /extractTimestamp\s*:\s*\(\s*(\i)\s*\)\s*=>\s*([^,}]+)/,
-                    replace: "extractTimestamp:($1)=>{const __s=$self.spoofMemberSinceTimestamp($1);return __s!=null?__s:($2);}"
+                    match: /extractTimestamp\s*:\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*=>\s*([^,}]+)/,
+                    replace: "extractTimestamp:($1)=>{const __s=$self.spoofMemberSinceTimestamp($1);return __s!=null?__s:($2);}",
+                    noWarn: true
                 },
                 // `extractTimestamp(x){...}` (shorthand method form, most common in modern minified bundles)
                 {
-                    match: /(extractTimestamp\s*\(\s*(\i)\s*\)\s*\{)/,
-                    replace: "$1const __vcFupSpoof=$self.spoofMemberSinceTimestamp($2);if(__vcFupSpoof!=null)return __vcFupSpoof;"
+                    match: /(extractTimestamp\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\{)/,
+                    replace: "$1const __vcFupSpoof=$self.spoofMemberSinceTimestamp($2);if(__vcFupSpoof!=null)return __vcFupSpoof;",
+                    noWarn: true
                 },
                 // `function extractTimestamp(x){...}` (top-level function declaration form)
                 {
-                    match: /(function\s+extractTimestamp\s*\(\s*(\i)\s*\)\s*\{)/,
-                    replace: "$1const __vcFupSpoof=$self.spoofMemberSinceTimestamp($2);if(__vcFupSpoof!=null)return __vcFupSpoof;"
+                    match: /(function\s+extractTimestamp\s*\(\s*([A-Za-z_$][\w$]*)\s*\)\s*\{)/,
+                    replace: "$1const __vcFupSpoof=$self.spoofMemberSinceTimestamp($2);if(__vcFupSpoof!=null)return __vcFupSpoof;",
+                    noWarn: true
                 }
             ]
         },
@@ -2217,6 +2227,9 @@ const plugin = definePlugin({
             if (isActive() && (isCurrentUser(user?.id) || user?.id === "0")) {
                 const active = getActiveTargetForGuild(undefined);
                 if (active) {
+                    if (active.manualData?.overlaySelf) {
+                        return original(getRealCurrentUser() ?? user, animated, size);
+                    }
                     if (active.isManual) {
                         return active.manualData?.manualAvatarDataUrl || active.manualData?.manualAvatar || active.manualData?.avatar || "https://cdn.discordapp.com/embed/avatars/0.png";
                     }
@@ -2240,13 +2253,12 @@ const plugin = definePlugin({
     useUserAvatarDecoration,
 
     getAvatarDecorationURL({ user, canAnimate }: { user?: User; avatarDecoration?: any; canAnimate?: boolean; }) {
-        if (!isActive()) { logger.info("[deco] getAvatarDecorationURL: not active -> undefined"); return undefined; }
+        if (!isActive()) return undefined;
         const targetUserId = user?.id;
-        if (!isCurrentUser(targetUserId)) { logger.info("[deco] getAvatarDecorationURL: not current user", targetUserId, "-> undefined"); return undefined; }
+        if (!isCurrentUser(targetUserId)) return undefined;
         const t = getTargetUser() as any;
         const deco = t?.avatarDecorationData;
-        logger.info("[deco] getAvatarDecorationURL: canAnimate=", canAnimate, "avatarDecorationData=", deco);
-        if (!deco?.asset) { logger.info("[deco] getAvatarDecorationURL: no asset -> undefined"); return undefined; }
+        if (!deco?.asset) return undefined;
         // Mirror Discord's own preset URL exactly (same as the modal grid preview,
         // which renders correctly). For a static render of an animated asset, strip
         // the a_ prefix and request passthrough=false so the APNG collapses to its
@@ -2268,7 +2280,6 @@ const plugin = definePlugin({
             const staticAsset = deco.asset.replace(/^a_/, "");
             url = `https://cdn.discordapp.com/avatar-decoration-presets/${staticAsset}.png?passthrough=false`;
         }
-        logger.info("[deco] getAvatarDecorationURL: resolved URL =", url, "(isAnimated=", isAnimated, "canAnimate=", canAnimate, ")");
         return url;
     },
 

@@ -335,10 +335,10 @@ interface MemberWithMutuals {
     }>;
 }
 
-function getMutualGuilds(id: string): MemberWithMutuals {
+function getMutualGuilds(id: string, guilds: Guild[]): MemberWithMutuals {
     const mutualGuilds: Array<{ guild: Guild; iconUrl: string | null; }> = [];
 
-    for (const guild of Object.values(GuildStore.getGuilds())) {
+    for (const guild of guilds) {
         if (GuildMemberStore.isMember(guild.id, id)) {
             const iconUrl = guild.icon
                 ? IconUtils.getGuildIconURL({
@@ -390,8 +390,9 @@ function MutualMembersTab({ guild, setCount }: RelationshipProps) {
 
     useEffect(() => {
         const guildMembers = GuildMemberStore.getMemberIds(guild.id);
+        const allGuilds = Object.values(GuildStore.getGuilds());
         const membersWithMutuals = guildMembers
-            .map(id => getMutualGuilds(id))
+            .map(id => getMutualGuilds(id, allGuilds))
             // dont show yourself and members that are only in this server
             .filter(member => member.mutualCount > 1 && member.id !== currentUserId);
 

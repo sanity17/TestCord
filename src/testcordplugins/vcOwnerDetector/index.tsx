@@ -27,6 +27,11 @@ const voiceshit = findByPropsLazy("getVoiceChannelId");
 const veryimportantmap = new Set<string>();
 let checkInterval: ReturnType<typeof setInterval> | null = null;
 
+function getCurrentUserId(): string | null {
+    const currentUser = UserStore.getCurrentUser();
+    return currentUser?.id ?? null;
+}
+
 const settings = definePluginSettings({
     guildidetectionslol: {
         description: "Guild detection data",
@@ -342,10 +347,10 @@ export default definePlugin({
     ],
 
     addOwnerClass(originalClass: string) {
-        const currentUser = UserStore.getCurrentUser();
-        if (!currentUser) return originalClass;
+        const currentUserId = getCurrentUserId();
+        if (!currentUserId) return originalClass;
 
-        const isOwner = veryimportantmap.has(currentUser.id);
+        const isOwner = veryimportantmap.has(currentUserId);
         return isOwner ? `${originalClass} vc-owner-yellow` : originalClass;
     }
 });

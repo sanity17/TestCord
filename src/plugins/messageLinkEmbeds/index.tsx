@@ -390,7 +390,12 @@ export default definePlugin({
 
     start() {
         addMessageAccessory("MessageLinkEmbeds", props => {
-            if (!messageLinkRegex.test(props.message.content))
+            const content = props.message.content;
+            // cheap pre-filter to skip the regex scan for the common no-link case
+            if (!content || !content.includes("/channels/"))
+                return null;
+
+            if (!messageLinkRegex.test(content))
                 return null;
 
             // need to reset the regex because it's global

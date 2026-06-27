@@ -184,20 +184,41 @@ function filterTreeWithTargetNode(children: any, predicate: (node: any) => boole
     return childIsTargetChild;
 }
 
+let cachedSanitizedMap: Record<string, string> | null = null;
+let cachedRawMapRef: Record<string, string> | undefined;
+let cachedFolderIdsSignature: string | undefined;
+
 function getNestedFolderMap(): Record<string, string> {
     if (!settings.store.enableNestedFolders) return {};
 
     const nestedFolders = settings.store.nestedFolders ?? {};
-    const validFolderIds = new Set<string>(
-        SortedGuildStore.getGuildFolders()
-            .map((folder: GuildFolder) => folder.folderId?.toString())
-            .filter((folderId): folderId is string => folderId != null)
-    );
+    const folderIds = SortedGuildStore.getGuildFolders()
+        .map((folder: GuildFolder) => folder.folderId?.toString())
+        .filter((folderId): folderId is string => folderId != null);
+    const folderIdsSignature = folderIds.join(",");
+
+    // Reuse the previously sanitized map unless the stored map or the set of
+    // valid folder ids actually changed. This keeps the render-path callers
+    // (getParentFolderId/getChildFolderIds/...) off the sanitize + double
+    // JSON.stringify path on every guild node render.
+    if (
+        cachedSanitizedMap != null &&
+        cachedRawMapRef === nestedFolders &&
+        cachedFolderIdsSignature === folderIdsSignature
+    ) {
+        return cachedSanitizedMap;
+    }
+
+    const validFolderIds = new Set<string>(folderIds);
     const sanitizedFolders = sanitizeNestedFolderMap(nestedFolders, validFolderIds);
 
     if (JSON.stringify(sanitizedFolders) !== JSON.stringify(nestedFolders)) {
         settings.store.nestedFolders = sanitizedFolders;
     }
+
+    cachedSanitizedMap = sanitizedFolders;
+    cachedRawMapRef = settings.store.nestedFolders;
+    cachedFolderIdsSignature = folderIdsSignature;
 
     return sanitizedFolders;
 }
@@ -659,8 +680,16 @@ export default definePlugin({
             };
         }
 
+        // Single pass over the mention-channel list, summing counts for channels
+        // whose guild is in nestedGuildIds. Turns O(nestedGuilds x channels) with
+        // getMentionChannelIds() rebuilt per guild into O(channels).
+        const mentionChannelIds = ReadStateStore.getMentionChannelIds() ?? [];
         let nestedMentionCount = 0;
-        for (const guildId of nestedGuildIds) nestedMentionCount += this.getGuildMentionCount(guildId);
+        for (const channelId of mentionChannelIds) {
+            const channel = ChannelStore.getChannel(channelId);
+            if (channel?.guild_id == null || !nestedGuildIds.has(channel.guild_id)) continue;
+            nestedMentionCount += ReadStateStore.getMentionCount(channelId);
+        }
         return {
             mentionCount: baseMentionCount + nestedMentionCount,
             hasNestedMention: nestedMentionCount > 0

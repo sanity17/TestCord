@@ -760,11 +760,13 @@ export default definePlugin({
                         "editHistory: arguments[1]?.editHistory," +
                         "firstEditTimestamp: new Date(arguments[1]?.firstEditTimestamp ?? $2.editedTimestamp ?? $2.timestamp)," +
                         "diffViewDisabled: arguments[1]?.diffViewDisabled",
+                    noWarn: true,
                 },
                 {
                     // Preserve deleted attribute on attachments
                     match: /(\((\i)\){return null==\2\.attachments.+?)spoiler:/,
                     replace: "$1deleted: arguments[0]?.deleted," + "spoiler:",
+                    noWarn: true,
                 },
             ],
         },

@@ -593,11 +593,14 @@ export default definePlugin({
 
     UserToolsIndicator() {
         try {
-            const allActions = JSON.parse(settings.store.userActions || "{}");
-            const activeUsers = Object.keys(allActions).filter(userId => {
-                const actions = allActions[userId] as UserActions;
-                return actions && (actions.disconnect || actions.mute || actions.deafen);
-            });
+            const { userActions } = settings.use(["userActions"]);
+            const activeUsers = React.useMemo(() => {
+                const allActions = JSON.parse(userActions || "{}");
+                return Object.keys(allActions).filter(userId => {
+                    const actions = allActions[userId] as UserActions;
+                    return actions && (actions.disconnect || actions.mute || actions.deafen);
+                });
+            }, [userActions]);
 
             if (activeUsers.length === 0) return null;
 

@@ -530,6 +530,19 @@ function OSINTScanPanel({ userId, channelId, modalProps }: { userId: string; cha
         const acc: MessageData[] = [];
         messagesRef.current = acc;
 
+        // Throttle the live re-analysis so analyzeMessages does not re-run over the
+        // full growing array after every guild/DM. The final runAnalysis at the end
+        // of loop() always runs the complete analysis, so this only paces the live
+        // feedback without changing the final result.
+        const LIVE_ANALYSIS_INTERVAL = 1500;
+        let lastAnalysisTime = 0;
+        function runLiveAnalysis() {
+            const now = Date.now();
+            if (now - lastAnalysisTime < LIVE_ANALYSIS_INTERVAL) return;
+            lastAnalysisTime = now;
+            if (acc.length > 0) runAnalysis([...acc]);
+        }
+
         async function searchGuild(guildId: string | null, guildName: string, chanId?: string): Promise<void> {
             let offset = 0;
             while (state.running && !cancelled) {
@@ -566,7 +579,7 @@ function OSINTScanPanel({ userId, channelId, modalProps }: { userId: string; cha
                         scanned++;
                         setGuildsScanned(scanned);
                     } catch {}
-                    if (acc.length > 0) runAnalysis([...acc]);
+                    runLiveAnalysis();
                 }
                 if (cancelled || !state.running) return;
             } else {
@@ -588,7 +601,7 @@ function OSINTScanPanel({ userId, channelId, modalProps }: { userId: string; cha
                     try {
                         await searchGuild(null, "DM", dmId);
                     } catch {}
-                    if (acc.length > 0) runAnalysis([...acc]);
+                    runLiveAnalysis();
                 }
             }
 

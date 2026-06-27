@@ -140,16 +140,10 @@ export default definePlugin({
 
             // Add decorator to member list
             addMemberListDecorator("last-online-indicator", props => {
-                if (!props.user) {
-                    log.debug(`Decorator called with no user, type: ${props.type}`);
-                    return null;
-                }
-                log.debug(`Decorator called for user ${props.user.username}#${props.user.discriminator}, type: ${props.type}`);
+                if (!props.user) return null;
                 if (this.shouldShowRecentlyOffline(props.user)) {
-                    log.debug(`Showing last online for user ${props.user.username}#${props.user.discriminator}`);
                     return this.buildRecentlyOffline(props.user);
                 }
-                log.debug(`Not showing last online for user ${props.user.username}#${props.user.discriminator}`);
                 return null;
             });
 
@@ -175,19 +169,13 @@ export default definePlugin({
     },
     shouldShowRecentlyOffline(user: User) {
         const presenceStatus = recentlyOnlineList.get(user.id);
-        if (!presenceStatus) {
-            log.debug(`No presence status found for user ${user.username}#${user.discriminator}`);
-            return false;
-        }
+        if (!presenceStatus) return false;
 
         const shouldShow = presenceStatus.hasBeenOnline && presenceStatus.lastOffline !== null;
         if (shouldShow) {
             const timeSinceOffline = Date.now() - (presenceStatus.lastOffline || 0);
             // Only show if offline for less than 7 days (604800000 ms)
-            if (timeSinceOffline > 604800000) {
-                log.debug(`User ${user.username}#${user.discriminator} offline too long (${Math.floor(timeSinceOffline / 86400000)} days), not showing indicator`);
-                return false;
-            }
+            if (timeSinceOffline > 604800000) return false;
         }
 
         return shouldShow;

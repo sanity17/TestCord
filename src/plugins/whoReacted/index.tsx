@@ -24,7 +24,7 @@ import { Queue } from "@utils/Queue";
 import { useForceUpdater } from "@utils/react";
 import definePlugin, { OptionType } from "@utils/types";
 import { CustomEmoji, Message, ReactionEmoji, User } from "@vencord/discord-types";
-import { ChannelStore, Constants, FluxDispatcher, React, RestAPI, useEffect, useLayoutEffect, UserStore, UserSummaryItem } from "@webpack/common";
+import { ChannelStore, Constants, FluxDispatcher, React, RestAPI, useEffect, useLayoutEffect, useMemo, UserStore, UserSummaryItem } from "@webpack/common";
 
 interface ReactionCacheEntry {
     fetched: boolean;
@@ -90,12 +90,6 @@ function handleClickAvatar(event: React.UIEvent<HTMLElement, Event>) {
 function ReactionUsers({ message, emoji, type }: ReactionProps) {
     const forceUpdate = useForceUpdater();
 
-    useLayoutEffect(() => { // bc need to prevent autoscrolling
-        if (Scroll?.scrollCounter > 0) {
-            Scroll.setAutomaticAnchor(null);
-        }
-    });
-
     useEffect(() => {
         const cb = (e: any) => {
             if (e?.messageId === message.id)
@@ -107,7 +101,16 @@ function ReactionUsers({ message, emoji, type }: ReactionProps) {
     }, [message.id, forceUpdate]);
 
     const reactions = getReactionsWithQueue(message, emoji, type);
-    const users = Array.from(reactions, ([id]) => UserStore.getUser(id)).filter(Boolean);
+    const users = useMemo(
+        () => Array.from(reactions, ([id]) => UserStore.getUser(id)).filter(Boolean),
+        [reactions, reactions.size]
+    );
+
+    useLayoutEffect(() => { // bc need to prevent autoscrolling
+        if (Scroll?.scrollCounter > 0) {
+            Scroll.setAutomaticAnchor(null);
+        }
+    }, [users]);
 
     return (
         <div

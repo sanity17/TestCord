@@ -22,7 +22,7 @@ import { UserUtils } from "@webpack/common";
 
 import settings from "./settings";
 import { ChannelDelete, GuildDelete, RelationshipRemove } from "./types";
-import { deleteGroup, deleteGuild, getGroup, getGuild, GuildAvailabilityStore, notify } from "./utils";
+import { deleteGroup, deleteGuild, getGroup, getGuild, GuildAvailabilityStore, notify, syncGroups } from "./utils";
 
 let manuallyRemovedFriend: string | undefined;
 let manuallyRemovedGuild: string | undefined;
@@ -77,6 +77,11 @@ export function onGuildDelete({ guild: { id, unavailable } }: GuildDelete) {
         deleteGuild(id);
         notify(`You were removed from the server ${guild.name}.`, guild.iconURL);
     }
+}
+
+export function onChannelCreate({ channel: { type } }: ChannelDelete) {
+    if (type !== ChannelType.GROUP_DM) return;
+    syncGroups();
 }
 
 export function onChannelDelete({ channel: { id, type } }: ChannelDelete) {

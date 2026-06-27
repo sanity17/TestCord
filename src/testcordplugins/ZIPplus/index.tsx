@@ -92,6 +92,13 @@ function getAttachmentKey(attachment: ZipAttachmentLike) {
         ?? "archive.zip";
 }
 
+function looksLikeZipAttachment(attachment: ZipAttachmentLike) {
+    const contentType = (attachment.content_type || "").toLowerCase();
+    const filename = (attachment.filename || attachment.title || attachment.name || "").toLowerCase();
+    const url = (attachment.url || attachment.proxy_url || "").toLowerCase();
+    return contentType.includes("zip") || filename.endsWith(".zip") || url.endsWith(".zip");
+}
+
 function findAttachment(message: ZipMessageLike, mediaItem: ZipMediaItemLike) {
     return (message.attachments ?? []).find(attachment => (
         attachment.proxy_url === mediaItem.proxyUrl
@@ -435,12 +442,14 @@ function cacheBlob(key: string, blob: Blob) {
 
 // Component to render inside each zip attachment
 function ZipAttachmentPreview({ attachment }: { attachment: ZipAttachmentLike; }) {
+    const isZipAttachment = looksLikeZipAttachment(attachment);
     const cacheKey = getAttachmentKey(attachment);
     const [blob, setBlob] = useState<Blob | null>(() => blobCache.get(cacheKey) || null);
     const [error, setError] = useState<string | null>(null);
     const [expanded, setExpanded] = useState<boolean>(() => expandedState.get(cacheKey) ?? false);
 
     useEffect(() => {
+        if (!isZipAttachment) return;
         if (blobCache.has(cacheKey)) return;
 
         let mounted = true;
@@ -484,8 +493,9 @@ function ZipAttachmentPreview({ attachment }: { attachment: ZipAttachmentLike; }
             }
         })();
         return () => { mounted = false; };
-    }, [attachment.proxy_url, attachment.url, cacheKey]);
+    }, [attachment.proxy_url, attachment.url, cacheKey, isZipAttachment]);
 
+    if (!isZipAttachment) return null;
     if (error) return <div className="zp-error">{error}</div>;
     if (!blob) return <div className="zp-loading">Loading preview…</div>;
 
@@ -516,8 +526,8 @@ export default definePlugin({
         {
             find: "#{intl::ATTACHMENT_PROCESSING}",
             replacement: {
-                match: /(renderAdjacentContent[\s\S]{0,200}\}=(\i);[\s\S]{0,200})null!=\i&&\i\(\)/,
-                replace: "$1$self.ZipAttachmentPreview({ attachment: $2 })"
+                match: /(let\{className:([A-Za-z_$][\w$]*),url:([A-Za-z_$][\w$]*),fileName:([A-Za-z_$][\w$]*),fileSize:[A-Za-z_$][\w$]*,onClick:[A-Za-z_$][\w$]*,onContextMenu:[A-Za-z_$][\w$]*,renderAdjacentContent:([A-Za-z_$][\w$]*)\}=[A-Za-z_$][\w$]*;[\s\S]{0,900}?)null!=\5&&\5\(\)/,
+                replace: "$1[null!=$5&&$5(),$self.ZipAttachmentPreview({attachment:{url:$3,proxy_url:$3,filename:$4,name:$4}})]"
             }
         }
     ],

@@ -6,7 +6,6 @@
 
 import { ApplicationCommandInputType, ApplicationCommandOptionType, findOption } from "@api/Commands";
 import { openUserProfile } from "@utils/discord";
-import { sleep } from "@utils/misc";
 import { ModalContent, ModalFooter, ModalHeader, ModalRoot, ModalSize, openModal } from "@utils/modal";
 import definePlugin from "@utils/types";
 import { findByPropsLazy } from "@webpack";
@@ -392,7 +391,7 @@ async function fetchUser(id: string) {
             type: "USER_UPDATE",
             user: response.body,
         });
-        await sleep(100); // Simple rate limiting
+        // RestAPI already queues and rate-limits requests; no artificial delay needed.
         return UserStore.getUser(id);
     } catch (error) {
         console.warn(`Failed to fetch user ${id}:`, error);

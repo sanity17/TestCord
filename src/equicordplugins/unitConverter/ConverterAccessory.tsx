@@ -18,7 +18,7 @@
 
 import { classNameFactory } from "@utils/css";
 import { Message } from "@vencord/discord-types";
-import { useState } from "@webpack/common";
+import { useEffect, useRef, useState } from "@webpack/common";
 
 export const conversions = new Map<string, (conv: string) => void>();
 const cl = classNameFactory("vc-converter-");
@@ -65,7 +65,15 @@ export function SmallConvertIcon() {
 
 export function ConverterAccessory({ message }: { message: Message; }) {
     const [conversion, setConversion] = useState<string>("");
-    conversions.set(message.id, setConversion);
+
+    const setRef = useRef(setConversion);
+    setRef.current = setConversion;
+
+    useEffect(() => {
+        conversions.set(message.id, (v: string) => setRef.current(v));
+        return () => { conversions.delete(message.id); };
+    }, [message.id]);
+
     if (!conversion) return null;
     return (
         <span className={cl("accessory")}>

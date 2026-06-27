@@ -56,6 +56,13 @@ export type SongLinkResult = {
 
 export const Native = VencordNative.pluginHelpers.SongLink as PluginNative<typeof import("./native")>;
 
+const MUSIC_LINK_REGEX = new RegExp([
+    /https:\/\/(?:open|play)\.spotify\.com\/track\/[a-zA-Z0-9]+/, // spotify
+    /https:\/\/(music|itunes)\.apple\.com\/[a-z]{2}\/album\/\S+/, // apple music/itunes
+    /https:\/\/music\.youtube\.com\/watch\?v=[0-9A-Za-z_-]+/, // yt music
+    /https:\/\/tidal\.com\/track\/[0-9]+\/u/ // tidal
+].map(r => r.source).join("|"), "g");
+
 function formatMessage(data: SongLinkResult): string | null {
     const lines: string[] = [];
 
@@ -139,13 +146,7 @@ export default definePlugin({
         } = props.message;
         if (!content) return;
 
-        const regexes = [
-            /https:\/\/(?:open|play)\.spotify\.com\/track\/[a-zA-Z0-9]+/, // spotify
-            /https:\/\/(music|itunes)\.apple\.com\/[a-z]{2}\/album\/\S+/, // apple music/itunes
-            /https:\/\/music\.youtube\.com\/watch\?v=[0-9A-Za-z_-]+/, // yt music
-            /https:\/\/tidal\.com\/track\/[0-9]+\/u/ // tidal
-        ];
-        const allMatches = content.match(new RegExp(regexes.map(r => r.source).join("|"), "g"));
+        const allMatches = content.match(MUSIC_LINK_REGEX);
         if (!allMatches?.length) return;
 
         const musicLinks = [...new Set(allMatches)];

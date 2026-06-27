@@ -32,7 +32,10 @@ export function stripTransientRenderState(message: any) {
 }
 
 export function cleanupMessage(message: any, removeDetails: boolean = true): LoggedMessageJSON {
-    const ret: LoggedMessageJSON = typeof message.toJS === "function" ? JSON.parse(JSON.stringify(message.toJS())) : { ...message };
+    // message.toJS() already returns a fresh plain-JS deep copy, so a shallow spread
+    // is enough — the per-field reassignments below (author/embeds/etc.) build their
+    // own fresh objects. This avoids a full JSON.stringify+parse round-trip per message.
+    const ret: LoggedMessageJSON = typeof message.toJS === "function" ? { ...message.toJS() } : { ...message };
     stripTransientRenderState(ret);
     if (removeDetails) {
         ret.author.phone = undefined;

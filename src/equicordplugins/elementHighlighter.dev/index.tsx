@@ -179,13 +179,16 @@ function getColorVarFromElement(el: Element): string | null {
         if (match) return match[1].trim();
     }
 
-    let result: string | null = null;
-    for (const r of cachedRules) {
+    // cachedRules is sorted ascending by specificity, so the highest-specificity
+    // match wins. Iterate in reverse and return on the first hit to avoid testing
+    // every remaining (lower-specificity) rule once the winner is found.
+    for (let i = cachedRules.length - 1; i >= 0; i--) {
+        const r = cachedRules[i];
         try {
-            if (el.matches(r.selector)) result = r.color;
+            if (el.matches(r.selector)) return r.color;
         } catch { }
     }
-    return result;
+    return null;
 }
 
 function getColorVar(el: Element): string | null {

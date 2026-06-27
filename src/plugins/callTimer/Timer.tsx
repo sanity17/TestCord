@@ -6,7 +6,7 @@
 
 import { useFixedTimer } from "@utils/react";
 import { formatDurationMs } from "@utils/text";
-import { Tooltip } from "@webpack/common";
+import { Tooltip, useMemo } from "@webpack/common";
 
 import { settings } from "./index";
 import { TimerIcon } from "./TimerIcon";
@@ -14,8 +14,16 @@ import { TimerText } from "./timerText";
 
 export function Timer({ time }: Readonly<{ time: number; }>) {
     const durationMs = useFixedTimer({ initialTime: time });
-    const formatted = formatDurationMs(durationMs, settings.store.format === "human", settings.store.showSeconds);
-    const defaultColorClassName = settings.store.showRoleColor ? "" : "usernameFont__71dd5 username__73ce9";
+    const { format, showSeconds, showRoleColor } = settings.store;
+
+    const formatted = useMemo(
+        () => formatDurationMs(durationMs, format === "human", showSeconds),
+        [durationMs, format, showSeconds]
+    );
+    const defaultColorClassName = useMemo(
+        () => showRoleColor ? "" : "usernameFont__71dd5 username__73ce9",
+        [showRoleColor]
+    );
 
     if (settings.store.showWithoutHover) {
         return <TimerText text={formatted} className={defaultColorClassName} />;

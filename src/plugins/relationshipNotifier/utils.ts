@@ -37,6 +37,18 @@ export const GuildAvailabilityStore = findStoreLazy("GuildAvailabilityStore") as
 
 const guilds = new Map<string, SimpleGuild>();
 const groups = new Map<string, SimpleGroupChannel>();
+
+// Signature of the group map last written to DataStore, used to skip redundant
+// IndexedDB writes when CHANNEL_CREATE fires but the group set is unchanged.
+let lastPersistedGroupsSig: string | undefined;
+
+function groupsSignature(map: Map<string, SimpleGroupChannel>) {
+    let sig = "";
+    for (const { id, name, iconURL } of map.values())
+        sig += `${id}\0${name}\0${iconURL ?? ""}\n`;
+    return sig;
+}
+
 const friends = {
     friends: [] as string[],
     requests: [] as string[]
@@ -156,18 +168,26 @@ export function deleteGroup(id: string) {
 }
 
 export async function syncGroups() {
-    groups.clear();
+    const next = new Map<string, SimpleGroupChannel>();
 
     for (const { type, id, name, rawRecipients, icon } of ChannelStore.getSortedPrivateChannels()) {
         if (type === ChannelType.GROUP_DM)
-            groups.set(id, {
+            next.set(id, {
                 id,
                 name: name || rawRecipients.map(r => r.username).join(", "),
                 iconURL: icon && `https://cdn.discordapp.com/channel-icons/${id}/${icon}.png`
             });
     }
 
-    await DataStore.set(groupsKey(), groups);
+    const sig = groupsSignature(next);
+
+    groups.clear();
+    for (const [id, group] of next) groups.set(id, group);
+
+    if (sig !== lastPersistedGroupsSig) {
+        lastPersistedGroupsSig = sig;
+        await DataStore.set(groupsKey(), groups);
+    }
 }
 
 export async function syncFriends() {

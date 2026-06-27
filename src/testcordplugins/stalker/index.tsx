@@ -104,7 +104,7 @@ export async function logStalkerEvent(entry: StalkerLogEntry) {
 
             cache.logs.push(entry);
 
-            await Native.writeStalkerLog(JSON.stringify(cache.logs, null, 2), entry.userId, entry.username);
+            await Native.writeStalkerLog(JSON.stringify(cache.logs), entry.userId, entry.username);
         } catch (error) {
             logger.error("Failed to write stalker log:", error);
         }

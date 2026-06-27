@@ -204,13 +204,14 @@ export default definePlugin({
                 if (!msg) return;
                 if (msg.author.id !== UserStore.getCurrentUser().id) return;
                 if (!event.emoji.name.includes(settings.store.emojiToTrack)) return;
-                const husks: Husk[] = await DataStore.get(DATA_STORE_KEY) || [];
-                husks.push({
-                    userId: event.userId,
-                    channelId: event.channelId,
-                    messageId: event.messageId
+                await DataStore.update(DATA_STORE_KEY, (husks: Husk[] = []) => {
+                    husks.push({
+                        userId: event.userId,
+                        channelId: event.channelId,
+                        messageId: event.messageId
+                    });
+                    return husks;
                 });
-                await DataStore.set(DATA_STORE_KEY, husks);
             }
             catch {
                 // explode

@@ -227,10 +227,12 @@ export default definePlugin({
 
         const { message } = event;
         if (!message || message.author.id === UserStore.getCurrentUser().id) return;
+        if (typeof message.content !== "string" || message.content.length === 0) return;
 
         const responses: ResponsePair[] = settings.store.responses || [];
+        const content = message.content.toLowerCase();
         for (const resp of responses) {
-            if (resp.trigger && resp.response && message.content.toLowerCase().includes(resp.trigger.toLowerCase())) {
+            if (resp.trigger && resp.response && content.includes(resp.trigger.toLowerCase())) {
                 // Send response in the same channel
                 sendMessage(message.channel_id, { content: resp.response });
                 break; // Only respond to first matching trigger

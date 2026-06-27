@@ -122,16 +122,32 @@ interface MemberRowProps {
 
 function MemberRow({ m, guild, sortField, isFriend, profileUpdateCounter }: MemberRowProps) {
     const u = UserStore.getUser(m.userId);
-    const mutualFriendsCount = getMutualFriendsCountVal(m.userId);
-    const mutualGuilds = getMutualGuildsList(m.userId, guild.id);
-
     const showMutualFriends = sortField === "mutual-friends";
 
     useEffect(() => {
         queueProfileFetch(m.userId);
     }, [m.userId]);
 
-    const tooltipText = (
+    // The store lookups below include getMutualGuildsList, which on a store miss
+    // scans every guild (O(guilds)) per member. Memoize so a profileUpdateCounter
+    // bump only recomputes rows whose underlying data actually changed identity,
+    // and so the expensive guild scan is not redone on every unrelated re-render.
+    const mutualFriendsCount = useMemo(
+        () => getMutualFriendsCountVal(m.userId),
+        [m.userId, profileUpdateCounter]
+    );
+    const mutualGuilds = useMemo(
+        () => getMutualGuildsList(m.userId, guild.id),
+        [m.userId, guild.id, profileUpdateCounter]
+    );
+    const mutualFriendsList = useMemo(
+        () => (showMutualFriends ? getMutualFriendsList(m.userId) : []),
+        [m.userId, showMutualFriends, profileUpdateCounter]
+    );
+
+    // Build each tooltip JSX tree only for the branch actually rendered, instead
+    // of constructing both eagerly on every render.
+    const guildsTooltipText = useMemo(() => (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "4px" }}>
             <div style={{ fontWeight: "bold", borderBottom: "1px solid var(--border-modifier-accent)", paddingBottom: "4px", marginBottom: "4px" }}>
                 Shared Servers ({mutualGuilds.length})
@@ -147,10 +163,9 @@ function MemberRow({ m, guild, sortField, isFriend, profileUpdateCounter }: Memb
                 </div>
             )}
         </div>
-    );
+    ), [mutualGuilds]);
 
-    const mutualFriendsList = getMutualFriendsList(m.userId);
-    const mutualFriendsTooltipText = (
+    const mutualFriendsTooltipText = useMemo(() => (
         <div style={{ display: "flex", flexDirection: "column", gap: "4px", padding: "4px" }}>
             <div style={{ fontWeight: "bold", borderBottom: "1px solid var(--border-modifier-accent)", paddingBottom: "4px", marginBottom: "4px" }}>
                 Mutual Friends ({mutualFriendsCount})
@@ -170,7 +185,7 @@ function MemberRow({ m, guild, sortField, isFriend, profileUpdateCounter }: Memb
                 </div>
             )}
         </div>
-    );
+    ), [mutualFriendsList, mutualFriendsCount]);
 
     return (
         <div className="gt-member-row">
@@ -246,7 +261,7 @@ function MemberRow({ m, guild, sortField, isFriend, profileUpdateCounter }: Memb
                                 </Tooltip>
                             ))}
                             {mutualGuilds.length > 4 && (
-                                <Tooltip text={tooltipText}>
+                                <Tooltip text={guildsTooltipText}>
                                     {tooltipProps => (
                                         <div {...tooltipProps} className="gt-guild-count">
                                             +{mutualGuilds.length - 4}
@@ -276,12 +291,21 @@ export function MembersTab({ guild }: { guild: Guild; }) {
     const [profileUpdateCounter, setProfileUpdateCounter] = useState(0);
 
     useEffect(() => {
+        // Coalesce bursts of profile-fetch successes (one per ~1.5s during a
+        // Load Profiles run) into a single trailing re-render instead of one
+        // per event.
+        let pending: ReturnType<typeof setTimeout> | null = null;
         const handleProfileSuccess = () => {
-            setProfileUpdateCounter(prev => prev + 1);
+            if (pending !== null) return;
+            pending = setTimeout(() => {
+                pending = null;
+                setProfileUpdateCounter(prev => prev + 1);
+            }, 250);
         };
         FluxDispatcher.subscribe("USER_PROFILE_FETCH_SUCCESS", handleProfileSuccess);
         return () => {
             FluxDispatcher.unsubscribe("USER_PROFILE_FETCH_SUCCESS", handleProfileSuccess);
+            if (pending !== null) clearTimeout(pending);
         };
     }, []);
 
@@ -395,12 +419,23 @@ export function MembersTab({ guild }: { guild: Guild; }) {
                 mutualServers: number;
             }>();
 
+            // Only compute the field the active sort needs. mutualServers in
+            // particular triggers getMutualGuildsList, which on a store miss
+            // scans every guild (O(members x guilds)); skip it entirely unless
+            // the user sorts by shared servers.
+            const needsName = sortField === "name";
+            const needsFriend = sortField === "friends";
+            const needsMutualFriends = sortField === "mutual-friends";
+            const needsMutualServers = sortField === "mutual-servers";
+
             for (const m of result) {
-                const u = UserStore.getUser(m.userId);
-                const name = (m.nick || (u as any)?.globalName || u?.username || "Unknown").toLowerCase();
-                const isFriend = RelationshipStore.isFriend(m.userId);
-                const mutualFriends = getMutualFriendsCountVal(m.userId);
-                const mutualServers = getMutualGuildsList(m.userId, guild.id).length;
+                const u = needsName ? UserStore.getUser(m.userId) : undefined;
+                const name = needsName
+                    ? (m.nick || (u as any)?.globalName || u?.username || "Unknown").toLowerCase()
+                    : "";
+                const isFriend = needsFriend ? RelationshipStore.isFriend(m.userId) : false;
+                const mutualFriends = needsMutualFriends ? getMutualFriendsCountVal(m.userId) : 0;
+                const mutualServers = needsMutualServers ? getMutualGuildsList(m.userId, guild.id).length : 0;
 
                 memberMeta.set(m.userId, { name, isFriend, mutualFriends, mutualServers });
             }

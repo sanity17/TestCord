@@ -44,9 +44,19 @@ function getGuildIdentities(): Record<string, string> {
 let _savedUsersCache: SavedUser[] | null = null;
 let _savedUsersRaw: string | null = null;
 
+// Bumped on every notify() so the manual/overlay target cache in
+// getActiveTargetForGuild invalidates whenever any manual setting changes
+// (every manual-field mutation in the modal calls notify()).
+let manualTargetEpoch = 0;
+let _manualTargetCache: { user: any; profile: any; isManual: boolean; manualData?: any; } | null = null;
+let _manualTargetKey: string | null = null;
+
 export function notify() {
     if (notifying) return;
     notifying = true;
+    manualTargetEpoch++;
+    _manualTargetCache = null;
+    _manualTargetKey = null;
     try {
         for (const fn of subscribers) {
             try { fn(); } catch (e) { console.error("[FakeUserSwitcher] subscriber threw", e); }
@@ -515,6 +525,10 @@ export function getActiveTargetForGuild(guildId: string | null | undefined): { u
     if (settings.store.overlaySelf) {
         const me = getRealCurrentUser();
         if (!me || !me.id) return null;
+        // Keyed on epoch + real identity: manual-field edits bump the epoch, and
+        // an account switch changes the stamped-in id/avatar fields below.
+        const overlayKey = `overlay:${manualTargetEpoch}:${me.id}:${me.avatar ?? ""}`;
+        if (_manualTargetKey === overlayKey) return _manualTargetCache;
         let overlayBadgeIds: string[] = [];
         try {
             const parsed = JSON.parse(settings.store.manualCustomBadgeIds || "[]");
@@ -562,10 +576,14 @@ export function getActiveTargetForGuild(guildId: string | null | undefined): { u
         payload.profile.clan = null;
         payload.profile.primaryGuild = null;
         payload.profile.primary_guild = null;
+        _manualTargetKey = overlayKey;
+        _manualTargetCache = payload;
         return payload;
     }
     // Fallback to global
     if (settings.store.manualMode) {
+        const manualKey = `manual:${manualTargetEpoch}:${meId ?? ""}`;
+        if (_manualTargetKey === manualKey) return _manualTargetCache;
         let manualCustomBadgeIds: string[] = [];
         try {
             const parsed = JSON.parse(settings.store.manualCustomBadgeIds || "[]");
@@ -618,7 +636,10 @@ export function getActiveTargetForGuild(guildId: string | null | undefined): { u
             manualCustomBadgeIds,
             manualOldName: settings.store.manualOldName,
         });
-        return targetIsSelf(globalManual) ? null : globalManual;
+        const manualResult = targetIsSelf(globalManual) ? null : globalManual;
+        _manualTargetKey = manualKey;
+        _manualTargetCache = manualResult;
+        return manualResult;
     }
     if (cached) {
         const t = {

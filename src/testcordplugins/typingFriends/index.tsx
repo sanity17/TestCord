@@ -29,7 +29,7 @@ const TYPING_USERS = new Map<string, string>();
 const TYPING_LOCATIONS = new Map<string, string | null>();
 const ORIGINAL_TYPES = new Map<string, number>();
 const TIMERS = new Map<string, number>();
-const GUILD_ICON_LISTENERS = new Set<() => void>();
+const GUILD_ICON_LISTENERS = new Map<string, Set<() => void>>();
 
 const PLUS_ICON = "data:image/svg+xml;utf8," + encodeURIComponent(
     `<svg xmlns="http://www.w3.org/2000/svg" width="16" height="16">
@@ -80,21 +80,52 @@ function getTypingBadgeOffsets(count: number): number[] {
     }
 }
 
-function notifyGuildIconListeners() {
-    for (const listener of GUILD_ICON_LISTENERS) listener();
+let relationshipEmitScheduled = false;
+function scheduleRelationshipEmit() {
+    if (relationshipEmitScheduled) return;
+    relationshipEmitScheduled = true;
+    queueMicrotask(() => {
+        relationshipEmitScheduled = false;
+        RelationshipStore.emitChange();
+    });
+}
+
+function notifyGuildIconListeners(guildId: string | null) {
+    if (!guildId) return;
+    const listeners = GUILD_ICON_LISTENERS.get(guildId);
+    if (!listeners) return;
+    for (const listener of listeners) listener();
+}
+
+function notifyAllGuildIconListeners() {
+    for (const listeners of GUILD_ICON_LISTENERS.values())
+        for (const listener of listeners) listener();
 }
 
 const GuildTypingIcons = ErrorBoundary.wrap(function GuildTypingIcons({ guildId }: { guildId: string; }) {
     const forceUpdate = useForceUpdater();
 
     React.useEffect(() => {
-        GUILD_ICON_LISTENERS.add(forceUpdate);
-        return () => void GUILD_ICON_LISTENERS.delete(forceUpdate);
-    }, [forceUpdate]);
+        let listeners = GUILD_ICON_LISTENERS.get(guildId);
+        if (!listeners) {
+            listeners = new Set();
+            GUILD_ICON_LISTENERS.set(guildId, listeners);
+        }
+        listeners.add(forceUpdate);
+        return () => {
+            const current = GUILD_ICON_LISTENERS.get(guildId);
+            if (!current) return;
+            current.delete(forceUpdate);
+            if (current.size === 0) GUILD_ICON_LISTENERS.delete(guildId);
+        };
+    }, [forceUpdate, guildId]);
 
     if (!settings.store.showGuildIcons) return null;
 
-    const users = [...(TYPING_GUILDS.get(guildId) ?? [])]
+    const typingSet = TYPING_GUILDS.get(guildId);
+    if (!typingSet || typingSet.size === 0) return null;
+
+    const users = [...typingSet]
         .map(id => UserStore.getUser(id))
         .filter(Boolean);
 
@@ -130,7 +161,7 @@ function cleanupTyping(gid: string | null, userId: string): void {
     if (original != null) {
         relationships.set(userId, original);
         ORIGINAL_TYPES.delete(userId);
-        RelationshipStore.emitChange();
+        scheduleRelationshipEmit();
     }
 
     TYPING_USERS.delete(String(userId));
@@ -142,7 +173,7 @@ function cleanupTyping(gid: string | null, userId: string): void {
     const set = TYPING_GUILDS.get(previousGuildId);
     set?.delete(String(userId));
     if (set?.size === 0) TYPING_GUILDS.delete(previousGuildId);
-    notifyGuildIconListeners();
+    notifyGuildIconListeners(previousGuildId);
 }
 
 function onTypingStart(e: TypingEvent) {
@@ -169,14 +200,14 @@ function onTypingStart(e: TypingEvent) {
         TYPING_LOCATIONS.set(String(e.userId), null);
 
         relationships.set(e.userId, TYPING_REL as any);
-        RelationshipStore.emitChange();
+        scheduleRelationshipEmit();
 
         clearTimeout(TIMERS.get(e.userId));
         TIMERS.set(
             e.userId,
             window.setTimeout(() => cleanupTyping(null, e.userId), settings.store.typingTimeout)
         );
-        notifyGuildIconListeners();
+        notifyGuildIconListeners(previousGuildId);
 
         return;
     }
@@ -189,7 +220,7 @@ function onTypingStart(e: TypingEvent) {
     if (!TYPING_GUILDS.has(gid)) TYPING_GUILDS.set(gid, new Set());
     TYPING_GUILDS.get(gid)!.add(String(e.userId));
     relationships.set(e.userId, TYPING_REL as any);
-    RelationshipStore.emitChange();
+    scheduleRelationshipEmit();
 
     clearTimeout(TIMERS.get(e.userId));
 
@@ -197,7 +228,8 @@ function onTypingStart(e: TypingEvent) {
         e.userId,
         window.setTimeout(() => cleanupTyping(gid, e.userId), settings.store.typingTimeout)
     );
-    notifyGuildIconListeners();
+    notifyGuildIconListeners(gid);
+    if (previousGuildId && previousGuildId !== gid) notifyGuildIconListeners(previousGuildId);
 }
 
 function onTypingStop(e: TypingEvent) {
@@ -356,7 +388,7 @@ export default definePlugin({
         TYPING_GUILDS.clear();
         TYPING_USERS.clear();
         TYPING_LOCATIONS.clear();
-        notifyGuildIconListeners();
+        notifyAllGuildIconListeners();
 
         ORIGINAL_TYPES.clear();
         TIMERS.clear();

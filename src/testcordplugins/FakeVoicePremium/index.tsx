@@ -18,6 +18,21 @@ import { settings } from "./settings";
 
 export let faked = false;
 
+// Subscribers notified whenever `faked` changes, so mounted UI (the user-area
+// toggle button) can re-render event-driven instead of polling on an interval.
+const fakedListeners = new Set<() => void>();
+
+function subscribeFaked(listener: () => void) {
+    fakedListeners.add(listener);
+    return () => {
+        fakedListeners.delete(listener);
+    };
+}
+
+function notifyFakedChanged() {
+    for (const listener of fakedListeners) listener();
+}
+
 const STREAM = 1n << 9n;
 const DEFAULT_VOICE_CONTEXT = "default";
 const WATCH_TOGETHER_APPLICATION_ID = "880218394199220334";
@@ -196,8 +211,15 @@ function makeIcon(enabled?: boolean) {
     );
 }
 
+// Stable icon component identities so React reconciles instead of remounting
+// the SVG subtree on each re-render.
+const EnabledIcon = makeIcon(true);
+const DisabledIcon = makeIcon(false);
+
 function setFakeVoiceEnabled(enabled: boolean) {
+    const changed = faked !== enabled;
     faked = enabled;
+    if (changed) notifyFakedChanged();
 
     const channel = getSelectedVoiceChannel();
 
@@ -398,14 +420,12 @@ function FakeVoiceOptionToggleButton({ iconForeground, hideTooltips, nameplate }
     const [, forceUpdate] = React.useReducer(x => x + 1, 0);
 
     // Re-render so the button reflects `faked` after it changes via any control
-    // (keybind, context menu, slash command), matching FakeMuteDeafen's behaviour.
-    React.useEffect(() => {
-        const interval = setInterval(() => forceUpdate(), 500);
-        return () => clearInterval(interval);
-    }, []);
+    // (keybind, context menu, slash command). Event-driven: subscribe to the
+    // single mutation point (setFakeVoiceEnabled) instead of polling.
+    React.useEffect(() => subscribeFaked(forceUpdate), []);
 
     const isEnabled = faked;
-    const Icon = makeIcon(isEnabled);
+    const Icon = isEnabled ? EnabledIcon : DisabledIcon;
 
     return (
         <div className="button-container">
