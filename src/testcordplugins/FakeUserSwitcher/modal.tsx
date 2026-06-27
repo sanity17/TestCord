@@ -25,13 +25,19 @@ interface NameplatePreset { name: string; src: string; asset: string | null; }
 
 /**
  * Extract the Discord collectibles asset ID from a nameplate `src` URL.
- * Only the `collectibles-shop/{numericId}/static` shape yields a usable asset
- * the spoof can apply; the `assets/collectibles/nameplates/...` and raw image
- * shapes are preview-only and return null (selectable but not spoofable).
+ * Two shapes carry a usable asset the spoof can apply:
+ *   - `collectibles-shop/{numericId}/static` → the numeric id
+ *   - `assets/collectibles/nameplates/{category}/{name}/static(.png)` → the
+ *     `{category}/{name}` path segment (Discord's own static-asset shape)
+ * The raw `fakeprofile.sampath.me/nameplates/{hash}.png` rehosts have no
+ * Discord collectible behind them, so they return null (preview-only).
  */
 function extractNameplateAsset(src: string): string | null {
-    const m = /collectibles-shop\/(\d+)\//.exec(src);
-    return m ? m[1] : null;
+    const shop = /collectibles-shop\/(\d+)\//.exec(src);
+    if (shop) return shop[1];
+    const asset = /assets\/collectibles\/nameplates\/(.+?)\/static/.exec(src);
+    if (asset) return asset[1];
+    return null;
 }
 
 const NITRO_LEVELS = [

@@ -330,6 +330,7 @@ function mergeUser(base: any, overrides: Record<string, unknown>): any {
     }
     return wrap;
 }
+
 let wrappedUsers = new WeakMap<any, any>();
 
 function cloneWithPremium(user: any, months: number): any {
@@ -510,7 +511,16 @@ function markAccountSwitcherRendering() {
 }
 
 function isAccountSwitcherCall(): boolean {
-    return switcherDropdownOpen;
+    // switcherDropdownOpen is updated async (rAF-coalesced), so for up to a frame
+    // after the dropdown opens it's still false — during which getCurrentUser/getUser
+    // would hand the switcher a wrapped (fake) user and Discord renders the row as an
+    // "Unclaimed Account". The render window stamped synchronously by injectFakes
+    // (getUsers is the earliest reliable signal the switcher is rendering) closes that
+    // gap. Do NOT do a synchronous DOM querySelector here: this runs inside the patched
+    // getCurrentUser/getUser on every call, and the hover tooltip's layer matches the
+    // broad switcher selectors → flips the result mid-render → re-entrant render loop
+    // that freezes Discord on hover.
+    return switcherDropdownOpen || (accountSwitcherRenderUntil > 0 && Date.now() < accountSwitcherRenderUntil);
 }
 
 let isGettingUsers = false;
@@ -2338,8 +2348,13 @@ const plugin = definePlugin({
                     overrides.premiumGuildSince = overrides.premiumGuildSince; // no-op, just keeping context
                 }
             }
-            overrides.bio = manualData?.manualBio || manualData?.bio || "";
-            overrides.pronouns = manualData?.manualPronouns || manualData?.pronouns || "";
+            // Overlay mode is cosmetics-only — bio and pronouns are profile content,
+            // not cosmetics, so leave the real account's values intact (same rule as
+            // createdAt above).
+            if (!overlaySelf) {
+                overrides.bio = manualData?.manualBio || manualData?.bio || "";
+                overrides.pronouns = manualData?.manualPronouns || manualData?.pronouns || "";
+            }
             // Banner source differs by mode:
             //  - identity mode: the manual-identity banner fields (manualBanner*).
             //  - overlay mode: the dedicated overlay banner fields (manualOverlayBanner*),
