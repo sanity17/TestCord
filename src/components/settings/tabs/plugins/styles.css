@@ -303,6 +303,7 @@
 }
 
 .vc-plugins-grid .vc-addon-header {
+    box-sizing: border-box;
     padding: 14px 14px 8px;
     margin: 0;
     align-items: center;
@@ -404,7 +405,7 @@
     margin-top: 16px;
 }
 
-@media (max-width: 720px) {
+@media (width <= 720px) {
     .vc-plugins-grid {
         grid-template-columns: 1fr;
     }
