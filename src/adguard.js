@@ -8,6 +8,11 @@
 (function() {
     "use strict";
 
+    if (window.__testcordYoutubeAdblockInjected) return;
+    window.__testcordYoutubeAdblockInjected = true;
+
+    let scheduled = false;
+
     // Block ad-related elements
     const blockAds = () => {
         // Hide ad containers
@@ -15,27 +20,42 @@
             ".video-ads",
             ".ytp-ad-module",
             ".ytp-ad-overlay-container",
-            '[class*="ad-"]',
-            '[id*="ad-"]'
+            ".ytp-ad-player-overlay",
+            ".ytp-ad-text",
+            ".ytp-ad-preview-container",
+            "ytd-player-legacy-desktop-watch-ads-renderer"
         ];
 
-        adSelectors.forEach(selector => {
-            const elements = document.querySelectorAll(selector);
-            elements.forEach(el => el.style.display = "none");
+        document.querySelectorAll(adSelectors.join(",")).forEach(el => {
+            el.style.display = "none";
         });
 
         // Skip ads if possible
-        const video = document.querySelector("video");
-        if (video) {
-            // Try to skip ad
-            const skipButton = document.querySelector(".ytp-ad-skip-button");
-            if (skipButton) {
-                skipButton.click();
-            }
-        }
+        document.querySelector(".ytp-ad-skip-button, .ytp-skip-ad-button")?.click();
     };
 
-    // Run on load and periodically
+    const scheduleBlockAds = () => {
+        if (scheduled) return;
+
+        scheduled = true;
+        requestAnimationFrame(() => {
+            scheduled = false;
+            blockAds();
+        });
+    };
+
+    const observer = new MutationObserver(scheduleBlockAds);
+
+    if (document.body) {
+        observer.observe(document.body, { childList: true, subtree: true });
+    } else {
+        document.addEventListener("DOMContentLoaded", () => {
+            observer.observe(document.body, { childList: true, subtree: true });
+            scheduleBlockAds();
+        }, { once: true });
+    }
+
+    // Run immediately and keep a low-frequency fallback for YouTube player state changes.
     blockAds();
-    setInterval(blockAds, 1000);
+    setInterval(scheduleBlockAds, 5000);
 })();

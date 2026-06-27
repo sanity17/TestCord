@@ -32,6 +32,29 @@ type TimeRowProps = {
     pluginSettings: any;
 };
 
+const timestampUpdateListeners = new Set<() => void>();
+let timestampUpdateInterval: ReturnType<typeof setInterval> | undefined;
+
+function useDynamicTimestampUpdates(enabled: boolean, forceUpdater: () => void) {
+    useEffect(() => {
+        if (!enabled) return;
+
+        timestampUpdateListeners.add(forceUpdater);
+        timestampUpdateInterval ??= setInterval(() => {
+            timestampUpdateListeners.forEach(listener => listener());
+        }, 1000);
+
+        return () => {
+            timestampUpdateListeners.delete(forceUpdater);
+
+            if (timestampUpdateListeners.size === 0 && timestampUpdateInterval) {
+                clearInterval(timestampUpdateInterval);
+                timestampUpdateInterval = undefined;
+            }
+        };
+    }, [enabled, forceUpdater]);
+}
+
 const format = (date: Date, formatTemplate: string): string => {
     const mmt = moment(date);
 
@@ -191,12 +214,7 @@ export default definePlugin({
                 formatTemplate = settings.store.formats?.ariaLabelFormat || timeFormats.ariaLabelFormat.default;
         }
 
-        useEffect(() => {
-            if (formatTemplate.includes("calendar") || formatTemplate.includes("relative")) {
-                const interval = setInterval(forceUpdater, 1000);
-                return () => clearInterval(interval);
-            }
-        }, []);
+        useDynamicTimestampUpdates(formatTemplate.includes("calendar") || formatTemplate.includes("relative"), forceUpdater);
 
         return format(date, formatTemplate);
     }

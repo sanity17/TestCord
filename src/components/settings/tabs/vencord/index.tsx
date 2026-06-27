@@ -104,6 +104,11 @@ function Switches() {
             description: "Add Ctrl+Q as a keyboard shortcut to close Discord. This provides an alternative to Alt+F4 for quickly closing the application.",
             restartRequired: true,
         },
+        {
+            key: "disableTestcordBadges",
+            title: "Disable Testcord Badges",
+            description: "Hide Testcord-added profile badges (contributor, admin, owner, dev, and custom badges). This does not affect Vencord or Equicord badges.",
+        },
     ] satisfies Array<false | {
         key: KeysOfType<typeof settings, boolean>;
         title: string;

@@ -19,6 +19,7 @@
 import "./fixDiscordBadgePadding.css";
 
 import { _getBadges, BadgePosition, BadgeUserArgs, ProfileBadge } from "@api/Badges";
+import { Settings } from "@api/Settings";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { openContributorModal } from "@components/settings/tabs";
 import { Devs } from "@utils/constants";
@@ -74,7 +75,7 @@ const TestcordContributorBadge: ProfileBadge = {
     description: "Testcord Contributor",
     iconSrc: TESTCORD_CONTRIBUTOR_BADGE,
     position: BadgePosition.START,
-    shouldShow: ({ userId }) => shouldShowTestcordContributorBadge(userId),
+    shouldShow: ({ userId }) => !Settings.disableTestcordBadges && shouldShowTestcordContributorBadge(userId),
     onClick: (_, { userId }) => openContributorModal(UserStore.getUser(userId)),
     props: {
         style: {
@@ -90,7 +91,7 @@ const UserPluginContributorBadge: ProfileBadge = {
     iconSrc: USERPLUGIN_CONTRIBUTOR_BADGE,
     position: BadgePosition.START,
     shouldShow: ({ userId }) => {
-        if (!IS_DEV) return false;
+        if (!IS_DEV || Settings.disableTestcordBadges) return false;
         const allPlugins = Object.values(Plugins);
         return allPlugins.some(p => {
             const pluginMeta = PluginMeta[p.name];
@@ -111,7 +112,7 @@ const TestcordAdminBadge: ProfileBadge = {
     description: "Testcord Admin",
     iconSrc: TESTCORD_ADMIN_BADGE,
     position: BadgePosition.START,
-    shouldShow: ({ userId }) => shouldShowTestcordAdminBadge(userId),
+    shouldShow: ({ userId }) => !Settings.disableTestcordBadges && shouldShowTestcordAdminBadge(userId),
     props: {
         style: {
             borderRadius: "50%",
@@ -125,7 +126,7 @@ const TestcordOwnerBadge: ProfileBadge = {
     description: "Testcord Owner",
     iconSrc: TESTCORD_OWNER_BADGE,
     position: BadgePosition.START,
-    shouldShow: ({ userId }) => isTestcordOwner(userId),
+    shouldShow: ({ userId }) => !Settings.disableTestcordBadges && isTestcordOwner(userId),
     props: {
         style: {
             borderRadius: "50%",
@@ -139,7 +140,7 @@ const TestcordDevBadge: ProfileBadge = {
     description: "Testcord Dev",
     iconSrc: TESTCORD_DEV_BADGE,
     position: BadgePosition.START,
-    shouldShow: ({ userId }) => isTestcordDeveloper(userId),
+    shouldShow: ({ userId }) => !Settings.disableTestcordBadges && isTestcordDeveloper(userId),
     props: {
         style: {
             borderRadius: "50%",
@@ -367,6 +368,7 @@ export default definePlugin({
 
     // Get custom testcord badges (managed by /badge command)
     getTestCordCustomBadges(userId: string) {
+        if (Settings.disableTestcordBadges) return [];
         const userBadges = TestcordCustomBadges[userId];
         if (!userBadges) return [];
 

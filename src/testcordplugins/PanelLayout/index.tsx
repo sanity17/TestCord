@@ -70,6 +70,10 @@ const settings = definePluginSettings({
     },
     panelBackgroundColor: { type: OptionType.STRING, description: "Panel background color", default: "#0e1852", onChange: () => apply() },
     colorfulActiveButtons: { type: OptionType.BOOLEAN, default: true, description: "Use distinct colored blobs for active plugin buttons", onChange: () => apply() },
+    colorfulSwitches: { type: OptionType.BOOLEAN, default: true, description: "Colored background for generic active switch buttons", onChange: () => apply() },
+    colorfulGameActivity: { type: OptionType.BOOLEAN, default: true, description: "Colored background for the Game Activity / Ban-all-in-VC buttons", onChange: () => apply() },
+    colorfulFakeStates: { type: OptionType.BOOLEAN, default: true, description: "Colored background for the Fake States button", onChange: () => apply() },
+    colorfulMuteDeafen: { type: OptionType.BOOLEAN, default: true, description: "Colored tint for active Mute / Deafen buttons", onChange: () => apply() },
     hideChevrons: { type: OptionType.BOOLEAN, default: false, description: "Hide dropdown chevrons next to Mute and Deafen", onChange: () => apply() },
     callCompact: { type: OptionType.BOOLEAN, default: false, description: "Compact mode for call control buttons", onChange: () => apply() },
     hideDisconnect: { type: OptionType.BOOLEAN, default: false, description: "Hide the disconnect button", onChange: () => apply() },
@@ -204,13 +208,25 @@ function buildCSS(): string {
     }
 
     if (st.colorfulActiveButtons) {
-        lines.push(`${S.panelButtons} button[role="switch"][aria-checked="true"] { background-color: var(--brand-experiment, #5865F2) !important; color: white !important; border-radius: 10px !important; }
-            ${S.panelButtons} button[role="switch"][aria-checked="true"] svg { fill: white !important; color: white !important; }
-            ${S.panelButtons} button[aria-label*="Game Activity"][aria-checked="true"], ${S.panelButtons} button[aria-label*="Ban all in VC"] { background-color: var(--status-danger, #DA373C) !important; color: white !important; border-radius: 10px !important; }
-            ${S.panelButtons} button[aria-label*="Game Activity"][aria-checked="true"] svg, ${S.panelButtons} button[aria-label*="Ban all in VC"] svg { color: white !important; fill: white !important; }
-            ${S.panelButtons} button[aria-label*="Fake States"][aria-checked="true"] { background-color: var(--status-positive, #23A559) !important; color: white !important; border-radius: 10px !important; }
-            ${S.panelButtons} button[aria-label*="Fake States"][aria-checked="true"] svg { color: white !important; fill: white !important; }
-            ${S.panelButtons} button[aria-label="Mute"][role="switch"][aria-checked="true"], ${S.panelButtons} button[aria-label="Deafen"][role="switch"][aria-checked="true"] { background-color: transparent !important; color: var(--status-danger, #DA373C) !important; }`);
+        // Generic active switch buttons
+        if (st.colorfulSwitches) {
+            lines.push(`${S.panelButtons} button[role="switch"][aria-checked="true"] { background-color: var(--brand-experiment, #5865F2) !important; color: white !important; border-radius: 10px !important; }
+                ${S.panelButtons} button[role="switch"][aria-checked="true"] svg { fill: white !important; color: white !important; }`);
+        }
+        // Game Activity / Ban-all-in-VC
+        if (st.colorfulGameActivity) {
+            lines.push(`${S.panelButtons} button[aria-label*="Game Activity"][aria-checked="true"], ${S.panelButtons} button[aria-label*="Ban all in VC"] { background-color: var(--status-danger, #DA373C) !important; color: white !important; border-radius: 10px !important; }
+                ${S.panelButtons} button[aria-label*="Game Activity"][aria-checked="true"] svg, ${S.panelButtons} button[aria-label*="Ban all in VC"] svg { color: white !important; fill: white !important; }`);
+        }
+        // Fake States button — the plugin's own icon already shows on/off, so this is opt-out
+        if (st.colorfulFakeStates) {
+            lines.push(`${S.panelButtons} button[aria-label*="Fake States"][aria-checked="true"] { background-color: var(--status-positive, #23A559) !important; color: white !important; border-radius: 10px !important; }
+                ${S.panelButtons} button[aria-label*="Fake States"][aria-checked="true"] svg { color: white !important; fill: white !important; }`);
+        }
+        // Mute / Deafen active tint
+        if (st.colorfulMuteDeafen) {
+            lines.push(`${S.panelButtons} button[aria-label="Mute"][role="switch"][aria-checked="true"], ${S.panelButtons} button[aria-label="Deafen"][role="switch"][aria-checked="true"] { background-color: transparent !important; color: var(--status-danger, #DA373C) !important; }`);
+        }
     }
 
     if (st.panelOpacity !== 100) {
@@ -468,7 +484,13 @@ function Modal({ modalProps }: { modalProps: ModalProps; }) {
 
                         <Label>Colorful Plugins</Label>
                         <Card>
-                            <Toggle label="Active Button Blobs" desc="Gives enabled plugins distinct colored rounded backgrounds (e.g. Red for Game Activity, Green for Fake States)." value={s.colorfulActiveButtons} onChange={v => set("colorfulActiveButtons", v)} />
+                            <Toggle label="Active Button Blobs" desc="Gives enabled plugins distinct colored rounded backgrounds (e.g. Red for Game Activity, Green for Fake States). Master switch for the per-button toggles below." value={s.colorfulActiveButtons} onChange={v => set("colorfulActiveButtons", v)} />
+                            {s.colorfulActiveButtons && <>
+                                <Toggle label="Generic Switches" desc="Colored blob behind any active switch-style plugin button." value={s.colorfulSwitches} onChange={v => set("colorfulSwitches", v)} />
+                                <Toggle label="Game Activity / Ban-all-in-VC" value={s.colorfulGameActivity} onChange={v => set("colorfulGameActivity", v)} />
+                                <Toggle label="Fake States" desc="The Fake Voice button already shows its own on/off icon, so you may not want a background here." value={s.colorfulFakeStates} onChange={v => set("colorfulFakeStates", v)} />
+                                <Toggle label="Mute / Deafen Tint" value={s.colorfulMuteDeafen} onChange={v => set("colorfulMuteDeafen", v)} />
+                            </>}
                         </Card>
                     </>}
 
