@@ -88,7 +88,7 @@ const patchDesc = (desc: any) => ({
 });
 
 export default definePlugin({
-    name: "StereoPremium",
+    name: "UnifiedStereo",
     description: "All-in-one stereo: output, bitrate, screenshare.",
     tags: ["Voice", "Utility"],
     authors: [TestcordDevs.x2b],
@@ -155,7 +155,7 @@ export default definePlugin({
             const targetBitrate = settings.store.bitrateKbps * 1000;
             if (obj.encodingVoiceBitRate < targetBitrate) {
                 console.log(`[UnifiedStereo] bitrate -> ${targetBitrate}`);
-                obj.encodingVoiceBitrate = targetBitrate;
+                obj.encodingVoiceBitRate = targetBitrate;
             }
             if (obj.prioritySpeaker) {
                 obj.prioritySpeaker = true;
