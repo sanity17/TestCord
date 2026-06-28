@@ -6,10 +6,10 @@
 
 import { showNotification } from "@api/Notifications";
 import { definePluginSettings } from "@api/Settings";
+import { FormSwitch } from "@components/FormSwitch";
 import { TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
-import { FormSwitch } from "@components/FormSwitch";
 import { FluxDispatcher, Forms, React, Slider } from "@webpack/common";
 
 const configModule = findByPropsLazy("getOutputVolume");

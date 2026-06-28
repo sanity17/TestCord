@@ -276,7 +276,7 @@ const BdWebpack = {
         const found: any[] = [];
 
         for (const id in modules) {
-            if (!modules.hasOwnProperty(id)) continue;
+            if (!Object.prototype.hasOwnProperty.call(modules, id)) continue;
             let module: any;
             try {
                 module = modules[id];

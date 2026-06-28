@@ -251,8 +251,8 @@ export class BDPluginManager {
                                 writeFileSync: () => { },
                                 existsSync: () => false,
                                 join: (...args: string[]) => args.join("/"),
-                                basename: (p: string) => p.split(/[\/\\]/).pop() || p,
-                                dirname: (p: string) => p.split(/[\/\\]/).slice(0, -1).join("/"),
+                                basename: (p: string) => p.split(/[/\\]/).pop() || p,
+                                dirname: (p: string) => p.split(/[/\\]/).slice(0, -1).join("/"),
                                 ipcRenderer: { invoke: () => Promise.resolve(null), send: () => { } },
                                 remote: {}
                             };
