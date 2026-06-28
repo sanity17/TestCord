@@ -7,8 +7,10 @@
 import "./styles.css";
 
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
+import { definePluginSettings } from "@api/Settings";
+import { TestcordDevs } from "@utils/constants";
 import { ModalCloseButton,ModalContent, ModalHeader, ModalRoot, openModal } from "@utils/modal";
-import definePlugin from "@utils/types";
+import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, findStoreLazy } from "@webpack";
 import { ContextMenuApi, Forms, Menu, React, Select, showToast, Toasts, useCallback, useEffect, useMemo, useState } from "@webpack/common";
 
@@ -67,10 +69,27 @@ interface LogEntry {
     isMyVoice?: boolean;
 }
 
-const MAX_LOGS = 10000;
+const DEFAULT_MAX_LOGS = 10000;
 const PAGE_SIZE = 40;
 const MAX_VOICE_STATES = 2000;
 let logs: LogEntry[] = [];
+
+const settings = definePluginSettings({
+    maxLogs: {
+        type: OptionType.NUMBER,
+        description: "Maximum logs to keep. Set to 0 for infinite.",
+        default: DEFAULT_MAX_LOGS,
+        isValid: (value: unknown) => typeof value === "number" && Number.isInteger(value) && value >= 0,
+        onChange: () => {
+            pruneLogs();
+            savePersistLogs();
+            globalVersion++;
+            for (const fn of updateListeners) {
+                try { fn(); } catch { }
+            }
+        }
+    }
+});
 
 // Track the user's current voice channel ID for "My Voice" filter
 let myVoiceChannelId: string | null = null;
@@ -80,6 +99,21 @@ const PERSISTENT_TYPES = new Set(["ping", "message_delete", "message_edit", "fri
 const NOTIF_TYPES = new Set(["ping", "friend_add", "friend_remove", "friend_request", "friend_request_cancel", "block"]);
 const unreadLogEntries = new Set<LogEntry>();
 
+function getMaxLogs() {
+    const { maxLogs } = settings.store;
+    return Number.isInteger(maxLogs) && maxLogs >= 0 ? maxLogs : DEFAULT_MAX_LOGS;
+}
+
+function pruneLogs() {
+    const maxLogs = getMaxLogs();
+    if (maxLogs === 0) return;
+
+    while (logs.length > maxLogs) {
+        const removed = logs.pop();
+        if (removed) unreadLogEntries.delete(removed);
+    }
+}
+
 function loadPersistLogs() {
     try {
         const s = localStorage.getItem("nightcord_logs");
@@ -87,7 +121,7 @@ function loadPersistLogs() {
             const parsed = JSON.parse(s);
             if (Array.isArray(parsed)) {
                 logs = parsed.concat(logs).sort((a, b) => b.timestamp - a.timestamp);
-                if (logs.length > MAX_LOGS) logs.length = MAX_LOGS;
+                pruneLogs();
                 logCount = logs.length;
             }
         }
@@ -96,7 +130,8 @@ function loadPersistLogs() {
 
 function savePersistLogs() {
     try {
-        const toSave = logs.filter(l => PERSISTENT_TYPES.has(l.type)).slice(0, MAX_LOGS);
+        const maxLogs = getMaxLogs();
+        const toSave = logs.filter(l => PERSISTENT_TYPES.has(l.type)).slice(0, maxLogs === 0 ? undefined : maxLogs);
         localStorage.setItem("nightcord_logs", JSON.stringify(toSave));
     } catch { }
 }
@@ -134,12 +169,9 @@ function fmtNow(): string {
 
 function pushLog(entry: Omit<LogEntry, "id" | "timestamp" | "timeStr">) {
     const now = Date.now();
-    if (logs.length >= MAX_LOGS) {
-        const removed = logs.pop();
-        if (removed) unreadLogEntries.delete(removed);
-    }
     const newLog: LogEntry = { id: `${now}_${logCount++}`, timestamp: now, timeStr: fmtNow(), ...(entry as any) };
     logs.unshift(newLog);
+    pruneLogs();
     if (NOTIF_TYPES.has(newLog.type)) {
         unreadLogEntries.add(newLog);
     }
@@ -819,8 +851,9 @@ export default definePlugin({
     name: "EventLogs",
     description: "Logs: deleted/edited messages, voice, friends, servers.",
     tags: ["Notifications", "Utility", "Nightcord"],
-    authors: [{ name: "Nightcord", id: 0n }],
+    authors: [{ name: "Nightcord", id: 0n }, TestcordDevs.x2b],
     dependencies: ["HeaderBarAPI"],
+    settings,
     start() {
         // Initialize current voice channel on start
         try {
