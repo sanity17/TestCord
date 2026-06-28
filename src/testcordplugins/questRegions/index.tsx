@@ -327,6 +327,10 @@ function getAuthoritativeRegions(questId: string, regions: string[]): string[] {
     return regions.map(normalizeRegion);
 }
 
+function getRegionList(regions: unknown): string[] {
+    return Array.isArray(regions) ? regions.filter((region): region is string => typeof region === "string") : [];
+}
+
 function getRegionFromName(name: string): CommandRegion | null {
     const trimmedName = name.trim();
     if (SUPPLEMENTAL_GLOBAL_REGION_NAMES.has(trimmedName.toLowerCase())) return null;
@@ -1663,8 +1667,9 @@ async function loadQuestRegions(signal: AbortSignal): Promise<QuestRegionCard[]>
         if (existing) {
             if (restriction.show_age_gate !== undefined) existing.show_age_gate = restriction.show_age_gate;
             if (restriction.is_global !== undefined) existing.is_global = restriction.is_global;
-            if (Array.isArray(restriction.regions) && restriction.regions.length > 0) {
-                existing.regions = Array.from(new Set([...existing.regions, ...restriction.regions])).sort();
+            const regions = getRegionList(restriction.regions);
+            if (regions.length > 0) {
+                existing.regions = Array.from(new Set([...getRegionList(existing.regions), ...regions])).sort();
             }
         } else {
             restrictionsById.set(restriction.id, restriction);
@@ -1674,8 +1679,9 @@ async function loadQuestRegions(signal: AbortSignal): Promise<QuestRegionCard[]>
     for (const restriction of storedDiscoveredRestrictions) {
         const existing = restrictionsById.get(restriction.id);
         if (existing) {
-            if (Array.isArray(restriction.regions) && restriction.regions.length > 0) {
-                existing.regions = Array.from(new Set([...(existing.regions ?? []), ...restriction.regions])).sort();
+            const regions = getRegionList(restriction.regions);
+            if (regions.length > 0) {
+                existing.regions = Array.from(new Set([...getRegionList(existing.regions), ...regions])).sort();
             }
         } else {
             restrictionsById.set(restriction.id, restriction);
@@ -1691,9 +1697,10 @@ async function loadQuestRegions(signal: AbortSignal): Promise<QuestRegionCard[]>
         for (const [id, restriction] of inferred) {
             const existing = restrictionsById.get(id);
             if (!existing) continue;
-            if (!Array.isArray(restriction.regions) || restriction.regions.length === 0) continue;
-            const baseRegions = Array.isArray(existing.regions) ? existing.regions : [];
-            const merged = Array.from(new Set([...baseRegions, ...restriction.regions])).sort();
+            const regions = getRegionList(restriction.regions);
+            if (regions.length === 0) continue;
+            const baseRegions = getRegionList(existing.regions);
+            const merged = Array.from(new Set([...baseRegions, ...regions])).sort();
             if (merged.length === baseRegions.length) continue;
             restrictionsById.set(id, { ...existing, regions: merged });
             changed = true;
