@@ -97,6 +97,10 @@ export function clearMessageClassCache() {
     messageClassCache.clear();
 }
 
+export function invalidateMessageClassCache(id: string) {
+    messageClassCache.delete(id);
+}
+
 export function messageJsonToMessageClass(log: { message: LoggedMessageJSON; }) {
     if (!log?.message) return null;
 

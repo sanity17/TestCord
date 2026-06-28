@@ -10,7 +10,7 @@ import { FluxDispatcher, Menu, MessageActions, React, Toasts, UserStore } from "
 
 import { openLogModal } from "../components/LogsModal";
 import { deleteMessageIDB } from "../db";
-import { settings } from "../index";
+import { invalidateMessageCaches, settings } from "../index";
 import { addToXAndRemoveFromOpposite, ListType, removeFromX } from ".";
 
 const SortedGuildStore = findStoreLazy("SortedGuildStore");
@@ -108,6 +108,7 @@ export const contextMenuPath: NavContextMenuPatchCallback = (children, props) =>
                                 action={() =>
                                     deleteMessageIDB(props.message.id)
                                         .then(() => {
+                                            invalidateMessageCaches(props.message.channel_id, props.message.id);
                                             if (props.message.deleted) {
                                                 FluxDispatcher.dispatch({
                                                     type: "MESSAGE_DELETE",
@@ -117,6 +118,13 @@ export const contextMenuPath: NavContextMenuPatchCallback = (children, props) =>
                                                 });
                                             } else {
                                                 props.message.editHistory = [];
+                                                FluxDispatcher.dispatch({
+                                                    type: "MESSAGE_UPDATE",
+                                                    message: {
+                                                        id: props.message.id,
+                                                        channel_id: props.message.channel_id
+                                                    }
+                                                });
                                             }
                                         }).catch(() => Toasts.show({
                                             type: Toasts.Type.FAILURE,

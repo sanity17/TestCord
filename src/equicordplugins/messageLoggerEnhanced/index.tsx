@@ -23,7 +23,7 @@ import * as LoggedMessageManager from "./LoggedMessageManager";
 import { addMessage } from "./LoggedMessageManager";
 import { settings } from "./settings";
 import { FetchMessagesResponse, LoadMessagePayload, LoggedMessage, LoggedMessageJSON, MessageCreatePayload, MessageDeleteBulkPayload, MessageDeletePayload, MessageUpdatePayload } from "./types";
-import { cleanUpCachedMessage, cleanupUserObject, clearMessageClassCache, getNative, isGhostPinged, mapTimestamp, messageJsonToMessageClass, reAddDeletedMessages } from "./utils";
+import { cleanUpCachedMessage, cleanupUserObject, clearMessageClassCache, getNative, invalidateMessageClassCache, isGhostPinged, mapTimestamp, messageJsonToMessageClass, reAddDeletedMessages } from "./utils";
 import { removeContextMenuBindings, setupContextMenuPatches } from "./utils/contextMenu";
 import { shouldIgnore } from "./utils/index";
 import { LimitedMap } from "./utils/LimitedMap";
@@ -46,6 +46,13 @@ const cacheThing = findByPropsLazy("commit", "getOrCreate");
 export async function clearLogs(showToast = true) {
     await idb.clearMessagesIDB(showToast);
     cacheSentMessages.clear();
+}
+
+export function invalidateMessageCaches(channelId: string, messageId: string) {
+    mergedMessageCache.delete(messageId);
+    mergedEditTimestamps.delete(messageId);
+    cacheSentMessages.delete(`${channelId},${messageId}`);
+    invalidateMessageClassCache(messageId);
 }
 
 let oldGetMessage: typeof MessageStore.getMessage;
@@ -421,6 +428,15 @@ export default definePlugin({
                 return messageJsonToMessageClass({ message: MLMessage });
 
             const latestMessage = this.oldGetMessage(channelId, messageId);
+
+            // Temporary remove clears editHistory on the store message without touching IDB.
+            // Honor that for the session: drop stale caches and don't re-merge old history.
+            if (latestMessage && Array.isArray(latestMessage.editHistory) && latestMessage.editHistory.length === 0 && (MLMessage.editHistory?.length ?? 0) > 0) {
+                invalidateMessageClassCache(messageId);
+                mergedMessageCache.delete(messageId);
+                mergedEditTimestamps.delete(messageId);
+                return latestMessage;
+            }
 
             // Reuse cached merged object when message hasn't been edited
             const cached = mergedMessageCache.get(messageId);
