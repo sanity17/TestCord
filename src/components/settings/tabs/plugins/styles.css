@@ -324,13 +324,18 @@
 }
 
 .vc-plugins-grid .vc-addon-note {
-    height: auto;
-    min-height: 39px;
+    /* note renders with inline line-height: 1.25em (AddonCard.tsx), so the clip
+       height must be a multiple of that, not the CSS line-height. overflow:hidden
+       is the real guard; -webkit-line-clamp only adds the ellipsis when it counts
+       correctly (it fails on nested markup). flex: 0 0 auto keeps it from pushing
+       the footer in the card's flex column. */
+    height: 2.5em;
+    flex: 0 0 auto;
+    overflow: hidden;
     margin: 0 14px 12px;
     -webkit-line-clamp: 2;
     line-clamp: 2;
     color: var(--text-muted);
-    line-height: 1.4;
 }
 
 .vc-plugins-grid .vc-addon-card:hover .vc-addon-note {
