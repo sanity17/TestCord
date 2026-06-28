@@ -65,7 +65,6 @@ async function fetchCommitsBetween(
             {
                 headers: {
                     Accept: "application/vnd.github+json",
-                    "Cache-Control": "no-cache",
                 },
             },
         );
@@ -429,6 +428,7 @@ export async function getNewPlugins(): Promise<string[]> {
     return currentPlugins.filter(
         plugin =>
             !knownPlugins.has(plugin) &&
+            typeof plugins[plugin].name === "string" &&
             !plugins[plugin].hidden &&
             !plugins[plugin].required,
     );
