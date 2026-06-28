@@ -598,7 +598,6 @@ function NightcordAIChat({ rootProps, panelMode, initialMessage }: { rootProps?:
             // Short delay so the component is mounted
             setTimeout(() => send(initialMessage), 120);
         }
-        // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
 
     // Reads a File and returns an Attachment

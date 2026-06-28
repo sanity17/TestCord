@@ -4,6 +4,8 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+/* eslint-disable eqeqeq, no-prototype-builtins, no-unsafe-optional-chaining */
+
 /**
  * @name BetterFormattingRedux
  * @description Enables different types of formatting in standard Discord chat.

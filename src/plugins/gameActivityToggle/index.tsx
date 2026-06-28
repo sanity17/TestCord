@@ -21,8 +21,7 @@ import { definePluginSettings } from "@api/Settings";
 import { UserAreaButton, UserAreaRenderProps } from "@api/UserArea";
 import { getUserSettingLazy } from "@api/UserSettings";
 import testcordToolbox from "@testcordplugins/testcordToolbox";
-import { Devs } from "@utils/constants";
-import { TestcordDevs } from "@utils/constants";
+import { Devs, TestcordDevs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { Menu } from "@webpack/common";
 
