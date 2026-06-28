@@ -30,6 +30,9 @@ export const DATA_DIR = process.env.EQUICORD_USER_DATA_DIR ?? (
 
 export const SETTINGS_DIR = join(DATA_DIR, "settings");
 export const THEMES_DIR = join(DATA_DIR, "themes");
+// Parent of the dev/prod split, so presets are shared across build flags.
+export const SHARED_DIR = join(DATA_DIR, IS_DEV ? ".." : ".");
+export const PRESETS_FILE = join(SHARED_DIR, "presets.json");
 export const QUICK_CSS_PATH = join(SETTINGS_DIR, "quickCss.css");
 export const SETTINGS_FILE = join(SETTINGS_DIR, "settings.json");
 export const NATIVE_SETTINGS_FILE = join(SETTINGS_DIR, "native-settings.json");

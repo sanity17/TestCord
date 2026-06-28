@@ -1,0 +1,685 @@
+/* ── Tab ──────────────────────────────────────────────────────────── */
+
+.vc-presets-toolbar {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 16px;
+}
+
+.vc-presets-list {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+
+/* ── Button interactivity (toolbar + row actions + modal footer) ──── */
+
+.vc-presets-toolbar button,
+.vc-presets-row-actions button,
+.vc-presets-modal-actions button,
+.vc-presets-modal-footer button {
+    transition: transform .12s ease, box-shadow .12s ease, filter .12s ease;
+}
+
+.vc-presets-toolbar button:hover,
+.vc-presets-row-actions button:hover,
+.vc-presets-modal-actions button:hover,
+.vc-presets-modal-footer button:hover {
+    transform: translateY(-1px);
+    box-shadow: var(--elevation-medium, 0 2px 6px rgb(0 0 0 / 20%));
+    filter: brightness(1.08);
+}
+
+.vc-presets-toolbar button:active,
+.vc-presets-row-actions button:active,
+.vc-presets-modal-actions button:active,
+.vc-presets-modal-footer button:active {
+    transform: translateY(0) scale(.97);
+    box-shadow: none;
+    filter: brightness(.95);
+}
+
+.vc-presets-toolbar button:focus-visible,
+.vc-presets-row-actions button:focus-visible,
+.vc-presets-modal-actions button:focus-visible,
+.vc-presets-modal-footer button:focus-visible {
+    outline: 2px solid var(--brand, var(--brand-experiment, #5865f2));
+    outline-offset: 2px;
+}
+
+/* ── Animations settings section ──────────────────────────────────── */
+
+.vc-presets-anim-section {
+    margin-top: 8px;
+}
+
+.vc-presets-anim-toggle {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    margin: 8px 0 0;
+    padding: 4px 0;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle, #888);
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: color .12s ease;
+}
+
+.vc-presets-anim-toggle:hover {
+    color: var(--text-default, #ddd);
+}
+
+.vc-presets-anim-chevron {
+    display: inline-block;
+    transition: transform .2s ease;
+}
+
+.vc-presets-anim-chevron-open {
+    transform: rotate(180deg);
+}
+
+.vc-presets-anim-list {
+    margin-left: 16px;
+    padding-left: 12px;
+    border-left: 2px solid var(--border-subtle);
+
+    /* collapsed by default; expands when -open is present */
+    max-height: 0;
+    opacity: 0;
+    overflow: hidden;
+    transition: max-height .28s ease, opacity .2s ease;
+}
+
+.vc-presets-anim-list-open {
+    /* generous ceiling for 7 rows; transitions smoothly */
+    max-height: 900px;
+    opacity: 1;
+}
+
+.vc-presets-anim-list-disabled {
+    opacity: .45;
+}
+
+.vc-presets-anim-list-open.vc-presets-anim-list-disabled {
+    opacity: .45;
+}
+
+/* ── Duplicate button collapse (animate in AND out) ───────────────── */
+
+.vc-presets-dup-wrap {
+    display: inline-flex;
+    overflow: hidden;
+    max-width: 200px;
+    opacity: 1;
+    transition: max-width .25s ease, opacity .2s ease, margin .25s ease;
+}
+
+.vc-presets-dup-hidden {
+    max-width: 0;
+    opacity: 0;
+    margin-left: -8px; /* swallow the flex gap so siblings close up */
+    pointer-events: none;
+}
+
+/* ── Per-animation kill switches (body classes set from JS) ───────── */
+
+/* Master: kill every transition/animation under the tab and modals. */
+body.vc-presets-noanim-all [class*="vc-presets-"] {
+    animation: none !important;
+    transition: none !important;
+}
+
+body.vc-presets-noanim-all .vc-presets-row::before,
+body.vc-presets-noanim-all .vc-presets-tab::after { transition: none !important; }
+
+/* Row hover rail + lift */
+body.vc-presets-noanim-rowHover .vc-presets-row,
+body.vc-presets-noanim-rowHover .vc-presets-row::before { transition: none !important; }
+body.vc-presets-noanim-rowHover .vc-presets-row:hover { transform: none; }
+body.vc-presets-noanim-rowHover .vc-presets-row:hover::before { transform: scaleY(0); }
+
+/* Tab underline slide */
+body.vc-presets-noanim-tabUnderline .vc-presets-tab::after { transition: none !important; }
+
+/* Live badge pulse */
+body.vc-presets-noanim-badgePulse .vc-presets-row-badge::before { animation: none !important; }
+
+/* Panel & row fade-ins + duplicate collapse */
+body.vc-presets-noanim-fadeIn .vc-presets-preview,
+body.vc-presets-noanim-fadeIn .vc-presets-stats,
+body.vc-presets-noanim-fadeIn .vc-presets-settings,
+body.vc-presets-noanim-fadeIn .vc-presets-summary,
+body.vc-presets-noanim-fadeIn .vc-presets-json { animation: none !important; }
+body.vc-presets-noanim-fadeIn .vc-presets-dup-wrap { transition: none !important; }
+
+/* Button hover & press */
+body.vc-presets-noanim-buttons .vc-presets-toolbar button,
+body.vc-presets-noanim-buttons .vc-presets-row-actions button,
+body.vc-presets-noanim-buttons .vc-presets-modal-actions button,
+body.vc-presets-noanim-buttons .vc-presets-modal-footer button { transition: none !important; }
+body.vc-presets-noanim-buttons .vc-presets-toolbar button:hover,
+body.vc-presets-noanim-buttons .vc-presets-row-actions button:hover,
+body.vc-presets-noanim-buttons .vc-presets-modal-actions button:hover,
+body.vc-presets-noanim-buttons .vc-presets-modal-footer button:hover {
+    transform: none; box-shadow: none; filter: none;
+}
+
+/* Gear icon spin */
+body.vc-presets-noanim-gear .vc-presets-row-gear { transition: background-color .15s ease, color .15s ease; }
+body.vc-presets-noanim-gear .vc-presets-row-gear:hover { transform: none; }
+
+/* JSON box hover */
+body.vc-presets-noanim-jsonHover .vc-presets-modal-textarea { transition: none !important; }
+body.vc-presets-noanim-jsonHover .vc-presets-modal-textarea:hover {
+    border-color: var(--border-subtle); background: var(--input-background, var(--background-base-lower-alt)) !important;
+}
+
+/* ── Preset row ───────────────────────────────────────────────────── */
+
+.vc-presets-row {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 14px 16px;
+    border: 1px solid transparent;
+    transition: border-color .15s ease, box-shadow .15s ease, transform .15s ease;
+}
+
+.vc-presets-row::before {
+    /* accent rail that grows in on hover */
+    content: "";
+    position: absolute;
+    left: 0;
+    top: 0;
+    bottom: 0;
+    width: 3px;
+    border-radius: 8px 0 0 8px;
+    background: var(--brand, var(--brand-experiment, #5865f2));
+    transform: scaleY(0);
+    transform-origin: center;
+    transition: transform .18s ease;
+}
+
+.vc-presets-row:hover {
+    border-color: var(--border-subtle);
+    box-shadow: var(--elevation-medium);
+    transform: translateY(-1px);
+}
+
+.vc-presets-row:hover::before {
+    transform: scaleY(1);
+}
+
+.vc-presets-row-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    padding-right: 40px;
+    min-width: 0;
+}
+
+.vc-presets-row-name {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--text-default);
+    overflow-wrap: anywhere;
+}
+
+.vc-presets-row-meta {
+    font-size: 12px;
+    color: var(--text-subtle);
+}
+
+.vc-presets-row-badge {
+    margin-left: 8px;
+    color: var(--status-positive, var(--text-positive));
+    font-weight: 600;
+}
+
+.vc-presets-row-badge::before {
+    content: "";
+    display: inline-block;
+    width: 7px;
+    height: 7px;
+    margin-right: 5px;
+    border-radius: 50%;
+    background: currentcolor;
+    animation: vc-presets-pulse 2s ease-in-out infinite;
+}
+
+@keyframes vc-presets-pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50% { opacity: .4; transform: scale(.75); }
+}
+
+/* Gear / info button, pinned top-right */
+.vc-presets-row-gear {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: 6px;
+    background: transparent;
+    color: var(--interactive-normal, var(--text-subtle));
+    cursor: pointer;
+    transition: background-color .15s ease, color .15s ease, transform .2s ease;
+}
+
+.vc-presets-row-gear:hover {
+    background: var(--background-mod-subtle, var(--background-base-low));
+    color: var(--interactive-hover, var(--text-default));
+    transform: rotate(45deg);
+}
+
+.vc-presets-row-gear:active {
+    transform: rotate(45deg) scale(.9);
+}
+
+.vc-presets-row-gear:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+}
+
+.vc-presets-row-gear svg {
+    width: 20px;
+    height: 20px;
+}
+
+.vc-presets-row-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+/* ── Modals (shared) ──────────────────────────────────────────────── */
+
+.vc-presets-modal-header {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.vc-presets-modal-title {
+    flex: 1;
+    min-width: 0;
+    margin: 0;
+    font-size: 20px;
+    font-weight: 700;
+    color: var(--text-default) !important;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-presets-modal-content {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    color: var(--text-default);
+}
+
+.vc-presets-modal-content code {
+    color: var(--text-default);
+    background: var(--background-base-lowest, var(--background-base-low));
+    padding: 1px 5px;
+    border-radius: 4px;
+    font-family: var(--font-code, monospace);
+}
+
+.vc-presets-modal-footer {
+    display: flex;
+    gap: 8px;
+    justify-content: flex-end;
+}
+
+.vc-presets-modal-actions {
+    display: flex;
+    gap: 8px;
+    flex-wrap: wrap;
+}
+
+/* ── JSON / textarea box (with hover effect) ──────────────────────── */
+
+.vc-presets-modal-textarea {
+    width: 100%;
+    min-height: 220px;
+    resize: vertical;
+    font-family: var(--font-code, monospace);
+    font-size: 13px;
+    line-height: 1.5;
+    color: var(--text-default) !important;
+    background: var(--input-background, var(--background-base-lower-alt)) !important;
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    padding: 10px 12px;
+    transition: border-color .15s ease, box-shadow .15s ease, background-color .15s ease;
+}
+
+.vc-presets-modal-textarea:hover {
+    border-color: var(--border-strong, var(--brand));
+    background: var(--background-base-low) !important;
+}
+
+.vc-presets-modal-textarea:focus-within,
+.vc-presets-modal-textarea:focus {
+    border-color: var(--brand);
+    box-shadow: 0 0 0 2px var(--brand-560, var(--brand)) inset, 0 0 0 1px var(--brand);
+}
+
+/* Discord wraps TextArea/TextInput; force the inner control themed too. */
+.vc-presets-modal-textarea textarea,
+.vc-presets-modal-textarea input,
+.vc-presets-modal-content textarea,
+.vc-presets-modal-content input {
+    color: var(--text-default) !important;
+    background: transparent !important;
+}
+
+.vc-presets-dim {
+    color: var(--text-subtle);
+}
+
+.vc-presets-modal-invalid {
+    color: var(--status-danger, var(--text-danger));
+    font-weight: 500;
+}
+
+.vc-presets-modal-row {
+    align-self: flex-start;
+}
+
+/* ── Import preview ───────────────────────────────────────────────── */
+
+.vc-presets-preview {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    padding: 12px 14px;
+    border-radius: 8px;
+    background: var(--background-base-lower-alt);
+    border: 1px solid var(--border-subtle);
+    animation: vc-presets-fade-in .2s ease;
+}
+
+/* ── Info modal: tabs ─────────────────────────────────────────────── */
+
+.vc-presets-tabs {
+    display: flex;
+    gap: 4px;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.vc-presets-tab {
+    position: relative;
+    padding: 8px 14px;
+    border: none;
+    background: transparent;
+    color: var(--text-subtle) !important;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    transition: color .15s ease;
+}
+
+.vc-presets-tab:hover {
+    color: var(--text-default) !important;
+}
+
+.vc-presets-tab::after {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: -1px;
+    height: 2px;
+    background: var(--brand, var(--brand-experiment, #5865f2));
+    transform: scaleX(0);
+    transition: transform .2s ease;
+}
+
+.vc-presets-tab-active {
+    color: var(--text-default) !important;
+}
+
+.vc-presets-tab-active::after {
+    transform: scaleX(1);
+}
+
+.vc-presets-tab:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
+    border-radius: 4px;
+}
+
+/* ── Info modal: dev info tab ─────────────────────────────────────── */
+
+.vc-presets-stats {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 1px;
+    background: var(--border-subtle);
+    border: 1px solid var(--border-subtle);
+    border-radius: 8px;
+    overflow: hidden;
+    animation: vc-presets-fade-in .2s ease;
+}
+
+.vc-presets-stat {
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 16px;
+    padding: 9px 14px;
+    background: var(--background-base-lower-alt);
+    transition: background-color .12s ease;
+}
+
+.vc-presets-stat:hover {
+    background: var(--background-base-low);
+}
+
+.vc-presets-stat-label {
+    flex-shrink: 0;
+    font-size: 12px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .04em;
+    color: var(--text-subtle) !important;
+}
+
+.vc-presets-stat-value {
+    min-width: 0;
+    text-align: right;
+    color: var(--text-default) !important;
+    overflow-wrap: anywhere;
+}
+
+.vc-presets-stat-mono {
+    font-family: var(--font-code, monospace);
+    font-size: 13px;
+}
+
+/* ── Info modal: settings tab ─────────────────────────────────────── */
+
+.vc-presets-settings {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: vc-presets-fade-in .2s ease;
+}
+
+.vc-presets-setting-row {
+    display: flex;
+    align-items: center;
+    gap: 16px;
+    padding: 10px 0;
+}
+
+.vc-presets-setting-text {
+    flex: 1;
+    min-width: 0;
+}
+
+.vc-presets-setting-text h5 {
+    color: var(--text-default) !important;
+}
+
+/* ── Info modal: contents tab ─────────────────────────────────────── */
+
+.vc-presets-summary {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 320px;
+    overflow-y: auto;
+    animation: vc-presets-fade-in .2s ease;
+}
+
+.vc-presets-summary-plugin {
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border-subtle);
+}
+
+.vc-presets-summary-name {
+    font-weight: 600;
+    color: var(--text-default) !important;
+}
+
+.vc-presets-summary-settings {
+    margin-top: 4px;
+    margin-left: 12px;
+    font-size: 12px;
+    color: var(--text-subtle);
+    font-family: var(--font-code, monospace);
+    word-break: break-all;
+}
+
+.vc-presets-summary-key {
+    color: var(--text-default);
+}
+
+/* ── Info modal: json tab ─────────────────────────────────────────── */
+
+.vc-presets-json {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    animation: vc-presets-fade-in .2s ease;
+}
+
+/* ── Scrollbars (themed, slim, floating) ──────────────────────────── */
+
+.vc-presets-summary,
+.vc-presets-modal-textarea,
+.vc-presets-modal-textarea textarea,
+.vc-presets-stats {
+    scrollbar-width: thin;
+    scrollbar-color: color-mix(in srgb, var(--text-subtle, #888) 55%, transparent) transparent;
+}
+
+.vc-presets-summary::-webkit-scrollbar,
+.vc-presets-modal-textarea::-webkit-scrollbar,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar,
+.vc-presets-stats::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+/* Transparent track — overlay-style, no boxed rail. */
+.vc-presets-summary::-webkit-scrollbar-track,
+.vc-presets-modal-textarea::-webkit-scrollbar-track,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar-track,
+.vc-presets-stats::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+/* Thumb: nearly invisible at rest, 2px inset so it floats and reads slim. */
+.vc-presets-summary::-webkit-scrollbar-thumb,
+.vc-presets-modal-textarea::-webkit-scrollbar-thumb,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar-thumb,
+.vc-presets-stats::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-subtle, #888) 40%, transparent);
+    border-radius: 999px;
+    border: 2px solid transparent;
+    background-clip: padding-box;
+    min-height: 28px;
+    transition: background-color .15s ease;
+}
+
+/* Fade the thumb up when the container is hovered/scrolled. */
+.vc-presets-summary:hover::-webkit-scrollbar-thumb,
+.vc-presets-modal-textarea:hover::-webkit-scrollbar-thumb,
+.vc-presets-stats:hover::-webkit-scrollbar-thumb {
+    background: color-mix(in srgb, var(--text-subtle, #888) 75%, transparent);
+    background-clip: padding-box;
+}
+
+/* Solid when grabbing the thumb directly. */
+.vc-presets-summary::-webkit-scrollbar-thumb:hover,
+.vc-presets-modal-textarea::-webkit-scrollbar-thumb:hover,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar-thumb:hover,
+.vc-presets-stats::-webkit-scrollbar-thumb:hover {
+    background: var(--text-default, #ddd);
+    background-clip: padding-box;
+}
+
+.vc-presets-summary::-webkit-scrollbar-thumb:active,
+.vc-presets-modal-textarea::-webkit-scrollbar-thumb:active,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar-thumb:active,
+.vc-presets-stats::-webkit-scrollbar-thumb:active {
+    background: var(--brand, var(--brand-experiment, #5865f2));
+    background-clip: padding-box;
+}
+
+.vc-presets-summary::-webkit-scrollbar-corner,
+.vc-presets-modal-textarea::-webkit-scrollbar-corner,
+.vc-presets-modal-textarea textarea::-webkit-scrollbar-corner,
+.vc-presets-stats::-webkit-scrollbar-corner {
+    background: transparent;
+}
+
+/* ── Motion ───────────────────────────────────────────────────────── */
+
+@keyframes vc-presets-fade-in {
+    from { opacity: 0; transform: translateY(4px); }
+    to { opacity: 1; transform: translateY(0); }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    .vc-presets-row,
+    .vc-presets-row::before,
+    .vc-presets-row-gear,
+    .vc-presets-tab::after,
+    .vc-presets-row-badge::before,
+    .vc-presets-preview,
+    .vc-presets-stats,
+    .vc-presets-settings,
+    .vc-presets-summary,
+    .vc-presets-json,
+    .vc-presets-toolbar button,
+    .vc-presets-row-actions button,
+    .vc-presets-modal-actions button,
+    .vc-presets-modal-textarea {
+        animation: none !important;
+        transition: none !important;
+    }
+
+    .vc-presets-row:hover,
+    .vc-presets-row-gear:hover,
+    .vc-presets-toolbar button:hover,
+    .vc-presets-row-actions button:hover,
+    .vc-presets-modal-actions button:hover { transform: none; }
+}
