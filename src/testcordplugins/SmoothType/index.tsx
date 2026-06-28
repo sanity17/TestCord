@@ -14,7 +14,7 @@ const settings = definePluginSettings({
     transitionDelay: {
         type: OptionType.NUMBER,
         description: "Transition Delay (ms)",
-        default: 60,
+        default: 75,
         onChange: () => applyCSS(),
     },
     animationType: {
@@ -84,13 +84,15 @@ function buildCSS(): string {
 #vc-smoothtype-caret {
     position: fixed;
     top: 0; left: 0;
+    transform: translate3d(0, 0, 0);
     width: 2px;
     border-radius: 2px;
     background: ${color};
     pointer-events: none;
     z-index: 99999;
     display: none;
-    transition: left ${ms}ms ${easing}, top ${ms}ms ${easing}, height ${ms}ms ${easing};
+    will-change: transform, height;
+    transition: transform ${ms}ms ${easing}, height ${ms}ms ${easing};
 }
 [data-slate-editor] { caret-color: transparent !important; }
 `;
@@ -133,47 +135,25 @@ function applyCaretPosition() {
         if (parent) rect = parent.getBoundingClientRect();
     }
     if (!rect || rect.height === 0) { el.style.display = "none"; return; }
-    const newLeft = rect.right + "px";
-    const newTop = rect.top + "px";
-    if (el.style.left !== newLeft || el.style.top !== newTop) {
+    const newTransform = `translate3d(${rect.right}px, ${rect.top}px, 0)`;
+    if (el.style.transform !== newTransform) {
         if (el.style.display !== "none") stopBlink();
     }
     el.style.display = "block";
-    el.style.left = newLeft;
-    el.style.top = rect.top + "px";
+    el.style.transform = newTransform;
     el.style.height = rect.height + "px";
 }
 
 let observer: MutationObserver | null = null;
-let caretScanQueued = false;
-let caretScanFrame: number | null = null;
 
 function startObserver() {
-    // The caret only matters while a slate editor is focused. Bail immediately
-    // otherwise, and coalesce a burst of mutations into a single rAF-scoped pass
-    // instead of running getSelection + getClientRects on every DOM mutation.
-    observer = new MutationObserver(() => {
-        if (caretScanQueued) return;
-        if (!document.activeElement?.closest("[data-slate-editor]")) return;
-        caretScanQueued = true;
-        caretScanFrame = requestAnimationFrame(() => {
-            caretScanFrame = null;
-            caretScanQueued = false;
-            if (!observer) return;
-            applyCaretPosition();
-        });
-    });
+    observer = new MutationObserver(() => applyCaretPosition());
     observer.observe(document.body, { childList: true, subtree: true });
 }
 
 function stopObserver() {
     observer?.disconnect();
     observer = null;
-    if (caretScanFrame !== null) {
-        cancelAnimationFrame(caretScanFrame);
-        caretScanFrame = null;
-    }
-    caretScanQueued = false;
 }
 
 const handlers = {
