@@ -1,0 +1,3 @@
+src/components/ThemeSettings/themesStyles.css
+src/components/settings/tabs/plugins/components/styles.css
+src/testcordplugins/**/*.css
