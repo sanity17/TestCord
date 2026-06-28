@@ -49,7 +49,7 @@ const AvatarStyles = findCssClassesLazy("moreUsers", "avatar", "clickableAvatar"
 const CloseButton = findComponentByCodeLazy("CLOSE_BUTTON_LABEL");
 const ConfirmModal = findComponentByCodeLazy('parentComponent:"ConfirmModal"');
 const WarningIcon = findComponentByCodeLazy("3.15H3.29c-1.74");
-const UserRecord: Constructor<Partial<User>> = proxyLazy(() => UserStore.getCurrentUser().constructor) as any;
+const UserRecord = proxyLazy(() => UserStore.getCurrentUser().constructor) as Constructor<User, [Partial<User>]>;
 
 interface PluginModalProps extends RenderModalProps {
     plugin: Plugin;
@@ -89,7 +89,7 @@ export default function PluginModal({ plugin, onRestartNeeded, onClose, transiti
 
     // avoid layout shift by showing dummy users while loading users
     const fallbackAuthors = useMemo(() => [makeDummyUser({ username: "Loading...", id: "-1465912127305809920" })], []);
-    const [authors, setAuthors] = useState<Partial<User>[]>([]);
+    const [authors, setAuthors] = useState<User[]>([]);
 
     useEffect(() => {
         let cancelled = false;
