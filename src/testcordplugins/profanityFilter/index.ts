@@ -1,0 +1,93 @@
+/*
+ * Vencord, a Discord client mod
+ * Copyright (c) 2025 Vendicated and contributors
+ * SPDX-License-Identifier: GPL-3.0-or-later
+ */
+
+import { definePluginSettings } from "@api/Settings";
+import { TestcordDevs } from "@utils/constants";
+import definePlugin, { OptionType } from "@utils/types";
+import { Toasts } from "@webpack/common";
+
+const settings = definePluginSettings({
+    enabled: {
+        type: OptionType.BOOLEAN,
+        description: "Filter outgoing messages (Ctrl+Alt+P toggles this anywhere)",
+        default: true
+    },
+    words: {
+        type: OptionType.STRING,
+        description: "Words to filter, separated by commas or newlines. Strict whole-word, case-insensitive; combined words (e.g. \"fuckass\") are never matched.",
+        default: ""
+    }
+});
+
+function parseWords(): string[] {
+    return settings.store.words
+        .split(/[\n,]/)
+        .map(w => w.trim())
+        .filter(Boolean);
+}
+
+function filter(content: string): string {
+    const words = parseWords();
+    if (words.length === 0) return content;
+
+    let result = content;
+    for (const word of words) {
+        const escaped = word.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+        result = result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "");
+    }
+
+    result = result
+        .replace(/[ \t]{2,}/g, " ")      
+        .replace(/\s+([,.!?;:])/g, "$1") 
+        .trim();
+
+    return result.length === 0 ? ":duck:" : result;
+}
+
+function toggleHandler(e: KeyboardEvent) {
+    if (e.ctrlKey && e.altKey && !e.shiftKey && !e.metaKey && e.code === "KeyP") {
+        e.preventDefault();
+        settings.store.enabled = !settings.store.enabled;
+        Toasts.show({
+            message: `Profanity filter: ${settings.store.enabled ? "ON" : "OFF"}`,
+            id: Toasts.genId(),
+            type: settings.store.enabled ? Toasts.Type.SUCCESS : Toasts.Type.MESSAGE
+        });
+    }
+}
+
+export default definePlugin({
+    name: "ProfanityFilter",
+    description: "Strictly removes user-defined words from outgoing messages (whole-word only). Sends :duck: if filtering empties the message.",
+    authors: [
+        TestcordDevs.sirphantom89,
+        { name: "Nepotaku", id: 765468887852515370n }
+    ],
+    dependencies: ["MessageEventsAPI"],
+    tags: ["Utility"],
+    settings,
+
+    start() {
+        document.addEventListener("keydown", toggleHandler);
+    },
+
+    stop() {
+        document.removeEventListener("keydown", toggleHandler);
+    },
+
+    onBeforeMessageSend(_, msg) {
+        if (!settings.store.enabled || typeof msg.content !== "string") return;
+        const filtered = filter(msg.content);
+        if (filtered !== msg.content) {
+            msg.content = filtered;
+            Toasts.show({
+                message: "Filtered profanity from message",
+                id: Toasts.genId(),
+                type: Toasts.Type.MESSAGE
+            });
+        }
+    }
+});
