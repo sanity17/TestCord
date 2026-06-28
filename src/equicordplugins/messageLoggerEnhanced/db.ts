@@ -236,7 +236,7 @@ export async function addMessagesBulkIDB(messages: LoggedMessageJSON[], status?:
     const { store } = tx;
 
     await Promise.all([
-        ...messages.map(message => store.add({
+        ...messages.map(message => store.put({
             channel_id: message.channel_id,
             message_id: message.id,
             status: status ?? getMessageStatus(message),

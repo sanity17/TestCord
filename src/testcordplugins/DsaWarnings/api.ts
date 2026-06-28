@@ -227,13 +227,10 @@ function parseReadyResponse(parsedId: string, body: string): DsaLookupResult | n
 }
 
 export async function fetchActiveWarnings(parsedId: string): Promise<DsaLookupResult> {
-    logger.warn("fetchActiveWarnings called for", parsedId);
     const cached = resultCache.get(parsedId);
     if (cached && cached.expiresAt > Date.now()) {
-        logger.warn("Returning cached result, kind=", cached.result.kind);
         return cached.result;
     }
-    logger.warn("No cache hit, calling Native.fetchCordCatQuery");
 
     try {
         const nativeResult = await Native.fetchCordCatQuery?.(parsedId);
@@ -243,8 +240,6 @@ export async function fetchActiveWarnings(parsedId: string): Promise<DsaLookupRe
             logger.warn("Native call failed:", msg);
             return setCache(parsedId, { kind: "error", error: msg });
         }
-
-        logger.warn("Native result: status=", nativeResult.status, "bodyLen=", nativeResult.body?.length);
 
         if (nativeResult.status === 503) {
             const msg = `CordCat returned 503: ${(nativeResult.body ?? "").slice(0, 200)}`;

@@ -6,6 +6,7 @@
 
 import "./styles.css";
 
+import { TestcordRequestCoordinator } from "@api/index";
 import { definePluginSettings, migratePluginSetting } from "@api/Settings";
 import { Card } from "@components/Card";
 import { HeadingSecondary, HeadingTertiary } from "@components/Heading";
@@ -42,16 +43,22 @@ const loadFontStyle = (url: string) => {
 
 async function searchGoogleFonts(query: string) {
     try {
-        const response = await fetch("https://fonts.google.com/$rpc/fonts.fe.catalog.actions.metadata.MetadataService/FontSearch", {
-            method: "POST",
-            headers: {
-                "content-type": "application/json+protobuf",
-                "x-user-agent": "grpc-web-javascript/0.1"
-            },
-            body: JSON.stringify([[query, null, null, null, null, null, 1], [5], null, 16])
+        // Identical searches re-fetch the same catalog slice; dedupe and briefly
+        // cache per query under the TestcordHelper network optimizations toggle.
+        // With it off this is a plain passthrough fetch.
+        const data = await TestcordRequestCoordinator.request({
+            key: `fontLoader:search:${query}`,
+            ttlMs: 300_000,
+            run: () => fetch("https://fonts.google.com/$rpc/fonts.fe.catalog.actions.metadata.MetadataService/FontSearch", {
+                method: "POST",
+                headers: {
+                    "content-type": "application/json+protobuf",
+                    "x-user-agent": "grpc-web-javascript/0.1"
+                },
+                body: JSON.stringify([[query, null, null, null, null, null, 1], [5], null, 16])
+            }).then(r => r.json()),
+            cacheable: value => Array.isArray((value as any)?.[1]),
         });
-
-        const data = await response.json();
         if (!data?.[1]) return [];
         return data[1].map(([_, fontData]: [string, any[]]) => ({
             family: fontData[0],

@@ -7,6 +7,7 @@
 import { isPluginEnabled, isPluginRequired } from "@api/PluginManager";
 import { definePluginSettings, useSettings } from "@api/Settings";
 import { getUserSettingLazy } from "@api/UserSettings";
+import { BaseText } from "@components/BaseText";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { WarningIcon } from "@components/Icons";
 import { AddonCard } from "@components/settings";
@@ -19,10 +20,12 @@ import { tryOrElse } from "@utils/misc";
 import { makeCodeblock } from "@utils/text";
 import definePlugin, { OptionType } from "@utils/types";
 import { Message } from "@vencord/discord-types";
-import { ChannelStore, MessageActions, SelectedChannelStore, showToast, Toasts, Tooltip, useMemo, UserStore } from "@webpack/common";
+import { ChannelStore, ColorPicker, MessageActions, SelectedChannelStore, showToast, TextInput, Toasts, Tooltip, useMemo, UserStore } from "@webpack/common";
 import { JSX } from "react";
 
 import plugins, { ExcludedPlugins, PluginMeta } from "~plugins";
+
+import { hexToInt, ICON_COLOR_FALLBACK, IconColorSettingKey, IconColorSettings, intToHex, isIconColorInputValid } from "./iconColors";
 
 const logger = new Logger("TestcordHelper");
 
@@ -38,6 +41,44 @@ const PLUGIN_LINK_PATTERN = /\[([^\]]+)]\(<?https:\/\/github\.com\/TestcordDev\/
 const PLUGIN_CARD_MARKER_PATTERN = /(?:testcordplugin|tcp):|github\.com\/TestcordDev\/Testcord\/tree\/main\/src\/(?:plugins|equicordplugins|testcordplugins)\//i;
 const PLUGIN_RESOLVE_CACHE_LIMIT = 500;
 const pluginResolveCache = new Map<string, string | null>();
+
+function IconColorRow({ settingKey }: { settingKey: IconColorSettingKey; }) {
+    const { label, description } = IconColorSettings[settingKey];
+    const value = settings.store[settingKey] ?? "";
+
+    return (
+        <div style={{ display: "grid", gap: 8 }}>
+            <BaseText size="md" weight="medium">{label}</BaseText>
+            <BaseText size="sm">{description}</BaseText>
+            <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr) auto", gap: 12, alignItems: "center" }}>
+                <TextInput
+                    value={value}
+                    placeholder="Theme default"
+                    onChange={newValue => settings.store[settingKey] = newValue}
+                />
+                <ColorPicker
+                    color={hexToInt(value) ?? hexToInt(ICON_COLOR_FALLBACK) ?? 0xb5bac1}
+                    onChange={color => {
+                        if (color != null) settings.store[settingKey] = intToHex(color);
+                    }}
+                    showEyeDropper={true}
+                />
+            </div>
+        </div>
+    );
+}
+
+function IconColorSettingsComponent() {
+    return (
+        <div style={{ display: "grid", gap: 16 }}>
+            <BaseText size="lg" weight="bold">Default Plugin Icon Colors</BaseText>
+            <BaseText size="sm">Leave a field empty to use Discord's theme color.</BaseText>
+            {(Object.keys(IconColorSettings) as IconColorSettingKey[]).map(settingKey => (
+                <IconColorRow key={settingKey} settingKey={settingKey} />
+            ))}
+        </div>
+    );
+}
 
 interface PluginSearchEntry {
     name: string;
@@ -70,6 +111,38 @@ const settings = definePluginSettings({
         description: "Dedupe and briefly cache repeated Testcord plugin network requests.",
         default: false,
     },
+    iconColorSettings: {
+        type: OptionType.COMPONENT,
+        component: IconColorSettingsComponent
+    },
+    userAreaButtonIconColor: {
+        type: OptionType.STRING,
+        description: "Default icon color for buttons next to mute, deafen, and settings.",
+        default: "",
+        hidden: true,
+        isValid: isIconColorInputValid
+    },
+    chatBoxButtonIconColor: {
+        type: OptionType.STRING,
+        description: "Default icon color for plugin buttons in the chat input.",
+        default: "",
+        hidden: true,
+        isValid: isIconColorInputValid
+    },
+    topBarButtonIconColor: {
+        type: OptionType.STRING,
+        description: "Default icon color for plugin buttons in Discord's top title bar.",
+        default: "",
+        hidden: true,
+        isValid: isIconColorInputValid
+    },
+    headerBarButtonIconColor: {
+        type: OptionType.STRING,
+        description: "Default icon color for plugin buttons in channel headers.",
+        default: "",
+        hidden: true,
+        isValid: isIconColorInputValid
+    },
     performanceMode: {
         type: OptionType.BOOLEAN,
         description: "Show optional performance features. Nothing here is enabled unless its own toggle is on.",
@@ -99,6 +172,16 @@ const settings = definePluginSettings({
     performanceCachePluginCards: {
         type: OptionType.BOOLEAN,
         description: "Cache plugin name lookups and skip plugin-card scans for messages that cannot contain plugin links.",
+        default: false,
+    },
+    performanceNetworkOptimizations: {
+        type: OptionType.BOOLEAN,
+        description: "Reduce network requests across Testcord plugins: share and dedupe repeated message fetches, cache immutable resources, warm up the connection, and parallelize independent requests. No change to what Discord receives.",
+        default: false,
+    },
+    performanceAggressiveNetwork: {
+        type: OptionType.BOOLEAN,
+        description: "Aggressive network mode for supported plugins (e.g. AutoRedeem skip-precheck and higher concurrency). Faster, but may increase captcha and rate-limit risk. Requires the network optimizations toggle above.",
         default: false,
     }
 });

@@ -34,12 +34,13 @@ export function NumberSetting({ setting, pluginSettings, definedSettings, id, on
     const [error, setError] = useState<string | null>(null);
 
     function handleChange(newValue: any) {
-        const isValid = setting.isValid?.call(definedSettings, newValue) ?? true;
+        const serializedValue = serialize(newValue);
+        const isValid = setting.isValid?.call(definedSettings, serializedValue) ?? true;
 
         setError(resolveError(isValid));
 
         if (isValid === true) {
-            onChange(serialize(newValue));
+            onChange(serializedValue);
         }
 
         if (setting.type === OptionType.NUMBER && BigInt(newValue) >= MAX_SAFE_NUMBER) {

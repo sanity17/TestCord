@@ -9,7 +9,6 @@ import { BrowserWindow, IpcMainInvokeEvent, net, session, shell } from "electron
 
 import type { NativeCordCatResult, NativeCordCatResultOk } from "./types";
 
-const LOG_PREFIX = "[DsaWarnings/native]";
 const CORS_PROXY = "https://cors.keiran0.workers.dev";
 const PARTITION = "persist:dsa-warnings";
 const FETCH_TIMEOUT_MS = 15_000;
@@ -170,7 +169,6 @@ export async function fetchCordCatQuery(_: IpcMainInvokeEvent, parsedId: string)
     const apiKey = getPluginSettings()?.cordCatApiKey;
 
     if (!apiKey || typeof apiKey !== "string" || apiKey.trim().length === 0) {
-        console.warn(LOG_PREFIX, "No API key configured. CordCat requires an API key for external access. Set one in plugin settings.");
         return {
             ok: false,
             error: "No CordCat API key configured. Open plugin settings and add your API key (get one at https://api.cord.cat)."
@@ -184,44 +182,24 @@ export async function fetchCordCatQuery(_: IpcMainInvokeEvent, parsedId: string)
 
     let lastAuthStatus: number | null = null;
 
-    // Try net.fetch with session (shares cookies from captcha window)
-    try {
-        console.warn(LOG_PREFIX, "Trying net.fetch with session for", url);
-        const result = await tryDirectFetch(url, headers);
-        console.warn(LOG_PREFIX, "net.fetch result: status=", result.status, "bodyLen=", result.body?.length, "preview=", result.body?.slice(0, 200));
-        if (isUsableResponse(result)) return result;
-        if (result.status === 401 || result.status === 403) lastAuthStatus = result.status;
-        console.warn(LOG_PREFIX, "net.fetch response not usable (status", result.status + "), falling through");
-    } catch (e) {
-        console.warn(LOG_PREFIX, "net.fetch threw:", e);
+    const directResult = await tryDirectFetch(url, headers).catch(() => null);
+    if (directResult) {
+        if (isUsableResponse(directResult)) return directResult;
+        if (directResult.status === 401 || directResult.status === 403) lastAuthStatus = directResult.status;
     }
 
-    // Try Node's fetch directly
-    try {
-        console.warn(LOG_PREFIX, "Trying Node fetch for", url);
-        const result = await tryNodeFetch(url, headers);
-        console.warn(LOG_PREFIX, "Node fetch result: status=", result.status, "bodyLen=", result.body?.length, "preview=", result.body?.slice(0, 200));
-        if (isUsableResponse(result)) return result;
-        if (result.status === 401 || result.status === 403) lastAuthStatus = result.status;
-        console.warn(LOG_PREFIX, "Node fetch response not usable (status", result.status + "), falling through");
-    } catch (e) {
-        console.warn(LOG_PREFIX, "Node fetch threw:", e);
+    const nodeResult = await tryNodeFetch(url, headers).catch(() => null);
+    if (nodeResult) {
+        if (isUsableResponse(nodeResult)) return nodeResult;
+        if (nodeResult.status === 401 || nodeResult.status === 403) lastAuthStatus = nodeResult.status;
     }
 
-    // Try via CORS proxy
-    try {
-        console.warn(LOG_PREFIX, "Trying CORS proxy for", url);
-        const result = await tryProxiedFetch(url, headers);
-        console.warn(LOG_PREFIX, "CORS proxy result: status=", result.status, "bodyLen=", result.body?.length, "preview=", result.body?.slice(0, 200));
-        if (isUsableResponse(result)) return result;
-        if (result.status === 401 || result.status === 403) lastAuthStatus = result.status;
-        console.warn(LOG_PREFIX, "CORS proxy response not usable (status", result.status + "), falling through");
-    } catch (e) {
-        console.warn(LOG_PREFIX, "CORS proxy threw:", e);
+    const proxiedResult = await tryProxiedFetch(url, headers).catch(() => null);
+    if (proxiedResult) {
+        if (isUsableResponse(proxiedResult)) return proxiedResult;
+        if (proxiedResult.status === 401 || proxiedResult.status === 403) lastAuthStatus = proxiedResult.status;
     }
 
-    // All methods failed, return error
-    console.warn(LOG_PREFIX, "All fetch methods failed for", url);
     if (lastAuthStatus != null) {
         return {
             ok: false,

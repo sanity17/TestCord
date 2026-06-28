@@ -6,13 +6,14 @@
 
 import "./style.css";
 
+import { TestcordRequestCoordinator } from "@api/index";
 import { definePluginSettings } from "@api/Settings";
 import { getUserSettingLazy } from "@api/UserSettings";
 import ErrorBoundary from "@components/ErrorBoundary";
 import { Devs } from "@utils/constants";
 import definePlugin, { OptionType } from "@utils/types";
 import { findComponentByCodeLazy } from "@webpack";
-import { ChannelStore, Constants, MessageStore, RestAPI, Tooltip, useEffect, useState, useStateFromStores } from "@webpack/common";
+import { ChannelStore, MessageStore, Tooltip, useEffect, useState, useStateFromStores } from "@webpack/common";
 import type { ComponentType } from "react";
 
 const MessageDisplayCompact = getUserSettingLazy("textAndImages", "messageDisplayCompact")!;
@@ -157,15 +158,8 @@ function useMessage(channelId, messageId) {
     useEffect(() => {
         if (message == null)
             (async () => {
-                const res = await RestAPI.get({
-                    url: Constants.Endpoints.MESSAGES(channelId),
-                    query: {
-                        limit: 1,
-                        around: messageId,
-                    },
-                    retries: 2,
-                });
-                const rawMessage = res.body[0];
+                const rawMessage = await TestcordRequestCoordinator.fetchMessageAround(channelId, messageId);
+                if (rawMessage == null) return;
                 const message = MessageStore.getMessages(channelId)
                     .receiveMessage(rawMessage)
                     .get(messageId);

@@ -18,6 +18,7 @@
 
 import "./styles.css";
 
+import { TestcordRequestCoordinator } from "@api/index";
 import { addMessageAccessory, removeMessageAccessory } from "@api/MessageAccessories";
 import { updateMessage } from "@api/MessageUpdater";
 import { definePluginSettings } from "@api/Settings";
@@ -33,14 +34,12 @@ import { findComponentByCodeLazy, findComponentLazy, findCssClassesLazy } from "
 import {
     Button,
     ChannelStore,
-    Constants,
     GuildStore,
     IconUtils,
     MessageStore,
     Parser,
     PermissionsBits,
     PermissionStore,
-    RestAPI,
     UserStore
 } from "@webpack/common";
 import { ComponentType, JSX } from "react";
@@ -138,16 +137,7 @@ async function fetchMessage(channelID: string, messageID: string) {
 
     messageCache.set(messageID, { fetched: false });
 
-    const res = await RestAPI.get({
-        url: Constants.Endpoints.MESSAGES(channelID),
-        query: {
-            limit: 1,
-            around: messageID
-        },
-        retries: 2
-    }).catch(() => null);
-
-    const msg = res?.body?.[0];
+    const msg = await TestcordRequestCoordinator.fetchMessageAround(channelID, messageID).catch(() => null);
     if (!msg) return;
 
     const message: Message = MessageStore.getMessages(msg.channel_id).receiveMessage(msg).get(msg.id);

@@ -17,16 +17,19 @@
 }
 
 .vc-plugin-icon-button svg,
+.vc-plugin-icon-button:is(svg),
 .vc-plugin-icon-button svg * {
     color: var(--vc-plugin-icon-color, var(--interactive-normal, var(--header-secondary))) !important; /* Overrides plugin icon classes on toolbar/user-area buttons. */
 }
 
 .vc-plugin-icon-button svg[fill]:not([fill="none"], [fill="currentColor"]),
+.vc-plugin-icon-button:is(svg)[fill]:not([fill="none"], [fill="currentColor"]),
 .vc-plugin-icon-button svg [fill]:not([fill="none"], [fill="currentColor"]) {
     fill: var(--vc-plugin-icon-color, var(--interactive-normal, var(--header-secondary))) !important; /* Overrides hardcoded plugin SVG fill attrs. */
 }
 
 .vc-plugin-icon-button svg[stroke]:not([stroke="none"], [stroke="currentColor"]),
+.vc-plugin-icon-button:is(svg)[stroke]:not([stroke="none"], [stroke="currentColor"]),
 .vc-plugin-icon-button svg [stroke]:not([stroke="none"], [stroke="currentColor"]) {
     stroke: var(--vc-plugin-icon-color, var(--interactive-normal, var(--header-secondary))) !important; /* Overrides hardcoded plugin SVG stroke attrs. */
 }

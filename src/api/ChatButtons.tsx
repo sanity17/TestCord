@@ -5,21 +5,24 @@
  */
 
 import "./ChatButton.css";
+import "./PluginIconColor.css";
 
 import ErrorBoundary from "@components/ErrorBoundary";
+import { getTestcordIconColor } from "@testcordplugins/TestcordHelper/iconColors";
 import { Logger } from "@utils/Logger";
 import { classes } from "@utils/misc";
 import { IconComponent } from "@utils/types";
 import { Channel } from "@vencord/discord-types";
 import { findCssClassesLazy } from "@webpack";
 import { Clickable, Menu, Tooltip, useEffect, useState } from "@webpack/common";
-import { HTMLProps, JSX, MouseEventHandler, ReactNode } from "react";
+import { CSSProperties, HTMLProps, JSX, MouseEventHandler, ReactNode } from "react";
 
 import { addContextMenuPatch, findGroupChildrenByChildId } from "./ContextMenu";
 import { useSettings } from "./Settings";
 
 const ButtonWrapperClasses = findCssClassesLazy("button", "buttonWrapper", "notificationDot");
 const ChannelTextAreaClasses = findCssClassesLazy("buttonContainer", "channelTextArea", "button");
+const TESTCORD_CHAT_BOX_ICON_COLOR_SETTING: ["plugins.TestcordHelper.chatBoxButtonIconColor"] = ["plugins.TestcordHelper.chatBoxButtonIconColor"];
 
 export interface ChatBarProps {
     channel: Channel;
@@ -159,6 +162,13 @@ export interface ChatBarButtonProps {
 }
 
 export const ChatBarButton = ErrorBoundary.wrap((props: ChatBarButtonProps) => {
+    useSettings(TESTCORD_CHAT_BOX_ICON_COLOR_SETTING);
+    const iconColor = getTestcordIconColor("chatBoxButtonIconColor");
+    const buttonStyle: CSSProperties & Record<"--vc-plugin-icon-color", string | undefined> = {
+        ...props.buttonProps?.style,
+        "--vc-plugin-icon-color": iconColor
+    };
+
     return (
         <Tooltip text={props.tooltip}>
             {({ onMouseEnter, onMouseLeave }) => (
@@ -167,11 +177,12 @@ export const ChatBarButton = ErrorBoundary.wrap((props: ChatBarButtonProps) => {
                         aria-label={props.tooltip}
                         onMouseEnter={onMouseEnter}
                         onMouseLeave={onMouseLeave}
-                        className={classes(ButtonWrapperClasses.button, ChannelTextAreaClasses?.button)}
+                        className={classes(ButtonWrapperClasses.button, ChannelTextAreaClasses?.button, "vc-plugin-icon-button", props.buttonProps?.className)}
                         onClick={props.onClick}
                         onContextMenu={props.onContextMenu}
                         onAuxClick={props.onAuxClick}
                         {...props.buttonProps}
+                        style={buttonStyle}
                     >
                         <div className={ButtonWrapperClasses.buttonWrapper}>
                             {props.children}

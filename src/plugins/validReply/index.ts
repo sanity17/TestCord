@@ -4,11 +4,12 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { TestcordRequestCoordinator } from "@api/index";
 import { Devs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import { Channel, Message, User } from "@vencord/discord-types";
 import { findByCodeLazy } from "@webpack";
-import { FluxDispatcher, RestAPI } from "@webpack/common";
+import { FluxDispatcher } from "@webpack/common";
 
 const enum ReferencedMessageState {
     Loaded,
@@ -67,16 +68,8 @@ export default definePlugin({
         }
         fetching.set(messageId, channelId);
 
-        RestAPI.get({
-            url: `/channels/${channelId}/messages`,
-            query: {
-                limit: 1,
-                around: messageId
-            },
-            retries: 2
-        })
-            .then(res => {
-                const reply: Message | undefined = res?.body?.[0];
+        TestcordRequestCoordinator.fetchMessageAround(channelId, messageId)
+            .then((reply: Message | undefined) => {
                 if (!reply) return;
 
                 if (reply.id !== messageId) {

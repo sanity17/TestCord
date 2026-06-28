@@ -6,14 +6,17 @@
 
 import "./PluginIconColor.css";
 
+import { useSettings } from "@api/Settings";
 import ErrorBoundary from "@components/ErrorBoundary";
+import { getTestcordIconColor } from "@testcordplugins/TestcordHelper/iconColors";
 import { Logger } from "@utils/Logger";
 import { classes } from "@utils/misc";
 import { findComponentByCodeLazy } from "@webpack";
 import { useEffect, useState } from "@webpack/common";
-import type { ComponentType, MouseEventHandler, ReactNode } from "react";
+import type { ComponentType, CSSProperties, MouseEventHandler, ReactNode } from "react";
 
 const PanelButton = findComponentByCodeLazy("tooltipPositionKey", "positionKeyStemOverride") as ComponentType<UserAreaButtonProps>;
+const TESTCORD_USER_AREA_ICON_COLOR_SETTING: ["plugins.TestcordHelper.userAreaButtonIconColor"] = ["plugins.TestcordHelper.userAreaButtonIconColor"];
 
 export interface UserAreaButtonProps {
     icon: ReactNode;
@@ -21,6 +24,7 @@ export interface UserAreaButtonProps {
     onClick?: MouseEventHandler<HTMLDivElement>;
     onContextMenu?: MouseEventHandler<HTMLDivElement>;
     className?: string;
+    style?: CSSProperties;
     role?: string;
     "aria-label"?: string;
     "aria-checked"?: boolean;
@@ -50,7 +54,14 @@ interface ButtonEntry {
 }
 
 export function UserAreaButton(props: UserAreaButtonProps) {
-    return <PanelButton {...props} className={classes("vc-plugin-icon-button", props.className)} />;
+    useSettings(TESTCORD_USER_AREA_ICON_COLOR_SETTING);
+    const iconColor = getTestcordIconColor("userAreaButtonIconColor");
+    const buttonStyle: CSSProperties & Record<"--vc-plugin-icon-color", string | undefined> = {
+        ...props.style,
+        "--vc-plugin-icon-color": iconColor
+    };
+
+    return <PanelButton {...props} className={classes("vc-plugin-icon-button", props.className)} style={buttonStyle} />;
 }
 
 const logger = new Logger("UserArea");
@@ -72,6 +83,15 @@ export function removeUserAreaButton(id: string) {
 
 function UserAreaButtons({ props }: { props: UserAreaRenderProps; }) {
     const [, forceUpdate] = useState(0);
+    useSettings(TESTCORD_USER_AREA_ICON_COLOR_SETTING);
+    const iconColor = getTestcordIconColor("userAreaButtonIconColor");
+    const buttonProps = {
+        ...props,
+        iconForeground: classes(props.iconForeground, "vc-plugin-icon-button")
+    };
+    const wrapperStyle: CSSProperties & Record<"--vc-plugin-icon-color", string | undefined> = {
+        "--vc-plugin-icon-color": iconColor
+    };
 
     useEffect(() => {
         const listener = () => forceUpdate(n => n + 1);
@@ -85,7 +105,9 @@ function UserAreaButtons({ props }: { props: UserAreaRenderProps; }) {
                 .sort(([, a], [, b]) => a.priority - b.priority)
                 .map(([id, { render: Button }]) => (
                     <ErrorBoundary noop key={id} onError={e => logger.error(`Failed to render ${id}`, e.error)}>
-                        <Button {...props} />
+                        <span className="vc-plugin-icon-button" style={wrapperStyle}>
+                            <Button {...buttonProps} />
+                        </span>
                     </ErrorBoundary>
                 ))}
         </>

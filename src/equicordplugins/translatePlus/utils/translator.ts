@@ -4,6 +4,7 @@
  * SPDX-License-Identifier: GPL-3.0-or-later
  */
 
+import { TestcordRequestCoordinator } from "@api/index";
 import { settings } from "@equicordplugins/translatePlus/settings";
 
 function isTokiPona(text: string) {
@@ -24,8 +25,18 @@ function isShavian(text: string) {
     return shavianRegex.test(text);
 }
 
+const SHAVIAN_DICT_URL = "https://raw.githubusercontent.com/ForkPrince/TranslatePlus/322199d5fdb1a9506591c9f4a2826338b5d67e38/shavian.json";
+const SITELEN_DICT_URL = "https://raw.githubusercontent.com/ForkPrince/TranslatePlus/5ca152b134ea11433971f21b2ef8d556d4306717/sitelen-pona.json";
+// Pinned to a commit hash, so the contents never change. Cache for a day; with
+// the TestcordHelper network optimizations off this is a plain passthrough fetch.
+const DICT_TTL_MS = 86_400_000;
+
 async function translateShavian(message: string) {
-    const dictionary = await (await fetch("https://raw.githubusercontent.com/ForkPrince/TranslatePlus/322199d5fdb1a9506591c9f4a2826338b5d67e38/shavian.json")).json();
+    const dictionary = await TestcordRequestCoordinator.request({
+        key: `translatePlus:dict:${SHAVIAN_DICT_URL}`,
+        ttlMs: DICT_TTL_MS,
+        run: () => fetch(SHAVIAN_DICT_URL).then(r => r.json()),
+    });
 
     const punctuationMap = {
         '"': "\"",
@@ -72,7 +83,11 @@ async function translateShavian(message: string) {
 async function translateSitelen(message: string) {
     message = Array.from(message).join(" ");
 
-    const dictionary = await (await fetch("https://raw.githubusercontent.com/ForkPrince/TranslatePlus/5ca152b134ea11433971f21b2ef8d556d4306717/sitelen-pona.json")).json();
+    const dictionary = await TestcordRequestCoordinator.request({
+        key: `translatePlus:dict:${SITELEN_DICT_URL}`,
+        ttlMs: DICT_TTL_MS,
+        run: () => fetch(SITELEN_DICT_URL).then(r => r.json()),
+    });
 
     const sorted = Object.keys(dictionary).sort((a, b) => b.length - a.length);
 
