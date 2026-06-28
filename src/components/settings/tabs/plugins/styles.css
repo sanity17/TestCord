@@ -34,13 +34,7 @@
     display: grid;
     place-items: center;
     transition: 0.12s ease-out;
-    transition-property: background-color, border-color, color;
-
-    &:hover {
-        background-color: var(--background-modifier-hover);
-        border-color: var(--border-subtle);
-        color: var(--interactive-icon-hover);
-    }
+    transition-property: color;
 }
 
 .vc-plugins-settings-button:hover {
@@ -98,8 +92,12 @@
     color: var(--text-status-idle);
 }
 
-.vc-plugins-info-icon:not(:hover, :focus) {
+.vc-plugins-info-icon {
     color: var(--text-subtle);
+}
+
+.vc-plugins-info-button:hover .vc-plugins-info-icon {
+    color: var(--interactive-active);
 }
 
 .vc-plugins-restart-button {
