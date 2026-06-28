@@ -164,7 +164,7 @@ if (!IS_VANILLA) {
             const disabledFeatures = new Set((args[1] ?? "").split(","));
             disabledFeatures.add("WidgetLayering");
             disabledFeatures.add("UseEcoQoSForBackgroundProcess");
-            args[1] += [...disabledFeatures].join(",");
+            args[1] = [...disabledFeatures].filter(Boolean).join(",");
         }
         return originalAppend.apply(this, args);
     };
