@@ -59,6 +59,11 @@ export default {
         openFolder: () => invoke<void>(IpcEvents.OPEN_SETTINGS_FOLDER),
     },
 
+    presets: {
+        get: () => invoke<Record<string, any>>(IpcEvents.GET_PRESETS),
+        set: (data: Record<string, any>) => invoke<void>(IpcEvents.SET_PRESETS, data),
+    },
+
     quickCss: {
         get: () => invoke<string>(IpcEvents.GET_QUICK_CSS),
         set: (css: string) => invoke<void>(IpcEvents.SET_QUICK_CSS, css),

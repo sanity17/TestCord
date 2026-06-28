@@ -5,13 +5,14 @@
  */
 
 import { definePluginSettings } from "@api/Settings";
-import { BackupRestoreIcon, CloudIcon, InfoIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PluginsIcon, UpdaterIcon } from "@components/Icons";
+import { BackupRestoreIcon, BookmarkIcon, CloudIcon, InfoIcon, LogIcon, MainSettingsIcon, PaintbrushIcon, PatchHelperIcon, PluginsIcon, UpdaterIcon } from "@components/Icons";
 import {
     BackupAndRestoreTab,
     ChangelogTab,
     CloudTab,
     PatchHelperTab,
     PluginsTab,
+    PresetsTab,
     StatsTab,
     ThemesTab,
     UpdaterTab,
@@ -229,6 +230,13 @@ export default definePlugin({
                 panelTitle: "TestCord Stats",
                 Component: StatsTab,
                 Icon: InfoIcon,
+            }),
+            buildEntry({
+                key: "testcord_presets",
+                title: "Presets",
+                panelTitle: "TestCord Presets",
+                Component: PresetsTab,
+                Icon: BookmarkIcon,
             }),
             buildEntry({
                 key: "equicord_cloud",

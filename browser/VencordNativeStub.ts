@@ -134,6 +134,17 @@ window.VencordNative = {
         openFolder: async () => Promise.reject("settings:openFolder is not supported on web"),
     },
 
+    presets: {
+        get: async () => {
+            try {
+                return JSON.parse(localStorage.getItem("VencordPresets") || "{}");
+            } catch {
+                return {};
+            }
+        },
+        set: async (data: any) => localStorage.setItem("VencordPresets", JSON.stringify(data)),
+    },
+
     pluginHelpers: {} as any,
     csp: {} as any,
     tray: {

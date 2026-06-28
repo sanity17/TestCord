@@ -11,7 +11,7 @@ import { mergeDefaults } from "@utils/mergeDefaults";
 import { ipcMain } from "electron";
 import { mkdirSync, readFileSync, writeFileSync } from "fs";
 
-import { NATIVE_SETTINGS_FILE, SETTINGS_DIR, SETTINGS_FILE } from "./utils/constants";
+import { NATIVE_SETTINGS_FILE, PRESETS_FILE, SETTINGS_DIR, SETTINGS_FILE } from "./utils/constants";
 
 mkdirSync(SETTINGS_DIR, { recursive: true });
 
@@ -41,6 +41,17 @@ ipcMain.on(IpcEvents.GET_SETTINGS, e => e.returnValue = RendererSettings.plain);
 
 ipcMain.handle(IpcEvents.SET_SETTINGS, (_, data: Settings, pathToNotify?: string) => {
     RendererSettings.setData(data, pathToNotify);
+});
+
+// Presets live in their own file at the shared (prod-level) dir so they persist
+// across build flags, instead of being trapped in the per-build settings.json.
+ipcMain.handle(IpcEvents.GET_PRESETS, () => readSettings("presets", PRESETS_FILE));
+ipcMain.handle(IpcEvents.SET_PRESETS, (_, data: Record<string, any>) => {
+    try {
+        writeFileSync(PRESETS_FILE, JSON.stringify(data, null, 4));
+    } catch (e) {
+        console.error("Failed to write presets", e);
+    }
 });
 
 export interface NativeSettings {
