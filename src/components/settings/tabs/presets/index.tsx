@@ -12,6 +12,7 @@ import { FormSwitch } from "@components/FormSwitch";
 import { MainSettingsIcon } from "@components/Icons";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
+import { Switch } from "@components/Switch";
 import { Margins } from "@utils/margins";
 import { saveFile } from "@utils/web";
 import { Alerts, React, showToast, Toasts } from "@webpack/common";
@@ -19,12 +20,12 @@ import { Alerts, React, showToast, Toasts } from "@webpack/common";
 import { openImportModal } from "./ImportModal";
 import { openInfoModal } from "./InfoModal";
 import { openNameModal } from "./NameModal";
-import { openSaveModal } from "./SaveModal";
 import {
     ANIM_KEYS, ANIM_LABELS, applyPreset, deletePreset, duplicatePreset, exportAllPresets,
     getAnim, getAnimMaster, getHideDuplicate, getRestoreDefault, hasPreset, listPresets, loadPresets,
-    Preset, renamePreset, savePreset, type ScopeKey, setAnim, setAnimMaster, setHideDuplicate, setRestoreDefault
+    Preset, renamePreset, savePreset, setAnim, setAnimMaster, setHideDuplicate, setRestoreDefault
 } from "./presets";
+import { openSaveModal } from "./SaveModal";
 
 // Sync animation prefs to <body> classes so both the tab and the modal portals
 // (which render outside this subtree) can key off them. master off => all off.
@@ -145,10 +146,10 @@ function PresetsTab() {
 
     const presets = listPresets();
 
-    const onSave = () => openNameModal("Save current as preset", "", name => {
+    const onSave = () => openSaveModal("", (name, scope) => {
         const exists = hasPreset(name);
-        const write = () => {
-            savePreset(name, Date.now());
+        const write = async () => {
+            await savePreset(name, Date.now(), scope);
             forceUpdate();
             showToast(`Saved preset "${name}".`, Toasts.Type.SUCCESS);
         };
@@ -159,10 +160,10 @@ function PresetsTab() {
                 confirmText: "Overwrite",
                 confirmColor: "danger",
                 cancelText: "Cancel",
-                onConfirm: write,
+                onConfirm: () => void write(),
             });
         } else {
-            write();
+            void write();
         }
     });
 
@@ -198,21 +199,28 @@ function PresetsTab() {
             />
 
             <div className="vc-presets-anim-section">
-                <FormSwitch
-                    value={animMaster}
-                    onChange={v => { setAnimMaster(v); syncAnimClasses(); forceUpdate(); }}
-                    title="Animations"
-                    description="Master switch for all preset-tab animations. Turn off to disable everything, or expand below to toggle individual animations."
-                />
-                <button
-                    type="button"
-                    className="vc-presets-anim-toggle"
-                    aria-expanded={animOpen}
-                    onClick={() => setAnimOpen(o => !o)}
-                >
-                    <span className={`vc-presets-anim-chevron${animOpen ? " vc-presets-anim-chevron-open" : ""}`}>▾</span>
-                    Individual animations
-                </button>
+                <div className="vc-form-switch-container">
+                    <div className="vc-form-switch vc-presets-anim-master-row">
+                        <button
+                            type="button"
+                            className="vc-form-switch-text vc-presets-anim-master-button"
+                            aria-expanded={animOpen}
+                            onClick={() => setAnimOpen(o => !o)}
+                        >
+                            <span className="vc-presets-anim-master-title">
+                                <span>Animations</span>
+                                <span className={`vc-presets-anim-chevron${animOpen ? " vc-presets-anim-chevron-open" : ""}`}>▾</span>
+                            </span>
+                            <span className="vc-presets-anim-master-description">Master switch for all preset-tab animations. Click here to toggle individual animation options.</span>
+                        </button>
+                        <div className="vc-form-switch-control">
+                            <Switch
+                                checked={animMaster}
+                                onChange={v => { setAnimMaster(v); syncAnimClasses(); forceUpdate(); }}
+                            />
+                        </div>
+                    </div>
+                </div>
                 <div className={`vc-presets-anim-list${animOpen ? " vc-presets-anim-list-open" : ""}${animMaster ? "" : " vc-presets-anim-list-disabled"}`}>
                     {ANIM_KEYS.map(key => (
                         <FormSwitch

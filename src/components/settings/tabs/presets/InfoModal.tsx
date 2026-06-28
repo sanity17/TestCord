@@ -28,9 +28,18 @@ function formatBytes(n: number) {
     return `${(n / (1024 * 1024)).toFixed(2)} MB`;
 }
 
-function InfoStat({ label, value, mono }: { label: string; value: React.ReactNode; mono?: boolean; }) {
+function InfoStat({ label, value, copyValue, mono }: { label: string; value: React.ReactNode; copyValue?: string | number; mono?: boolean; }) {
+    const copy = () => {
+        copyToClipboard(String(copyValue ?? value));
+        showToast(`${label} copied.`, Toasts.Type.SUCCESS);
+    };
+
     return (
-        <div className="vc-presets-stat">
+        <div className="vc-presets-stat" role="button" tabIndex={0} onClick={copy} onKeyDown={e => {
+            if (e.key !== "Enter" && e.key !== " ") return;
+            e.preventDefault();
+            copy();
+        }}>
             <span className="vc-presets-stat-label">{label}</span>
             <span className={`vc-presets-stat-value${mono ? " vc-presets-stat-mono" : ""}`}>{value}</span>
         </div>
@@ -49,7 +58,7 @@ function DevInfo({ preset, globalDefault }: { preset: LoadedPreset; globalDefaul
     return (
         <div className="vc-presets-stats">
             <InfoStat label="Name" value={preset.name} mono />
-            <InfoStat label="Created" value={formatDate(preset.createdAt)} />
+            <InfoStat label="Created" value={formatDate(preset.createdAt)} copyValue={formatDate(preset.createdAt)} />
             <InfoStat label="Timestamp" value={preset.createdAt || "—"} mono />
             <InfoStat label="Plugins (total)" value={entries.length} />
             <InfoStat label="Enabled" value={enabled.length} />

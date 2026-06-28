@@ -10,7 +10,7 @@ import { Paragraph } from "@components/Paragraph";
 import { ModalCloseButton, ModalContent, ModalFooter, ModalHeader, ModalRoot, ModalSize, openModal, type RenderModalProps } from "@utils/modal";
 import { React, TextInput } from "@webpack/common";
 
-import { ScopeKey } from "./presets";
+import type { ScopeKey } from "./presets";
 
 const SCOPES: { key: ScopeKey; label: string; description: string; warn?: boolean; }[] = [
     { key: "plugins", label: "Plugins", description: "Which plugins are enabled, plus each plugin's own settings." },
@@ -19,7 +19,7 @@ const SCOPES: { key: ScopeKey; label: string; description: string; warn?: boolea
     { key: "dataStore", label: "DataStore", description: "Plugin databases and stored data. May be large or contain sensitive info.", warn: true },
 ];
 
-function SaveModal({ modalProps, initialName, onSave }: { modalProps: RenderModalProps; initialName: string; onSave: (name: string, scope: ScopeKey[]) => void; }) {
+function SaveModal({ modalProps, initialName, onSave }: { modalProps: RenderModalProps; initialName: string; onSave: (name: string, scope: ScopeKey[]) => void | Promise<void>; }) {
     const [name, setName] = React.useState(initialName);
     const [scope, setScope] = React.useState<Record<ScopeKey, boolean>>({
         plugins: true, themes: true, quickCss: false, dataStore: false,
@@ -63,6 +63,6 @@ function SaveModal({ modalProps, initialName, onSave }: { modalProps: RenderModa
     );
 }
 
-export function openSaveModal(initialName: string, onSave: (name: string, scope: ScopeKey[]) => void) {
+export function openSaveModal(initialName: string, onSave: (name: string, scope: ScopeKey[]) => void | Promise<void>) {
     openModal(modalProps => <SaveModal modalProps={modalProps} initialName={initialName} onSave={onSave} />);
 }

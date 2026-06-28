@@ -54,23 +54,41 @@
     margin-top: 8px;
 }
 
-.vc-presets-anim-toggle {
+.vc-presets-anim-master-row {
+    cursor: default;
+}
+
+.vc-presets-anim-master-button {
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+    max-width: 80%;
+    padding: 0;
+    border: none;
+    background: transparent;
+    text-align: left;
+    cursor: pointer;
+}
+
+.vc-presets-anim-master-button:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: 2px;
+    border-radius: 4px;
+}
+
+.vc-presets-anim-master-title {
     display: inline-flex;
     align-items: center;
     gap: 6px;
-    margin: 8px 0 0;
-    padding: 4px 0;
-    border: none;
-    background: transparent;
-    color: var(--text-subtle, #888);
-    font-size: 13px;
-    font-weight: 600;
-    cursor: pointer;
-    transition: color .12s ease;
+    color: var(--text-strong);
+    font-size: 16px;
+    font-weight: 500;
 }
 
-.vc-presets-anim-toggle:hover {
-    color: var(--text-default, #ddd);
+.vc-presets-anim-master-description {
+    color: var(--text-subtle);
+    font-size: 14px;
+    line-height: 18px;
 }
 
 .vc-presets-anim-chevron {
@@ -484,11 +502,17 @@ body.vc-presets-noanim-jsonHover .vc-presets-modal-textarea:hover {
     gap: 16px;
     padding: 9px 14px;
     background: var(--background-base-lower-alt);
+    cursor: pointer;
     transition: background-color .12s ease;
 }
 
 .vc-presets-stat:hover {
     background: var(--background-base-low);
+}
+
+.vc-presets-stat:focus-visible {
+    outline: 2px solid var(--brand);
+    outline-offset: -2px;
 }
 
 .vc-presets-stat-label {
