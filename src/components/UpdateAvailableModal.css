@@ -1,0 +1,122 @@
+.vc-update-modal-root {
+    background:
+        linear-gradient(180deg, rgb(88 101 242 / 10%) 0, transparent 104px),
+        var(--modal-background, var(--background-primary, #313338));
+    border: 1px solid var(--background-modifier-accent, rgb(255 255 255 / 8%));
+    max-width: 456px;
+}
+
+.vc-update-modal-header {
+    align-items: center;
+    display: flex;
+    gap: 15px;
+    padding: 18px 18px 14px;
+}
+
+.vc-update-modal-icon {
+    border-radius: 16px;
+    box-shadow: 0 8px 22px rgb(0 0 0 / 24%);
+    height: 68px;
+    width: 68px;
+}
+
+.vc-update-modal-heading {
+    flex: 1;
+    min-width: 0;
+}
+
+.vc-update-modal-title {
+    color: var(--header-primary, #f2f3f5) !important; /* Override modal heading inheritance that can resolve to black in some themes. */
+    font-size: 24px;
+    font-weight: 800;
+    line-height: 29px;
+    margin: 0;
+    max-width: 300px;
+}
+
+.vc-update-modal-close {
+    margin-left: auto;
+    margin-top: -28px;
+}
+
+.vc-update-modal-content {
+    padding: 0 18px 14px;
+}
+
+.vc-update-modal-commits-title {
+    color: var(--interactive-normal, #b5bac1);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: .04em;
+    margin: 0 0 7px;
+    text-transform: uppercase;
+}
+
+.vc-update-modal-commits {
+    background:
+        linear-gradient(180deg, rgb(0 0 0 / 12%), rgb(0 0 0 / 4%)),
+        var(--background-secondary-alt, var(--background-tertiary, #1e1f22));
+    border: 1px solid var(--background-modifier-accent, rgb(255 255 255 / 8%));
+    box-shadow: inset 0 1px 0 rgb(255 255 255 / 4%);
+    border-radius: 8px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    margin: 0;
+    max-height: 176px;
+    overflow-y: auto;
+    padding: 6px 0;
+}
+
+.vc-update-modal-commit {
+    display: grid;
+    gap: 10px;
+    grid-template-columns: 62px 1fr;
+    list-style: none;
+    padding: 7px 11px;
+}
+
+.vc-update-modal-commit + .vc-update-modal-commit {
+    border-top: 1px solid var(--background-modifier-accent, rgb(255 255 255 / 8%));
+}
+
+.vc-update-modal-commit-hash {
+    color: var(--brand-360, #949cf7);
+    font-family: var(--font-code, ui-monospace, SFMono-Regular, Consolas, monospace);
+    font-size: 12.5px;
+    line-height: 20px;
+    white-space: nowrap;
+}
+
+.vc-update-modal-commit-body {
+    min-width: 0;
+}
+
+.vc-update-modal-commit-message {
+    color: var(--text-default, #dbdee1);
+    font-size: 13.5px;
+    font-weight: 500;
+    line-height: 19px;
+    margin: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+
+.vc-update-modal-commit-meta {
+    color: var(--text-muted, #949ba4);
+    font-size: 11.5px;
+    line-height: 15px;
+}
+
+.vc-update-modal-empty {
+    color: var(--text-muted, #949ba4);
+    font-size: 13px;
+    line-height: 20px;
+    margin: 0;
+}
+
+.vc-update-modal-footer {
+    gap: 8px;
+    padding: 12px 18px 18px;
+}

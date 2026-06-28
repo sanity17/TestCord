@@ -6,8 +6,7 @@
 
 import { Card } from "@components/Card";
 import { Switch } from "@components/Switch";
-import { Forms,React } from "@webpack/common";
-import { Button } from "@webpack/common";
+import { Button, Forms,React } from "@webpack/common";
 
 import { BDPluginManager } from "./PluginManager";
 

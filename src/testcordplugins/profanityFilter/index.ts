@@ -40,8 +40,8 @@ function filter(content: string): string {
     }
 
     result = result
-        .replace(/[ \t]{2,}/g, " ")      
-        .replace(/\s+([,.!?;:])/g, "$1") 
+        .replace(/[ \t]{2,}/g, " ")
+        .replace(/\s+([,.!?;:])/g, "$1")
         .trim();
 
     return result.length === 0 ? ":duck:" : result;

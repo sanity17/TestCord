@@ -31,6 +31,7 @@ export { PlainSettings, Settings };
 
 import { coreStyleRootNode, initStyles } from "@api/Styles";
 import { openSettingsTabModal, UpdaterTab } from "@components/settings";
+import { openUpdateAvailableModal } from "@components/UpdateAvailableModal";
 import { debounce } from "@shared/debounce";
 import { IS_WINDOWS } from "@utils/constants";
 import { createAndAppendStyle } from "@utils/css";
@@ -44,7 +45,7 @@ import { initPluginManager, PMLogger, startAllPlugins } from "./api/PluginManage
 import { PlainSettings, Settings, SettingsStore } from "./api/Settings";
 import { areLocalSettingsDirty, getCloudSettings, getCloudSyncDirection, markLocalSettingsDirty, putCloudSettings, shouldCloudSync } from "./api/SettingsSync/cloudSync";
 import { relaunch } from "./utils/native";
-import { checkForUpdates, isOutdated as getIsOutdated, update, UpdateLogger } from "./utils/updater";
+import { changes, checkForUpdates, isOutdated as getIsOutdated, update, UpdateLogger } from "./utils/updater";
 import { onceReady } from "./webpack";
 import { patches } from "./webpack/patchWebpack";
 
@@ -145,11 +146,14 @@ async function runUpdateCheck() {
                 if (notifiedForUpdatesThisSession) return;
                 notifiedForUpdatesThisSession = true;
 
-                showNotice(
-                    "Testcord has been updated for u!",
-                    "Restart",
-                    relaunch
-                );
+                openUpdateAvailableModal({
+                    commits: changes,
+                    title: "TestCord has updated!",
+                    confirmText: "View Updates",
+                    onConfirm: () => openSettingsTabModal(UpdaterTab!),
+                    onUpdate: relaunch,
+                    updateText: "Restart"
+                });
             }
             return;
         }
@@ -157,11 +161,16 @@ async function runUpdateCheck() {
         if (notifiedForUpdatesThisSession) return;
         notifiedForUpdatesThisSession = true;
 
-        showNotice(
-            "A new version of Testcord is available!",
-            "View Update",
-            () => openSettingsTabModal(UpdaterTab!)
-        );
+        openUpdateAvailableModal({
+            commits: changes,
+            title: "TestCord has updated!",
+            confirmText: "View Updates",
+            onConfirm: () => openSettingsTabModal(UpdaterTab!),
+            onUpdate: async () => {
+                await update();
+                relaunch();
+            }
+        });
     } catch (err) {
         UpdateLogger.error("Failed to check for updates", err);
     }
