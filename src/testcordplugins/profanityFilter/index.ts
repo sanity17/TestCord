@@ -19,6 +19,11 @@ const settings = definePluginSettings({
         type: OptionType.STRING,
         description: "Words to filter, separated by commas or newlines. Strict whole-word, case-insensitive; combined words (e.g. \"fuckass\") are never matched.",
         default: ""
+    },
+    duckOnEmpty: {
+        type: OptionType.BOOLEAN,
+        description: "Send :duck: when filtering empties a message. Off: an emptied message sends nothing (and never sends a duck alongside attachments).",
+        default: true
     }
 });
 
@@ -39,12 +44,10 @@ function filter(content: string): string {
         result = result.replace(new RegExp(`\\b${escaped}\\b`, "gi"), "");
     }
 
-    result = result
-        .replace(/[ \t]{2,}/g, " ")
-        .replace(/\s+([,.!?;:])/g, "$1")
+    return result
+        .replace(/[ \t]{2,}/g, " ")      // collapse runs of spaces left by removal
+        .replace(/\s+([,.!?;:])/g, "$1") // drop space before punctuation
         .trim();
-
-    return result.length === 0 ? ":duck:" : result;
 }
 
 function toggleHandler(e: KeyboardEvent) {
@@ -81,8 +84,17 @@ export default definePlugin({
     onBeforeMessageSend(_, msg) {
         if (!settings.store.enabled || typeof msg.content !== "string") return;
         const filtered = filter(msg.content);
-        if (filtered !== msg.content) {
+        const wasFiltered = filtered !== msg.content;
+
+        // No text left (filtered away, or never typed): send a duck if enabled.
+        // This fires even on a bare image with an empty caption.
+        if (filtered.length === 0) {
+            if (settings.store.duckOnEmpty) msg.content = ":duck:";
+        } else {
             msg.content = filtered;
+        }
+
+        if (wasFiltered) {
             Toasts.show({
                 message: "Filtered profanity from message",
                 id: Toasts.genId(),
