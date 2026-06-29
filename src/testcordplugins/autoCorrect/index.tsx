@@ -11,7 +11,8 @@ import { showApiKeyWarning } from "@utils/apiKeyWarning";
 import definePlugin, { OptionType } from "@utils/types";
 import { React } from "@webpack/common";
 
-import { getGroqKey, groqChat } from "../nightcordAI/groqManager";
+import { effectiveProviderRequiresGroqKey, HOMELANDER_MODEL_OPTIONS, LOCAL_PROVIDER_OPTIONS, SURF_MODEL_OPTIONS, SWISHAI_MODEL_OPTIONS, testcordChat } from "../TestcordAI/aiProvider";
+import { getGroqKey } from "../TestcordAI/groqManager";
 
 const settings = definePluginSettings({
     location: {
@@ -54,6 +55,39 @@ const settings = definePluginSettings({
         ],
         default: "low",
     },
+    provider: {
+        type: OptionType.SELECT,
+        description: "AI provider",
+        options: LOCAL_PROVIDER_OPTIONS,
+        default: "testcord",
+    },
+    groqModel: {
+        type: OptionType.STRING,
+        description: "Groq model override",
+        default: "llama-3.1-8b-instant",
+        hidden: () => settings.store.provider !== "groq",
+    },
+    homelanderModel: {
+        type: OptionType.SELECT,
+        description: "Homelander model",
+        options: HOMELANDER_MODEL_OPTIONS,
+        default: "openai/gpt-5.5",
+        hidden: () => settings.store.provider !== "homelander",
+    },
+    swishAiModel: {
+        type: OptionType.SELECT,
+        description: "SwishAI model",
+        options: SWISHAI_MODEL_OPTIONS,
+        default: "gpt-5.5",
+        hidden: () => settings.store.provider !== "swishai",
+    },
+    surfModel: {
+        type: OptionType.SELECT,
+        description: "Unlimited Surf model",
+        options: SURF_MODEL_OPTIONS,
+        default: "gateway-claude-opus-4-7",
+        hidden: () => settings.store.provider !== "unlimited-surf",
+    },
 });
 
 const LANG_PROMPTS: Record<string, string> = {
@@ -81,14 +115,18 @@ async function correctText(text: string): Promise<string> {
     const systemPrompt = (LANG_PROMPTS[lang] ?? LANG_PROMPTS.en) + (AGGR_SUFFIX[aggr] ?? "");
 
     try {
-        const corrected = await groqChat({
+        const corrected = await testcordChat({
+            provider: settings.store.provider,
+            groqModel: settings.store.groqModel,
+            homelanderModel: settings.store.homelanderModel,
+            swishAiModel: settings.store.swishAiModel,
+            surfModel: settings.store.surfModel,
             messages: [
                 { role: "system", content: systemPrompt },
                 { role: "user", content: text },
             ],
             temperature: 0,
             maxTokens: 512,
-            forceModel: "llama-3.1-8b-instant",
         });
 
         if (!corrected || corrected.trim() === "" || corrected === text) return text;
@@ -137,8 +175,7 @@ const AutoCorrectChatBarButton: ChatBarButtonFactory = ({ type }) => {
 
     const toggle = async () => {
         if (!enabled) {
-            const key = await getGroqKey();
-            if (!key) {
+            if (effectiveProviderRequiresGroqKey(settings.store.provider) && !await getGroqKey()) {
                 showApiKeyWarning("AutoCorrect");
                 return;
             }

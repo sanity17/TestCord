@@ -11,7 +11,8 @@ import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy } from "@webpack";
 import { ChannelStore, React,RestAPI, UserStore } from "@webpack/common";
 
-import { getGroqKey,groqChat } from "../nightcordAI/groqManager";
+import { effectiveProviderRequiresGroqKey, HOMELANDER_MODEL_OPTIONS, LOCAL_PROVIDER_OPTIONS, SURF_MODEL_OPTIONS, SWISHAI_MODEL_OPTIONS, testcordChat } from "../TestcordAI/aiProvider";
+import { getGroqKey } from "../TestcordAI/groqManager";
 
 const MessageStore = findByPropsLazy("getMessages");
 
@@ -46,7 +47,7 @@ const settings = definePluginSettings({
                     <div style={{ fontWeight: "bold", color: "var(--status-warning)" }}>API Key Required</div>
                     <div style={{ fontSize: "13px", marginTop: "4px" }}>
                         AutoResponder requires a Groq API Key to function.
-                        Please configure it once in the <strong>NightcordAI</strong> settings.
+                        Please configure it once in the <strong>TestcordAI</strong> settings.
                     </div>
                 </div>
             </div>
@@ -57,6 +58,45 @@ const settings = definePluginSettings({
         description: "AutoResponder functional status",
         default: false,
         restartNeeded: false
+    },
+    talkInServers: {
+        type: OptionType.BOOLEAN,
+        description: "Reply in servers when someone pings you, replies to you, or continues a tracked conversation.",
+        default: false,
+        restartNeeded: false,
+    },
+    provider: {
+        type: OptionType.SELECT,
+        description: "AI provider",
+        options: LOCAL_PROVIDER_OPTIONS,
+        default: "testcord",
+    },
+    groqModel: {
+        type: OptionType.STRING,
+        description: "Groq model override",
+        default: "",
+        hidden: () => settings.store.provider !== "groq",
+    },
+    homelanderModel: {
+        type: OptionType.SELECT,
+        description: "Homelander model",
+        options: HOMELANDER_MODEL_OPTIONS,
+        default: "openai/gpt-5.5",
+        hidden: () => settings.store.provider !== "homelander",
+    },
+    swishAiModel: {
+        type: OptionType.SELECT,
+        description: "SwishAI model",
+        options: SWISHAI_MODEL_OPTIONS,
+        default: "gpt-5.5",
+        hidden: () => settings.store.provider !== "swishai",
+    },
+    surfModel: {
+        type: OptionType.SELECT,
+        description: "Unlimited Surf model",
+        options: SURF_MODEL_OPTIONS,
+        default: "gateway-claude-opus-4-7",
+        hidden: () => settings.store.provider !== "unlimited-surf",
     },
     personalInfo: {
         type: OptionType.STRING,
@@ -103,10 +143,38 @@ const settings = definePluginSettings({
 });
 
 const DS_STYLE_KEY = "auto-responder-global-style";
+const SERVER_THREAD_TTL = 10 * 60 * 1000;
 
 let lastMessageId = "";
 const cachedGlobalStyle = "";
 const pendingResponses = new Set<ReturnType<typeof setTimeout>>();
+const serverThreads = new Map<string, { userId: string; lastIncomingMessageId: string; lastResponseMessageId: string; lastActivity: number; }>();
+
+function isMentioningUser(message: any, userId: string) {
+    return message.content?.includes(`<@${userId}>`) || message.content?.includes(`<@!${userId}>`) || message.mentions?.some((user: any) => user.id === userId);
+}
+
+function getReferencedMessage(message: any) {
+    const referencedId = message.message_reference?.message_id || message.referenced_message?.id;
+    if (!referencedId) return undefined;
+    return message.referenced_message || MessageStore.getMessage?.(message.channel_id, referencedId);
+}
+
+function getServerTrigger(message: any, currentUserId: string) {
+    const now = Date.now();
+    const thread = serverThreads.get(message.channel_id);
+    const referenced = getReferencedMessage(message);
+
+    if (isMentioningUser(message, currentUserId)) return "mention";
+    if (referenced?.author?.id === currentUserId) return "reply";
+    if (thread && thread.userId === message.author.id && now - thread.lastActivity < SERVER_THREAD_TTL) return "followup";
+
+    return undefined;
+}
+
+async function hasRequiredKey() {
+    return !effectiveProviderRequiresGroqKey(settings.store.provider) || Boolean(await getGroqKey());
+}
 
 async function handleMessage(message: any) {
     if (!settings.store.isActive) return;
@@ -124,24 +192,26 @@ async function handleMessage(message: any) {
     if (message.id === lastMessageId) return;
 
     const channel = ChannelStore.getChannel(message.channel_id);
-    // STRICT RESTRICTION: Only DMs (Type 1)
-    if (!channel || channel.type !== 1) return;
+    if (!channel) return;
+
+    const isDm = channel.type === 1;
+    const serverTrigger = isDm ? undefined : settings.store.talkInServers ? getServerTrigger(message, currentUser.id) : undefined;
+    if (!isDm && !serverTrigger) return;
 
     lastMessageId = message.id;
 
     try {
-        const apiKey = await getGroqKey();
-        if (!apiKey) {
+        if (!await hasRequiredKey()) {
             try {
                 const { openConfirmationModal } = findByPropsLazy("openConfirmationModal");
                 openConfirmationModal({
                     header: "API Key Required",
-                    content: "AutoResponder requires a Groq API Key to function. Please configure it once in the NightcordAI settings.",
-                    confirmText: "Configure NightcordAI",
+                    content: "AutoResponder requires a Groq API Key to function. Please configure it once in the TestcordAI settings.",
+                    confirmText: "Configure TestcordAI",
                     cancelText: "Cancel",
                     onConfirm: () => {
                         const { openModal } = findByPropsLazy("openModal");
-                        // Logic to open NightcordAI settings if possible
+                        // Logic to open TestcordAI settings if possible
                     }
                 });
             } catch (e) {
@@ -150,20 +220,22 @@ async function handleMessage(message: any) {
             return;
         }
 
-        // Retrieve recent history for coherence
         let localHistory = "";
         try {
             const msgs = MessageStore.getMessages(message.channel_id).toArray().slice(-15);
             localHistory = msgs.map((m: any) => {
-                const author = m.author.id === currentUser.id ? "ME" : "FRIEND";
+                const author = m.author.id === currentUser.id ? "ME" : m.author.id === message.author.id ? "FRIEND" : m.author.username || "OTHER";
                 return `${author}: ${m.content}`;
             }).join("\n");
         } catch { }
 
-        const prompt = `You are the user (ME). Reply to the last message from FRIEND.
+        const prompt = `You are the user (ME). Reply to the last message from FRIEND.${isDm ? "" : " This is a server channel, so only respond to FRIEND and ignore unrelated people."}
         
 MY PERSONAL INFO:
 ${settings.store.personalInfo}
+
+MY WRITING STYLE:
+${settings.store.writingStyle}
 
 MY INSTRUCTIONS:
 ${settings.store.customInstructions}
@@ -176,6 +248,9 @@ ${localHistory}
 
 LATEST MESSAGE : "${message.content}"
 
+CONTEXT:
+${isDm ? "Direct message." : `Server trigger: ${serverTrigger}. Always reply to this exact message.`}
+
 BEHAVIOR RULES (CRUCIAL):
 1. SHORT REPLIES: Keep responses concise (1 or 2 sentences max). Don't write long paragraphs.
 2. DISCREET INFO: Only use my personal info (e.g. Paris) if relevant. Don't bring everything back to Paris in every message.
@@ -185,7 +260,12 @@ BEHAVIOR RULES (CRUCIAL):
 MISSION:
 Reply naturally. ONLY RETURN THE TEXT OF YOUR REPLY.`;
 
-        const reply = await groqChat({
+        const reply = await testcordChat({
+            provider: settings.store.provider,
+            groqModel: settings.store.groqModel,
+            homelanderModel: settings.store.homelanderModel,
+            swishAiModel: settings.store.swishAiModel,
+            surfModel: settings.store.surfModel,
             messages: [
                 { role: "system", content: "You are an ultra-customizable AutoResponder for Discord." },
                 { role: "user", content: prompt }
@@ -208,10 +288,29 @@ Reply naturally. ONLY RETURN THE TEXT OF YOUR REPLY.`;
             const timeout = setTimeout(async () => {
                 pendingResponses.delete(timeout);
                 if (!settings.store.isActive) return;
-                await RestAPI.post({
+                const res = await RestAPI.post({
                     url: `/channels/${message.channel_id}/messages`,
-                    body: { content: reply }
+                    body: isDm ? { content: reply } : {
+                        content: reply,
+                        message_reference: {
+                            message_id: message.id,
+                            channel_id: message.channel_id,
+                            guild_id: message.guild_id,
+                        },
+                        allowed_mentions: {
+                            parse: ["users"],
+                            replied_user: true,
+                        },
+                    }
                 });
+                if (!isDm) {
+                    serverThreads.set(message.channel_id, {
+                        userId: message.author.id,
+                        lastIncomingMessageId: message.id,
+                        lastResponseMessageId: res.body?.id ?? "",
+                        lastActivity: Date.now(),
+                    });
+                }
             }, totalDelay);
             pendingResponses.add(timeout);
         }
@@ -273,13 +372,12 @@ const AutoResponderButton = () => {
         const newState = !settings.store.isActive;
 
         if (newState) {
-            const key = await getGroqKey();
-            if (!key) {
+            if (!await hasRequiredKey()) {
                 try {
                     const { openConfirmationModal } = findByPropsLazy("openConfirmationModal");
                     openConfirmationModal({
                         header: "API Key Required",
-                        content: "AutoResponder requires a Groq API Key to function. Please configure it once in the NightcordAI settings.",
+                        content: "AutoResponder requires a Groq API Key to function. Please configure it once in the TestcordAI settings.",
                         confirmText: "Close",
                         confirmColor: "brand"
                     });
@@ -347,6 +445,7 @@ export default definePlugin({
     stop() {
         for (const timeout of pendingResponses) clearTimeout(timeout);
         pendingResponses.clear();
+        serverThreads.clear();
         removeHeaderBarButton("AutoResponder");
         removeChannelToolbarButton("AutoResponder");
     }

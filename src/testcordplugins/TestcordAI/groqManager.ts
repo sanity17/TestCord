@@ -77,7 +77,7 @@ export function registerSettingsFallback(fn: () => string) {
 export async function getGroqKey(): Promise<string> {
     const key = await DataStore.get(DS_API_KEY) as string | null;
     if (key?.trim()) return key.trim();
-    // Fallback: read from NightcordAI Settings if available
+    // Fallback: read from TestcordAI Settings if available
     if (_settingsFallback) {
         const fallback = _settingsFallback();
         if (fallback) return fallback;
@@ -164,7 +164,7 @@ async function _groqChat(opts: GroqCallOptions, attempt = 0): Promise<string> {
     const { messages, temperature = 0.7, maxTokens = 1000, forceModel, maxRetries = 3 } = opts;
 
     const apiKey = await getGroqKey();
-    if (!apiKey) throw new Error("Groq API key missing — configure it in Settings → NightcordAI");
+    if (!apiKey) throw new Error("Groq API key missing — configure it in Settings → TestcordAI");
 
     const model = forceModel ?? getAvailableModel();
 

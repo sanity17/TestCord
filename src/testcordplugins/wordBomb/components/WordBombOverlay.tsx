@@ -6,7 +6,7 @@
 
 import { ComponentDispatch,createRoot, React, ReactDOM, useEffect, useRef, useState } from "@webpack/common";
 
-import { getGroqKey } from "../../nightcordAI/groqManager";
+import { HOMELANDER_MODEL_OPTIONS, LOCAL_PROVIDER_OPTIONS, SURF_MODEL_OPTIONS, SWISHAI_MODEL_OPTIONS, testcordChat } from "../../TestcordAI/aiProvider";
 
 const DICT_URLS = [
     "https://raw.githubusercontent.com/words/an-array-of-french-words/master/index.json",
@@ -86,6 +86,11 @@ export function WordBombOverlay() {
     const [lps, setLps] = useState(() => parseFloat(getSetting("wb_lps", "50")));
     const [humanChance, setHumanChance] = useState(() => parseInt(getSetting("wb_humanChance", "0")));
     const [safeMode, setSafeMode] = useState(() => getSetting("wb_safeMode", "true") === "true");
+    const [aiProvider, setAiProvider] = useState(() => getSetting("wb_aiProvider", "testcord"));
+    const [groqModel, setGroqModel] = useState(() => getSetting("wb_groqModel", "llama-3.1-8b-instant"));
+    const [homelanderModel, setHomelanderModel] = useState(() => getSetting("wb_homelanderModel", "openai/gpt-5.5"));
+    const [swishAiModel, setSwishAiModel] = useState(() => getSetting("wb_swishAiModel", "gpt-5.5"));
+    const [surfModel, setSurfModel] = useState(() => getSetting("wb_surfModel", "gateway-claude-opus-4-7"));
     const [theme, setTheme] = useState(() => getSetting("wb_theme", ""));
     const [themeWords, setThemeWords] = useState<Set<string>>(new Set());
     const [playMode, setPlayMode] = useState(() => getSetting("wb_playMode", "Normal"));
@@ -378,36 +383,21 @@ export function WordBombOverlay() {
 
         if (safeMode) {
             setDefinition("Generating AI definition...");
-            const groqKey = await getGroqKey().catch(() => "");
-            if (!groqKey) {
-                setDefinition("Error: Groq API key missing in NightcordAI.");
-            } else {
-                fetch("https://api.groq.com/openai/v1/chat/completions", {
-                    method: "POST",
-                    headers: {
-                        "Content-Type": "application/json",
-                        Authorization: `Bearer ${groqKey}`,
-                    },
-                    body: JSON.stringify({
-                        model: "llama-3.1-8b-instant",
-                        temperature: 0.7,
-                        max_tokens: 150,
-                        messages: [{
-                            role: "user",
-                            content: `Give a very short definition (1 simple sentence) for the following word, explaining what it concretely is, without stating its grammatical type. Answer in English. Word: "${word}"`
-                        }]
-                    }),
-                })
-                .then(r => r.json())
-                .then(data => {
-                    const ans = data.choices?.[0]?.message?.content?.trim();
-                    if (ans) {
-                        setDefinition(ans);
-                    } else {
-                        setDefinition("AI could not define this word.");
-                    }
-                }).catch(() => setDefinition("Network error (Groq API)."));
-            }
+            testcordChat({
+                provider: aiProvider,
+                groqModel,
+                homelanderModel,
+                swishAiModel,
+                surfModel,
+                temperature: 0.7,
+                maxTokens: 150,
+                messages: [{
+                    role: "user",
+                    content: `Give a very short definition (1 simple sentence) for the following word, explaining what it concretely is, without stating its grammatical type. Answer in English. Word: "${word}"`
+                }],
+            })
+                .then(ans => setDefinition(ans.trim() || "AI could not define this word."))
+                .catch(e => setDefinition(`AI definition error: ${e?.message || "request failed"}`));
         } else {
             setDefinition("");
         }
@@ -620,6 +610,53 @@ export function WordBombOverlay() {
                         <div style={{ fontSize: "10px", opacity: 0.6, marginTop: "4px", marginBottom: "15px" }}>
                             Displays the definition of the word the bot just typed to pretend you know it.
                         </div>
+                        {safeMode && (
+                            <>
+                                <div className="nc-wb-setting-item" style={{ marginBottom: "10px" }}>
+                                    <label style={{ fontSize: "13px", color: "#a78bfa", fontWeight: "bold" }}>AI Provider</label>
+                                    <select
+                                        value={aiProvider}
+                                        onChange={e => {
+                                            setAiProvider(e.target.value);
+                                            setSetting("wb_aiProvider", e.target.value);
+                                        }}
+                                        style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "none", background: "#374151", color: "white", marginTop: "5px", outline: "none" }}
+                                    >
+                                        {LOCAL_PROVIDER_OPTIONS.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}
+                                    </select>
+                                </div>
+                                {aiProvider === "groq" && (
+                                    <div className="nc-wb-setting-item" style={{ marginBottom: "10px" }}>
+                                        <label>Groq Model</label>
+                                        <input value={groqModel} onChange={e => { setGroqModel(e.target.value); setSetting("wb_groqModel", e.target.value); }} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "none", background: "#374151", color: "white", marginTop: "5px" }} />
+                                    </div>
+                                )}
+                                {aiProvider === "homelander" && (
+                                    <div className="nc-wb-setting-item" style={{ marginBottom: "10px" }}>
+                                        <label>Homelander Model</label>
+                                        <select value={homelanderModel} onChange={e => { setHomelanderModel(e.target.value); setSetting("wb_homelanderModel", e.target.value); }} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "none", background: "#374151", color: "white", marginTop: "5px" }}>
+                                            {HOMELANDER_MODEL_OPTIONS.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                {aiProvider === "swishai" && (
+                                    <div className="nc-wb-setting-item" style={{ marginBottom: "10px" }}>
+                                        <label>SwishAI Model</label>
+                                        <select value={swishAiModel} onChange={e => { setSwishAiModel(e.target.value); setSetting("wb_swishAiModel", e.target.value); }} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "none", background: "#374151", color: "white", marginTop: "5px" }}>
+                                            {SWISHAI_MODEL_OPTIONS.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                                {aiProvider === "unlimited-surf" && (
+                                    <div className="nc-wb-setting-item" style={{ marginBottom: "10px" }}>
+                                        <label>Unlimited Surf Model</label>
+                                        <select value={surfModel} onChange={e => { setSurfModel(e.target.value); setSetting("wb_surfModel", e.target.value); }} style={{ width: "100%", padding: "6px", borderRadius: "6px", border: "none", background: "#374151", color: "white", marginTop: "5px" }}>
+                                            {SURF_MODEL_OPTIONS.map(o => <option value={o.value} key={o.value}>{o.label}</option>)}
+                                        </select>
+                                    </div>
+                                )}
+                            </>
+                        )}
                         <button className="nc-wb-button" style={{ width: "100%", padding: "8px", background: "#4b5563", border: "none", borderRadius: "8px", color: "white" }} onClick={() => setIsSettingsOpen(false)}>
                             BACK
                         </button>

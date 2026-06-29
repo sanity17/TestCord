@@ -65,9 +65,11 @@ export const CspPolicies: PolicyMap = {
     "usrbg.is-hardly.online": ImageSrc, // USRBG API
     "icons.duckduckgo.com": ImageSrc, // DuckDuckGo Favicon API (Reverse Image Search)
 
-    // AI APIs — used by Testcord plugins (NightcordAI, ChatGPT, AutoCorrect, VoiceDictation, TriviaAI, etc.)
+    // AI APIs — used by Testcord plugins (TestcordAI, ChatGPT, AutoCorrect, VoiceDictation, TriviaAI, etc.)
     "api.groq.com": ConnectSrc,
     "api.openai.com": ConnectSrc,
+    "homelander.ca": ConnectSrc,
+    "swishai.up.railway.app": ConnectSrc,
 
     // HCaptcha
     "*.hcaptcha.com": [...CSPSrc, "script-src"],

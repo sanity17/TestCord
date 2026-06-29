@@ -116,14 +116,20 @@ export function HeaderBarButton(props: HeaderBarButtonProps & { ref?: React.RefO
     };
 
     return (
-        <Tooltip text={tooltip ?? ""} position={position} shouldShow={tooltip != null}>
+        <Tooltip key={String(tooltip)} text={tooltip ?? ""} position={position} shouldShow={tooltip != null}>
             {({ onMouseEnter, onMouseLeave }) => (
                 <Clickable
                     {...{ innerRef: ref } as any}
                     className={classes(HeaderBarClasses.clickable, "vc-plugin-icon-button", className)}
                     style={buttonStyle}
-                    onClick={onClick}
-                    onContextMenu={onContextMenu}
+                    onClick={event => {
+                        onClick?.(event);
+                        headerBarListeners.forEach(listener => listener());
+                    }}
+                    onContextMenu={event => {
+                        onContextMenu?.(event);
+                        headerBarListeners.forEach(listener => listener());
+                    }}
                     onMouseEnter={onMouseEnter}
                     onMouseLeave={onMouseLeave}
                     role="button"
@@ -160,9 +166,18 @@ export function ChannelToolbarButton(props: ChannelToolbarButtonProps) {
     return (
         <span className="vc-plugin-icon-button" style={wrapperStyle}>
             <HeaderBarIcon
+                key={String(props.tooltip)}
                 {...props}
                 className={classes("vc-plugin-icon-button", props.className)}
                 iconClassName={classes("vc-plugin-icon-button", props.iconClassName)}
+                onClick={event => {
+                    props.onClick?.(event);
+                    channelToolbarListeners.forEach(listener => listener());
+                }}
+                onContextMenu={event => {
+                    props.onContextMenu?.(event);
+                    channelToolbarListeners.forEach(listener => listener());
+                }}
             />
         </span>
     );
