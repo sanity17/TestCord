@@ -13,9 +13,10 @@ import { Heading } from "@components/Heading";
 import { Link } from "@components/Link";
 import { Paragraph } from "@components/Paragraph";
 import { SettingsTab, wrapTab } from "@components/settings/tabs/BaseTab";
+import { copyToClipboard } from "@utils/clipboard";
 import { Margins } from "@utils/margins";
 import { Plugin } from "@utils/types";
-import { React } from "@webpack/common";
+import { React, showToast, Toasts } from "@webpack/common";
 
 import { PluginMeta } from "~plugins";
 
@@ -121,8 +122,26 @@ function computeStats(): Stats {
 }
 
 function StatRow({ label, value }: { label: string; value: React.ReactNode; }) {
+    const canCopy = typeof value === "string" || typeof value === "number";
+    const copy = () => {
+        if (!canCopy) return;
+        copyToClipboard(String(value));
+        showToast(`${label} copied.`, Toasts.Type.SUCCESS);
+    };
+
     return (
-        <div className="vc-stats-row">
+        <div
+            className={`vc-stats-row${canCopy ? " vc-stats-row-copyable" : ""}`}
+            role={canCopy ? "button" : undefined}
+            tabIndex={canCopy ? 0 : undefined}
+            title={canCopy ? "Click to copy" : undefined}
+            onClick={copy}
+            onKeyDown={e => {
+                if (!canCopy || (e.key !== "Enter" && e.key !== " ")) return;
+                e.preventDefault();
+                copy();
+            }}
+        >
             <span className="vc-stats-label">{label}</span>
             <span className="vc-stats-value">{value}</span>
         </div>
@@ -135,6 +154,15 @@ function StatCard({ title, rows }: { title: string; rows: [string, React.ReactNo
         <Card className={`vc-stats-card ${Margins.bottom16}`}>
             <Heading tag="h3" className={Margins.bottom8}>{title}</Heading>
             {rows.map(([label, value]) => <StatRow key={label} label={label} value={value} />)}
+        </Card>
+    );
+}
+
+function HeroStat({ value, label, tone }: { value: React.ReactNode; label: string; tone: string; }) {
+    return (
+        <Card className={`vc-stats-card vc-stats-hero vc-stats-hero-${tone}`}>
+            <Heading tag="h2">{value}</Heading>
+            <Paragraph>{label}</Paragraph>
         </Card>
     );
 }
@@ -154,22 +182,10 @@ function StatsTab() {
     return (
         <SettingsTab>
             <div className="vc-stats-grid">
-                <Card className="vc-stats-card vc-stats-hero">
-                    <Heading tag="h2">{s.enabled}</Heading>
-                    <Paragraph>plugins enabled</Paragraph>
-                </Card>
-                <Card className="vc-stats-card vc-stats-hero">
-                    <Heading tag="h2">{s.total}</Heading>
-                    <Paragraph>plugins available</Paragraph>
-                </Card>
-                <Card className="vc-stats-card vc-stats-hero">
-                    <Heading tag="h2">{s.categories.length}</Heading>
-                    <Paragraph>categories in use</Paragraph>
-                </Card>
-                <Card className="vc-stats-card vc-stats-hero">
-                    <Heading tag="h2">{s.totalPatches}</Heading>
-                    <Paragraph>active patches</Paragraph>
-                </Card>
+                <HeroStat value={s.enabled} label="plugins enabled" tone="enabled" />
+                <HeroStat value={s.total} label="plugins available" tone="available" />
+                <HeroStat value={s.categories.length} label="categories in use" tone="categories" />
+                <HeroStat value={s.totalPatches} label="active patches" tone="patches" />
             </div>
 
             <StatCard title="Overview" rows={[
