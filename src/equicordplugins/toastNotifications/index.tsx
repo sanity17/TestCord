@@ -9,14 +9,24 @@ import { Button } from "@components/Button";
 import { EquicordDevs } from "@utils/constants";
 import definePlugin, { makeRange, OptionType } from "@utils/types";
 import { Channel, Message } from "@vencord/discord-types";
-import { findByPropsLazy, findStore } from "@webpack";
+import { findByPropsLazy, findStoreLazy } from "@webpack";
 import { ChannelStore, IconUtils, MessageStore, NavigationRouter, PresenceStore, RelationshipStore, SelectedChannelStore, StreamerModeStore, UserStore } from "@webpack/common";
 
 import { setContainerPosition, showNotification, teardownNotifications } from "./components/Notifications";
 
+interface UserGuildSettingsStore {
+    getAllSettings(): {
+        userGuildSettings: Record<string, {
+            message_notifications?: number;
+            channel_overrides?: Record<string, { message_notifications?: number; }>;
+        } | undefined>;
+    };
+}
+
 const MuteStore = findByPropsLazy("isSuppressEveryoneEnabled");
 const SelectedChannelActionCreators = findByPropsLazy("selectPrivateChannel");
 const ChannelRTCActions = findByPropsLazy("updateChatOpen", "toggleParticipants");
+const UserGuildSettingsStore = findStoreLazy("UserGuildSettingsStore") as UserGuildSettingsStore;
 
 const ID_REGEX = /^\d{17,20}$/;
 
@@ -211,13 +221,11 @@ function shouldNotifyForGuildMessage(message: Message, channel: Channel): boolea
     if (MuteStore.isGuildOrCategoryOrChannelMuted(channel.guild_id, channel.id)) return false;
 
     // Resolve the user's configured notification level for the channel/guild.
-    const userGuildSettings = findStore("UserGuildSettingsStore").getAllSettings().userGuildSettings[channel.guild_id];
+    const userGuildSettings = UserGuildSettingsStore.getAllSettings().userGuildSettings[channel.guild_id];
     if (!userGuildSettings) return false;
 
     const channelOverride = userGuildSettings.channel_overrides?.[channel.id];
-    const level: NotificationLevel = (channelOverride && typeof channelOverride === "object" && "message_notifications" in channelOverride)
-        ? channelOverride.message_notifications
-        : (typeof userGuildSettings.message_notifications === "number" ? userGuildSettings.message_notifications : NotificationLevel.NO_MESSAGES);
+    const level = channelOverride?.message_notifications ?? userGuildSettings.message_notifications ?? NotificationLevel.NO_MESSAGES;
 
     if (level === NotificationLevel.NO_MESSAGES) return false;
     if (level === NotificationLevel.ALL_MESSAGES) return true;

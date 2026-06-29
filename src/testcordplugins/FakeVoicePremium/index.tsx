@@ -11,7 +11,7 @@ import ErrorBoundary from "@components/ErrorBoundary";
 import { EquicordDevs, TestcordDevs } from "@utils/constants";
 import definePlugin from "@utils/types";
 import type { Channel, VoiceState } from "@vencord/discord-types";
-import { findByCode, findByProps, findByPropsLazy, findStore } from "@webpack";
+import { findByCodeLazy, findByProps, findByPropsLazy, findStore } from "@webpack";
 import { ChannelStore, ContextMenuApi, MediaEngineStore, Menu, PermissionsBits, PermissionStore, React, SelectedChannelStore, UserStore, VoiceActions } from "@webpack/common";
 
 import { settings } from "./settings";
@@ -39,6 +39,8 @@ function notifyFakedChanged() {
 // broadcast. Patching the raw socket.send + re-broadcasting op-4 here does not
 // depend on that lookup.
 const wsModule = findByPropsLazy("getSocket");
+const startStreamAction = findByCodeLazy('type:"STREAM_START"');
+const stopStreamAction = findByCodeLazy('type:"STREAM_STOP"');
 
 const STREAM = 1n << 9n;
 const DEFAULT_VOICE_CONTEXT = "default";
@@ -187,8 +189,6 @@ function scheduleMicCutoffSync(enabled: boolean, delay = 0) {
 }
 
 async function startStream() {
-    const startStream = findByCode('type:"STREAM_START"');
-    const stopStream = findByCode('type:"STREAM_STOP"');
     const ConnectionStore = findStore("StreamRTCConnectionStore");
 
     const selected = SelectedChannelStore.getVoiceChannelId();
@@ -197,7 +197,7 @@ async function startStream() {
     const channel = ChannelStore.getChannel(selected);
 
     if (settings.store.fakeStream) {
-        startStream(channel.guild_id, selected, {
+        startStreamAction(channel.guild_id, selected, {
             pid: null,
             sourceId: null,
             sourceName: null,
@@ -207,7 +207,7 @@ async function startStream() {
         });
     } else {
         for (const streamKey of ConnectionStore.getAllActiveStreamKeys()) {
-            stopStream(streamKey, { streamKey, appContext: "app" });
+            stopStreamAction(streamKey, { streamKey, appContext: "app" });
             break;
         }
     }
@@ -272,9 +272,8 @@ function setFakeVoiceEnabled(enabled: boolean) {
 
     if (!enabled) {
         const ConnectionStore = findStore("StreamRTCConnectionStore");
-        const stopStream = findByCode('type:"STREAM_STOP"');
         for (const streamKey of ConnectionStore.getAllActiveStreamKeys()) {
-            stopStream(streamKey, { streamKey, appContext: "app" });
+            stopStreamAction(streamKey, { streamKey, appContext: "app" });
             break;
         }
     }
@@ -635,8 +634,7 @@ export default definePlugin({
                 fakeStreamActive = true;
 
                 if (!hasFakeStream()) {
-                    const startStream = findByCode('type:"STREAM_START"');
-                    startStream(channel.guild_id, selected, {
+                    startStreamAction(channel.guild_id, selected, {
                         pid: null,
                         sourceId: null,
                         sourceName: null,

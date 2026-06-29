@@ -6,9 +6,11 @@
 
 import "./styles.css";
 
+import * as DataStore from "@api/DataStore";
 import { addHeaderBarButton, HeaderBarButton, removeHeaderBarButton } from "@api/HeaderBar";
 import { definePluginSettings } from "@api/Settings";
 import { TestcordDevs } from "@utils/constants";
+import { Logger } from "@utils/Logger";
 import { ModalCloseButton,ModalContent, ModalHeader, ModalRoot, openModal } from "@utils/modal";
 import definePlugin, { OptionType } from "@utils/types";
 import { findByPropsLazy, findStoreLazy } from "@webpack";
@@ -72,6 +74,8 @@ interface LogEntry {
 const DEFAULT_MAX_LOGS = 10000;
 const PAGE_SIZE = 40;
 const MAX_VOICE_STATES = 2000;
+const STORE_KEY = "EventLogs_logs";
+const logger = new Logger("EventLogs");
 let logs: LogEntry[] = [];
 
 const settings = definePluginSettings({
@@ -95,7 +99,6 @@ const settings = definePluginSettings({
 let myVoiceChannelId: string | null = null;
 let logCount = 0;
 
-const PERSISTENT_TYPES = new Set(["ping", "message_delete", "message_edit", "friend_add", "friend_remove", "friend_request", "friend_request_cancel", "block"]);
 const NOTIF_TYPES = new Set(["ping", "friend_add", "friend_remove", "friend_request", "friend_request_cancel", "block"]);
 const unreadLogEntries = new Set<LogEntry>();
 
@@ -114,26 +117,36 @@ function pruneLogs() {
     }
 }
 
-function loadPersistLogs() {
-    try {
-        const s = localStorage.getItem("nightcord_logs");
-        if (s) {
-            const parsed = JSON.parse(s);
-            if (Array.isArray(parsed)) {
-                logs = parsed.concat(logs).sort((a, b) => b.timestamp - a.timestamp);
-                pruneLogs();
-                logCount = logs.length;
-            }
+async function loadPersistLogs() {
+    const savedLogs = await DataStore.get<LogEntry[]>(STORE_KEY).catch(() => undefined);
+    let persistedLogs = savedLogs;
+
+    if (!Array.isArray(persistedLogs)) {
+        try {
+            const oldLogs = localStorage.getItem("nightcord_logs");
+            const parsed = oldLogs ? JSON.parse(oldLogs) as unknown : undefined;
+            if (Array.isArray(parsed)) persistedLogs = parsed as LogEntry[];
+        } catch (error) {
+            logger.error("Failed to migrate event logs:", error);
         }
-    } catch { }
+    }
+
+    if (!Array.isArray(persistedLogs)) return;
+
+    logs = persistedLogs.concat(logs).sort((a, b) => b.timestamp - a.timestamp);
+    pruneLogs();
+    logCount = logs.length;
+
+    if (persistedLogs !== savedLogs) {
+        savePersistLogs();
+        try { localStorage.removeItem("nightcord_logs"); } catch { }
+    }
 }
 
 function savePersistLogs() {
-    try {
-        const maxLogs = getMaxLogs();
-        const toSave = logs.filter(l => PERSISTENT_TYPES.has(l.type)).slice(0, maxLogs === 0 ? undefined : maxLogs);
-        localStorage.setItem("nightcord_logs", JSON.stringify(toSave));
-    } catch { }
+    const maxLogs = getMaxLogs();
+    const toSave = logs.slice(0, maxLogs === 0 ? undefined : maxLogs);
+    void DataStore.set(STORE_KEY, toSave).catch(error => logger.error("Failed to save event logs:", error));
 }
 
 // Single version counter — no snapshot, no copy
@@ -854,13 +867,13 @@ export default definePlugin({
     authors: [{ name: "Nightcord", id: 0n }, TestcordDevs.x2b],
     dependencies: ["HeaderBarAPI"],
     settings,
-    start() {
+    async start() {
         // Initialize current voice channel on start
         try {
             const vcId = (SelectedChannelStore as any)?.getVoiceChannelId?.();
             if (vcId) myVoiceChannelId = vcId;
         } catch { }
-        loadPersistLogs();
+        await loadPersistLogs();
         addHeaderBarButton("nightcord-event-logs", () => <LogsButton />, 7);
         subscribeToEvents();
     },
@@ -868,6 +881,7 @@ export default definePlugin({
         removeHeaderBarButton("nightcord-event-logs");
         unsubs.forEach(fn => fn()); unsubs = [];
         if (flushTimer !== null) { clearTimeout(flushTimer); flushTimer = null; }
+        savePersistLogs();
         logs = []; msgCache.clear(); prevVS.clear(); unreadLogEntries.clear(); updateListeners.clear();
         isLoadingMessages = false;
         myVoiceChannelId = null;

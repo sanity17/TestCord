@@ -149,7 +149,7 @@ function SelectSetting<T>({ settingsKey, label, options, disabled }: SelectOptio
 }
 
 export function RPCSettings() {
-    const s = settings.use();
+    const s = settings.use(["type", "timestampMode"]);
 
     return (
         <div className={cl("root")}>

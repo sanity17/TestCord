@@ -81,7 +81,7 @@ interface RandomVoiceStateLike {
 
 function RandomVoiceKeybindSettings() {
     const [isListening, setIsListening] = useState(false);
-    const { keybind, keybindEnabled } = settings.use();
+    const { keybind, keybindEnabled } = settings.use(["keybind", "keybindEnabled"]);
 
     useEffect(() => {
         isRecordingKeybind = isListening;
