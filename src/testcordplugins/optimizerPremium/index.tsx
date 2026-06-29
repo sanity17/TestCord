@@ -2278,6 +2278,9 @@ export default definePlugin({
                     }
                     trimmed++;
                 }
+                for (const [chId, last] of lastActivity) {
+                    if (last <= cutoff && !allChannels[chId]) lastActivity.delete(chId);
+                }
                 if (trimmed && settings.store.verboseLogging) {
                     logger.info(`Trimmed ${trimmed} channel message caches`);
                 }

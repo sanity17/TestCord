@@ -483,7 +483,7 @@ function replacePluginAliases(content: string) {
 
 const PluginCards = ErrorBoundary.wrap(function PluginCards({ message }: { message: Message; }) {
     if (isPerformanceEnabled() && settings.store.performanceDisablePluginCards) return null;
-    if (isPluginCardCacheEnabled() && !PLUGIN_CARD_MARKER_PATTERN.test(message.content)) return null;
+    if (!PLUGIN_CARD_MARKER_PATTERN.test(message.content)) return null;
 
     const seenPlugins = new Set<string>();
     const pluginCards: JSX.Element[] = [];

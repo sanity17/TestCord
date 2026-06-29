@@ -128,7 +128,7 @@ function applyCaretPosition() {
     const range = sel.getRangeAt(0).cloneRange();
     range.collapse(false);
     const rects = range.getClientRects();
-    let rect: DOMRect | null = rects.length > 0 ? rects[0] : null;
+    let rect: DOMRect | null = rects.length > 0 ? rects[rects.length - 1] : null;
     if (!rect || rect.height === 0) {
         const node = range.startContainer;
         const parent = (node.nodeType === Node.TEXT_NODE ? node.parentElement : node) as HTMLElement | null;
@@ -145,23 +145,54 @@ function applyCaretPosition() {
 }
 
 let observer: MutationObserver | null = null;
+let scanQueued = false;
+let scanFrame: number | null = null;
+
+let observedEditor: Element | null = null;
+
+// The caret moves on selection changes (typing, arrows, clicks), which the direct
+// listeners already handle synchronously. The observer only needs to catch the rarer
+// case where the editor reflows without a selection change (line wrap, input growth).
+// Observing the focused editor element instead of document.body means Discord's constant
+// body-subtree churn (typing indicators, message list, popouts) never wakes it, which is
+// what caused the typing lag spikes.
+function observeEditor() {
+    const editor = document.activeElement?.closest("[data-slate-editor]") ?? null;
+    if (editor === observedEditor) return;
+    observer?.disconnect();
+    observedEditor = editor;
+    if (editor) observer?.observe(editor, { childList: true, subtree: true, characterData: true });
+}
 
 function startObserver() {
-    observer = new MutationObserver(() => applyCaretPosition());
-    observer.observe(document.body, { childList: true, subtree: true });
+    observer = new MutationObserver(() => {
+        if (scanQueued) return;
+        scanQueued = true;
+        scanFrame = requestAnimationFrame(() => {
+            scanFrame = null;
+            scanQueued = false;
+            if (observer) applyCaretPosition();
+        });
+    });
 }
 
 function stopObserver() {
     observer?.disconnect();
     observer = null;
+    observedEditor = null;
+    if (scanFrame !== null) {
+        cancelAnimationFrame(scanFrame);
+        scanFrame = null;
+    }
+    scanQueued = false;
 }
 
 const handlers = {
     sel:   () => applyCaretPosition(),
-    focus: () => applyCaretPosition(),
-    blur:  () => { getCaret().style.display = "none"; },
+    focus: () => { observeEditor(); applyCaretPosition(); },
+    blur:  () => { observeEditor(); getCaret().style.display = "none"; },
     key:   () => applyCaretPosition(),
-    click: () => applyCaretPosition(),
+    click: () => { observeEditor(); applyCaretPosition(); },
 };
 
 function startListeners() {
